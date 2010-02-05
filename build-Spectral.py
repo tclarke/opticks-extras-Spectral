@@ -547,7 +547,7 @@ def build_installer(aeb_platforms=[], aeb_output=None, depend_path=None,
             copy_file_to_zip(plugin_path, target_plugin_path, "Cem.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Elm.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Iarr.so", zfile)
-            copy_file_to_zip(plugin_path, target_plugin_path, "LandSat.so", zfile)
+            copy_file_to_zip(plugin_path, target_plugin_path, "Landsat.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Mnf.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "RangeProfile.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Resampler.so", zfile)
