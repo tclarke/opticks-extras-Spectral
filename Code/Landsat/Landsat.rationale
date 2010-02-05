@@ -1,0 +1,20 @@
+/** \page landsatrationale Design Rationale for LandSat importer module
+    \section tm LandSat 4/5 TM importer
+    The metadata keys were chosen to closely resemble the descriptions in the existing LansatTMImporter::initFieldLengths() method and were renamed to be more human readable.
+
+    \section etmp LandSat 7 ETM+ importer
+    The metadata keys were chosen to closely resemble the descriptions in the existing LansatTMImporter::initFieldLengths() method and were renamed to be more human readable.
+    In addition, the ETM+ importer now loads both low gain and high gain thermal data while previously, only low gain was supported.
+    Also, the panchromatic band can now be imported.
+    The importer will show up to three data sets available for import.
+    One contains all vis data and the low gain thermal data in band 6.
+    This dataset is the only one selected for import by default as this was how data was imported in the previously closed source COMET v3.2.1 (operational version) of the importer.
+    The second dataset contains all vis data and the high gain thermal data in band 6.
+    The third dataset contains only the panchromatic data if it is available.
+    The thermal data (band 6) is upsampled to the resolution of the vis data as this is the behavior in the previously closed source COMET v3.2.1 (operational version) of the importer.
+    The upsampling is handled through a custom RasterPager plug-in.
+    This plug-in creates a MemoryMappedPager and passes all page requests to it for all bands except band 6.
+    When band 6 data is requested, all the band 6 data is loaded into memory and upsampled (2x2 to match the vis data resolution).
+    This upsampled data is stored entirely in memory regardless of the requested processing location and is only loaded once.
+    This is not the most efficient method of upsampling the data but required significantly less work than other options.
+ */

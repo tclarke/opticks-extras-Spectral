@@ -1,0 +1,43 @@
+/** \page wavelengthrationale Design Rationale for Wavelength module
+ *  \section wavelengthtextimporter Wavelength Text Importer
+ *  Loads wavelength values from a file.
+ *
+ *  The Wavelength Text Importer loads start, center, and end wavelength values
+ *  from a file in one of the following ASCII text file formats:
+ *  -# One column - One column of data containing the center wavelengths for
+ *                  the bands, in band order.
+ *  -# Two column - Two columns of data containing the band number in the first
+ *                  column (assumes band numbers begin at 1, and 1 will be
+ *                  subtracted from each band number; if a 0 is found, assumes
+ *                  band numbers begin at 0), and the center wavelength in the
+ *                  second column.
+ *  -# Three columns - Three columns of data containing the center wavelength
+ *                     in the first column, the lower (or starting) wavelength
+ *                     in the second column, and the upper (or ending)
+ *                     wavelength in the third column; all data must be in band
+ *                     order.
+ *  -# Four columns - Four columns of data containing the band number in the
+ *                    first column (assumes band numbers begin at 1, and 1 will
+ *                    be subtracted from each band number; if a 0 is found,
+ *                    assumes band numbers begin at 0), the center wavelength
+ *                    in the second column, the lower (or starting) wavelength
+ *                    in the third column, and the upper (or ending) wavelength
+ *                    in the fourth column.
+ *
+ *  The columns are delimited by any size whitespace.  Any line starting with #
+ *  is assumed to be a comment.
+ *
+ *  For three and four column formats, the order within the file of the start,
+ *  center, and end wavelengths is determined by looking at the first row of
+ *  data, assuming that the start wavelength is less than the center
+ *  wavelength, which is less than the end wavelength.
+ *
+ *  The data is populated in a Wavelengths object.  Since the Wavelengths
+ *  object does not contain band information, any band numbers in the file are
+ *  ignored and the wavelengths are assumed to be in the correct band order.
+ *  The start values, center values, and end values vectors will be empty if
+ *  the data is not read in from the file.
+ *
+ *  \deprecated  This file format is deprecated and is provided solely to load
+ *               existing wavelength files.
+ */
