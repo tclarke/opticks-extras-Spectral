@@ -1,0 +1,61 @@
+Instructions on building the Spectral source code on Solaris 64-bit.
+---------------------------------------------------------------------------
+
+Programs that need to be installed before building the source code:
+--------------------------------------------------------------------------
+- Solaris 10
+- Sun Studio 12
+- Python 2.X, specifically 2.5 or later (http://www.python.org/download/)
+- Subversion Command Line Client
+  (http://downloads.open.collab.net/collabnet-subversion.html)
+- SCons 1.2 or later (http://www.scons.org)
+- Compatible Opticks SDK
+
+
+Download these required dependencies:
+-----------------------------------------------------
+The Dependencies folder in the Opticks SDK contains a system which automatically
+downloads the appropriate dependencies.  This system requires python v2.5 or
+later.
+> python dependencies.py --help
+will provide a usage summary.  Most of the time, no command line options are
+needed.  Install all the dependencies.
+> python dependencies.py
+This will download the appropriate dependencies builds and will install
+them in the proper directories.
+
+Point the OPTICKSDEPENDENCIES environment variable at the Dependencies
+folder so the build system can find the installed dependencies.
+
+Configure Spectral to find the Opticks SDK:
+---------------------------------------------------
+1. Unzip a compatible Opticks SDK
+2. Set the OPTICKS_CODE_DIR environment variable to the directory
+   where the SDK was unzipped.
+
+How to Build Spectral:
+-------------------------------
+In order to build Spectral, you will need to run the build-Spectral.py python
+script that is included with the source code.
+
+An example of building Opticks with build.py is shown below:
+   ./build-Spectral.py -d /OpticksSDK/Dependencies --opticks-code-dir=/OpticksSDK --mode=debug --build-extension --concurrency=3
+
+The -d command-line argument is used to point to the location where you
+created the Opticks dependencies as mentioned earlier.  If you have
+created an OPTICKSDEPENDENCIES environment variable, you don't need to
+use the -d command-line argument.  You will always need to provide the
+--mode and --build-extension arguments.
+The --opticks-code-dir command-line argument is used to point to the location
+where you unzipped the Opticks SDK as mentioned earlier.  If you have
+created an OPTICKS_CODE_DIR environment variable, you don't need to
+use the --opticks-code-dir command-line argument.
+The --mode=debug command-line argument will cause a debug binary of Opticks
+to be built; using the --mode=release command-line argument will
+cause a release binary of Opticks to be built.  The
+--concurrency command-line argument is optional, but it controls how many
+concurrent compilers are used, so it may speed up your compilation time.
+If you need more information about running build.py, run it with --help.
+
+You may notice compiler and linker warnings, however there should not be
+any compiler or linker errors.

@@ -1,0 +1,76 @@
+Instructions on building the Spectral source code on Windows 32-bit/64-bit.
+---------------------------------------------------------------------------
+
+Programs that need to be installed before building the source code:
+-----------------------------------------------------------------------
+- Visual Studio 2005 SP1 (specifically Visual C++ SP1)
+     - Please note that this can be any edition of Visual C++: Express
+       Edition, Professional Edition, and Team Edition will all work.
+     - Also note that Visual C++ 2005 SP1 must be used; neither earlier nor
+       later versions will work.
+- Python 2.X, specifically 2.5 or later (http://www.python.org/download/)
+- Subversion Command Line Client
+  (http://downloads.open.collab.net/collabnet-subversion.html)
+- Compatible Opticks SDK
+
+Download these required dependencies:
+---------------------------------------------------
+The Dependencies folder in the Opticks SDK contains a system which automatically
+downloads the appropriate dependencies.  This system requires python v2.5
+or later.
+> python dependencies.py --help
+will provide a usage summary.  Most of the time, no command line options are
+needed.  Install all the dependencies.
+> python dependencies.py
+This will download the appropriate dependencies builds and will install them
+in the proper directories.
+
+Point the OPTICKSDEPENDENCIES environment variable at the Dependencies
+folder so the build system can find the installed dependencies.
+
+Configure Spectral to find the Opticks SDK:
+---------------------------------------------------
+1. Unzip a compatible Opticks SDK
+2. Set the OPTICKS_CODE_DIR environment variable to the directory
+   where the SDK was unzipped.
+
+How to compile Spectral in Visual Studio
+---------------------------------------------------
+1. Open the Spectral solution.  To get to the Spectral source code in Visual
+   Studio, open the Spectral.sln file in Visual Studio.  This should be located
+   in the application folder.
+2. To build Spectral first select your desired configuration, either
+   "Debug|Win32", "Release|Win32", "Debug|x64", "Release|x64" in the
+   Visual Studio Configuration Manager.  If you are using the Express edition
+   of Visual C++, you will not able to see the "Debug|x64" or "Release|x64"
+   configurations because of inherent limitations in the Express edition.
+   Select to build the entire Solution.  You may encounter build warnings,
+   but there should not be any build errors.
+
+How to run Spectral in Visual Studio
+---------------------------------------------------
+1. Set the OPTICKS_HOME environment variable to point to an installed
+   version of Opticks.  If you are running Spectral 32-bit, this
+   will need to be a 32-bit Opticks install.  If you are running
+   Spectral 64-bit, this will need to be a 64-bit Opticks install.
+2. NOTE: Execution of Spectral in Visual Studio requires a .user file.
+   There is a template in the Spectral\Code directory which should be renamed when
+   Visual Studio does not have the Spectral.sln open. You may need to close the solution,
+   rename the file, then re-open the solution. The
+   SpectralMgr.vcproj.FILLINUSERNAME.user.template should be renamed to
+   SpectralMgr.vcproj.username.user where "username" is your Windows username. If you are
+   logged in to a Windows domain, "username" will contain your windows domain
+   (DOMAIN.username). If you are not sure what the name of the file should be, open the
+   solution file in Visual Studio then close the solution; Visual Studio will create the
+   file with the correct name.
+3. Once you have properly renamed the .user file and opened the solution in Visual
+   Studio you will need to prepare your build directory for execution. Manually build
+   the SpectralMgr project by selecting Build from the right click context menufor the
+   project in the Solution Explorer. This will copy needed files from the Opticks SDK
+   to the Spectral build directory. This step needs to be performed for each Visual Studio
+   configuration separately if you want to execute each configuration. This only needs
+   to be perform once unless you make changes to the Opticks SDK or remove the Spectral
+   Build directory.
+4. Once the preparation step is complete, run the SpectralMgr project which should be the
+   default (bold in the Solution Explorer) if you have properly renamed the .user file
+   above. Opticks will execute with the Spectral extension available.

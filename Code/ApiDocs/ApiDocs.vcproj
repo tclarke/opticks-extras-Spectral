@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioProject
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="ApiDocs"
+	ProjectGUID="{31BD87C5-F952-4860-8320-90A6F7FC153D}"
+	RootNamespace="ApiDocs"
+	Keyword="MakeFileProj"
+	>
+	<Platforms>
+		<Platform
+			Name="Win32"
+		/>
+	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
+	<Configurations>
+		<Configuration
+			Name="Debug|Win32"
+			OutputDirectory="$(BuildDir)\$(PlatformName)\$(ConfigurationName)\$(ProjectName)"
+			IntermediateDirectory="$(BuildDir)\$(PlatformName)\$(ConfigurationName)\$(ProjectName)"
+			ConfigurationType="0"
+			InheritedPropertySheets="..\CompileSettings\SpectralMacros.vsprops"
+			>
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="&quot;$(SolutionDir)\..\build-Spectral.py&quot; --build-doxygen -v"
+				ReBuildCommandLine="&quot;$(SolutionDir)\..\build-Spectral.py&quot; --build-doxygen -v"
+				CleanCommandLine=""
+				Output="$(BUILDDIR)\DoxygenOutput\html\index.html"
+				PreprocessorDefinitions="WIN32;_DEBUG"
+				IncludeSearchPath=""
+				ForcedIncludes=""
+				AssemblySearchPath=""
+				ForcedUsingAssemblies=""
+				CompileAsManaged=""
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release|Win32"
+			OutputDirectory="$(BuildDir)\$(PlatformName)\$(ConfigurationName)\$(ProjectName)"
+			IntermediateDirectory="$(BuildDir)\$(PlatformName)\$(ConfigurationName)\$(ProjectName)"
+			ConfigurationType="0"
+			InheritedPropertySheets="..\CompileSettings\SpectralMacros.vsprops"
+			>
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="&quot;$(SolutionDir)\..\build-Spectral.py&quot; --build-doxygen -v"
+				ReBuildCommandLine="&quot;$(SolutionDir)\..\build-Spectral.py&quot; --build-doxygen -v"
+				CleanCommandLine=""
+				Output="$(BUILDDIR)\DoxygenOutput\html\index.html"
+				PreprocessorDefinitions="WIN32;NDEBUG"
+				IncludeSearchPath=""
+				ForcedIncludes=""
+				AssemblySearchPath=""
+				ForcedUsingAssemblies=""
+				CompileAsManaged=""
+			/>
+		</Configuration>
+	</Configurations>
+	<References>
+	</References>
+	<Files>
+		<Filter
+			Name="Documentation"
+			>
+		</Filter>
+		<Filter
+			Name="Doxygen Configuration"
+			>
+			<File
+				RelativePath=".\application.dox"
+				>
+			</File>
+			<File
+				RelativePath=".\trailer.html"
+				>
+			</File>
+		</Filter>
+		<Filter
+			Name="Generated Doxygen"
+			>
+			<File
+				RelativePath="$(BUILDDIR)\DoxygenOutput\html\index.html"
+				>
+			</File>
+		</Filter>
+	</Files>
+	<Globals>
+	</Globals>
+</VisualStudioProject>
