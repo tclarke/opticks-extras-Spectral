@@ -12,7 +12,7 @@
 #include "FileFinder.h"
 #include "FileResource.h"
 #include "ImportDescriptor.h"
-#include "LandsatTMImporter.h"
+#include "LandsatTmImporter.h"
 #include "LandsatUtilities.h"
 #include "PlugInRegistration.h"
 #include "RasterDataDescriptor.h"

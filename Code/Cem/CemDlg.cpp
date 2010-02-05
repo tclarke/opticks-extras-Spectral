@@ -7,7 +7,7 @@
  * http://www.gnu.org/licenses/lgpl.html
  */
 
-#include "cem.h"
+#include "Cem.h"
 #include "CemDlg.h"
 #include "ConfigurationSettings.h"
 #include "DesktopServices.h"

@@ -13,7 +13,7 @@
 #include "AppVerify.h"
 #include "BitMask.h"
 #include "BitMaskIterator.h"
-#include "cem.h"
+#include "Cem.h"
 #include "CemDlg.h"
 #include "DataAccessor.h"
 #include "DataAccessorImpl.h"
