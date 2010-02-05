@@ -1,0 +1,10 @@
+/** \page signaturerationale Design Rationale for Signature importers/exporters module
+    \section signature Spectral signature
+    This is an application specific file format.
+    It is a text file with one entry per line.
+    The beginning of the file contains optional metadata.
+    There is one metadata key = value pair per line.
+    After the optional metadata section are the signature data.
+    Each line is a white space separated pair of floats indicating wavelength and reflectance.
+    Wavelength values are in nanometers and reflectance values are scaled 0 to 10000.
+*/

@@ -1,0 +1,82 @@
+/** \page iarrrationale Design Rationale for Spectral IARR plug-in
+
+<b>Purpose</b>
+- Implement the Internal Average Relative Reflectance (IARR) algorithm.
+- Convert data from radiance to average reflectance relative to other pixels within the scene.
+
+<b>Design</b>
+- Iarr
+  - This class inherits from AlgorithmShell and Testable.
+  - This class implements the entire IARR algorithm, which is broken down into the following steps:
+   - Execute IARR
+    - Extract and Validate Input Arguments
+    - Create Output Raster Element
+    - Create IARR Window
+    - Determine Gains
+    - Apply Gains
+  - Testing can be done via the Testable interface.
+
+- IarrDlg
+  - This class inherits from QDialog.
+  - This class is used by the Iarr class to gather information from the user in interactive mode.
+  - This class is responsible for implementing User Interface requirements.
+  - This dialog is modal, meaning that it must be dismissed before any other action in the application can occur.
+  - This dialog is only used when the plug-in is run in interactive mode.
+
+<b>Plug-In Interface</b>
+- Inputs
+  - <i>Progress</i>
+   - This optional argument is a standard Progress object used for displaying information.
+
+  - <i>Raster Element</i>
+   - This mandatory argument specifies the cube on which to run the IARR algorithm.
+   - If the Raster Element is backed by a file, then a default filename will be generated. The default filename exists in the same directory and has the same base name as the file used to create the Raster Element, but will have an extension of .iarr.
+
+  - <i>Input Filename (Batch Mode Only)</i>
+   - This optional argument specifies the name of a file with IARR gain information (*.iarr).
+   - If this parameter is not specified, then no file will be used.
+
+  - <i>AOI Element (Batch Mode Only)</i>
+   - This optional argument specifies an AOI to use to compute the gains for each band.
+   - If this argument is not specified, then the entire image will be used.
+
+  - <i>Row Step Factor (Batch Mode Only)</i>
+   - This optional argument specifies how to step through the rows in the cube when calculating gains.
+   - A step factor of <i>n</i> will take every <i>n</i>th row into consideration when calculating gains.
+   - If this argument is not specified, then a default value of 1 will be used.
+
+  - <i>Column Step Factor (Batch Mode Only)</i>
+   - This optional argument specifies how to step through the columns in the cube when calculating gains.
+   - A step factor of <i>n</i> will take every <i>n</i>th column into consideration when calculating gains.
+   - If this argument is not specified, then a default value of 1 will be used.
+
+  - <i>Output Data Type (Batch Mode Only)</i>
+   - This optional argument specifies the size of the resultant data.
+   - This argument must be either 4 or 8-byte floating point data.
+   - If this argument is not specified, then a default value of 4-byte floating point data will be used.
+
+  - <i>In Memory (Batch Mode Only)</i>
+   - This optional argument specifies whether the resultant data cube should be created in memory or on disk.
+   - If this argument is set to true and the resultant cube cannot be created in memory, then it will be created on disk. 
+   - If this argument is not specified, then a default value of true will be used.
+
+  - <i>Display Results (Batch Mode Only)</i>
+   - This optional argument specifies whether a window should be created to display the resultant data.
+   - If this argument is not specified, then a default value of true will be used.
+
+  - <i>Output Filename (Batch Mode Only)</i>
+   - This optional argument specifies the name of a file to store the calculated results (*.iarr).
+   - If this parameter is specified and left blank, then no file will be created.
+   - If this parameter is not specified, then a default file will be created if possible.
+   - The name and location of the default file are based on the input <i>Raster Element</i>.
+
+- Outputs
+  - <i>Spatial Data View</i>
+   - This output argument specifies the view which is displaying the output <i>Raster Element</i>.
+   - If execution fails for any reason, return value is undefined.
+
+  - <i>Raster Element</i>
+   - This output argument specifies the resultant data cube.
+   - If execution fails for any reason, return value is undefined.
+*/
+
