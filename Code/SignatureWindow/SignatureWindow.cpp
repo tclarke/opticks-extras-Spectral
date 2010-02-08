@@ -146,28 +146,13 @@ SignatureWindow::~SignatureWindow()
    vector<Window*> windows;
    pDesktop->getWindows(SPATIAL_DATA_WINDOW, windows);
 
-   vector<Window*>::iterator iter = windows.begin();
-   while (iter != windows.end())
+   for (vector<Window*>::iterator iter = windows.begin(); iter != windows.end(); ++iter)
    {
       SpatialDataWindow* pWindow = static_cast<SpatialDataWindow*>(*iter);
       if (pWindow != NULL)
       {
-         SpatialDataView* pView = pWindow->getSpatialDataView();
-         if (pView != NULL)
-         {
-            pView->detach(SIGNAL_NAME(SpatialDataView, LayerActivated), Slot(this, &SignatureWindow::layerActivated));
-
-            QWidget* pViewWidget = pView->getWidget();
-            if (pViewWidget != NULL)
-            {
-               pViewWidget->removeEventFilter(this);
-            }
-
-            removePixelSignatureMode(pView);
-         }
+         removePixelSignatureMode(pWindow);
       }
-
-      ++iter;
    }
 
    // Delete the pixel spectrum mouse mode
@@ -647,18 +632,7 @@ void SignatureWindow::windowAdded(Subject& subject, const string& signal, const 
       SpatialDataWindow* pSpatialDataWindow = dynamic_cast<SpatialDataWindow*>(pWindow);
       if (pSpatialDataWindow != NULL)
       {
-         SpatialDataView* pView = pSpatialDataWindow->getSpatialDataView();
-         if (pView != NULL)
-         {
-            QWidget* pViewWidget = pView->getWidget();
-            if (pViewWidget != NULL)
-            {
-               pView->attach(SIGNAL_NAME(SpatialDataView, LayerActivated),
-                  Slot(this, &SignatureWindow::layerActivated));
-               pViewWidget->installEventFilter(this);
-               addPixelSignatureMode(pView);
-            }
-         }
+         addPixelSignatureMode(pSpatialDataWindow);
       }
    }
 }
@@ -677,18 +651,7 @@ void SignatureWindow::windowRemoved(Subject& subject, const string& signal, cons
       SpatialDataWindow* pSpatialDataWindow = dynamic_cast<SpatialDataWindow*>(pWindow);
       if (pSpatialDataWindow != NULL)
       {
-         SpatialDataView* pView = pSpatialDataWindow->getSpatialDataView();
-         if (pView != NULL)
-         {
-            QWidget* pViewWidget = pView->getWidget();
-            if (pViewWidget != NULL)
-            {
-               pView->detach(SIGNAL_NAME(SpatialDataView, LayerActivated),
-                  Slot(this, &SignatureWindow::layerActivated));
-               pViewWidget->removeEventFilter(this);
-               removePixelSignatureMode(pView);
-            }
-         }
+         removePixelSignatureMode(pSpatialDataWindow);
       }
    }
 }
@@ -812,6 +775,20 @@ void SignatureWindow::plotWidgetDeleted(Subject& subject, const string& signal, 
 
 void SignatureWindow::sessionRestored(Subject& subject, const string& signal, const boost::any& value)
 {
+   Service<DesktopServices> pDesktop;
+
+   vector<Window*> windows;
+   pDesktop->getWindows(SPATIAL_DATA_WINDOW, windows);
+
+   for (vector<Window*>::iterator iter = windows.begin(); iter != windows.end(); ++iter)
+   {
+      SpatialDataWindow* pWindow = static_cast<SpatialDataWindow*>(*iter);
+      if (pWindow != NULL)
+      {
+         addPixelSignatureMode(pWindow);
+      }
+   }
+
    vector<SignaturePlotObjectInitializer>::iterator iter;
    for (iter = mSessionPlots.begin(); iter != mSessionPlots.end(); ++iter)
    {
@@ -864,18 +841,31 @@ void SignatureWindow::sessionRestored(Subject& subject, const string& signal, co
    }
 }
 
-void SignatureWindow::addPixelSignatureMode(SpatialDataView* pView)
+void SignatureWindow::addPixelSignatureMode(SpatialDataWindow* pWindow)
 {
+   if (pWindow == NULL)
+   {
+      return;
+   }
+
+   SpatialDataView* pView = pWindow->getSpatialDataView();
    if (pView == NULL)
    {
       return;
    }
 
-   Service<DesktopServices> pDesktop;
+   pView->attach(SIGNAL_NAME(SpatialDataView, LayerActivated), Slot(this, &SignatureWindow::layerActivated));
+
+   QWidget* pViewWidget = pView->getWidget();
+   if (pViewWidget != NULL)
+   {
+      pViewWidget->installEventFilter(this);
+   }
 
    // Create the pixel spectrum mouse mode
    if (mpPixelSignatureMode == NULL)
    {
+      Service<DesktopServices> pDesktop;
       mpPixelSignatureMode = pDesktop->createMouseMode("PlugInPixelSignatureMode", NULL, NULL, -1, -1,
          mpPixelSignatureAction);
    }
@@ -887,9 +877,28 @@ void SignatureWindow::addPixelSignatureMode(SpatialDataView* pView)
    }
 }
 
-void SignatureWindow::removePixelSignatureMode(SpatialDataView* pView)
+void SignatureWindow::removePixelSignatureMode(SpatialDataWindow* pWindow)
 {
-   if ((pView != NULL) && (mpPixelSignatureMode != NULL))
+   if (pWindow == NULL)
+   {
+      return;
+   }
+
+   SpatialDataView* pView = pWindow->getSpatialDataView();
+   if (pView == NULL)
+   {
+      return;
+   }
+
+   pView->detach(SIGNAL_NAME(SpatialDataView, LayerActivated), Slot(this, &SignatureWindow::layerActivated));
+
+   QWidget* pViewWidget = pView->getWidget();
+   if (pViewWidget != NULL)
+   {
+      pViewWidget->removeEventFilter(this);
+   }
+
+   if (mpPixelSignatureMode != NULL)
    {
       pView->removeMouseMode(mpPixelSignatureMode);
    }

@@ -31,6 +31,7 @@ class SessionItemSerializer;
 class Signature;
 class SignaturePlotObject;
 class SpatialDataView;
+class SpatialDataWindow;
 
 class SignatureWindow : public QObject, public AlgorithmShell, public Window::SessionItemDropFilter
 {
@@ -65,8 +66,8 @@ protected:
    void plotWidgetDeleted(Subject& subject, const std::string& signal, const boost::any& value);
    void sessionRestored(Subject& subject, const std::string& signal, const boost::any& value);
 
-   void addPixelSignatureMode(SpatialDataView* pView);
-   void removePixelSignatureMode(SpatialDataView* pView);
+   void addPixelSignatureMode(SpatialDataWindow* pWindow);
+   void removePixelSignatureMode(SpatialDataWindow* pWindow);
    void enableActions();
 
    SignaturePlotObject* getSignaturePlot(const PlotWidget* pPlot) const;
