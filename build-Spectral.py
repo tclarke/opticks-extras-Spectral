@@ -425,11 +425,13 @@ def build_sdk(aeb_platforms=[], verbosity=None):
     copy_files_in_dir_to_zip(doxygen_path, os.path.join("doc", "html"), zfile)
 
     #platform dependent items
+    build_win_platform = False
     for plat in aeb_platforms:
         if verbosity > 0:
             print "Adding platform dependent files for %s..." % plat
         plat_parts = plat.split('-')
         if plat_parts[0].startswith('win'):
+            build_win_platform = True
             bin_dir = join("Code", "Build")
             if plat_parts[0] == "win32":
                 bin_dir = join(bin_dir, "Binaries-%s-%s" % (Windows32bitBuilder.platform, plat_parts[-1]))
@@ -447,6 +449,10 @@ def build_sdk(aeb_platforms=[], verbosity=None):
             copy_file_to_zip(lib_path, lib_path, "libSpectralUtilities.a", zfile)
         else:
             raise ScriptException("Unknown AEB platform %s" % plat)
+    if build_win_platform:
+        #CompileSettings folder
+        compile_settings_path = os.path.join("Code", "CompileSettings")
+        copy_files_in_dir_to_zip(compile_settings_path, compile_settings_path, zfile, entries_to_skip=[".svn", "_svn"])
 
     zfile.close()
 
