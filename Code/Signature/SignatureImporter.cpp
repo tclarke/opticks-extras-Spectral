@@ -179,8 +179,28 @@ bool SignatureImporter::execute(PlugInArgList* pInArgList, PlugInArgList* OutArg
    
    DynamicObject* pMetadata = pSignature->getMetadata();
    VERIFY(pMetadata != NULL);
-   UnitType units = dv_cast<UnitType>(pMetadata->getAttribute("UnitType"), REFLECTANCE);
-   float unitScale = dv_cast<float>(pMetadata->getAttribute("UnitScale"), 1.0);
+   string warningMsg;
+   UnitType units(REFLECTANCE);
+   DataVariant& dv = pMetadata->getAttribute("UnitType");
+   if (dv.isValid())
+   {
+      units = dv_cast<UnitType>(dv);
+   }
+   else
+   {
+      warningMsg = "No metadata defining units in signature file - setting to reflectance";
+   }
+   float unitScale(1.0);
+   dv = pMetadata->getAttribute("UnitScale");
+   if (dv.isValid())
+   {
+      unitScale = dv_cast<float>(dv);
+   }
+   else
+   {
+      warningMsg += (warningMsg.empty() ? "" : "\n");
+      warningMsg += "No metadata defining scale factor in signature file - setting to 1.0";
+   }
 
    LargeFileResource pSigFile;
    VERIFY(pSigFile.open(pFileDescriptor->getFilename().getFullPathAndName(), O_RDONLY | O_BINARY, S_IREAD));
@@ -190,6 +210,7 @@ bool SignatureImporter::execute(PlugInArgList* pInArgList, PlugInArgList* OutArg
 
    int64_t fileSize = pSigFile.fileLength();
    bool readError = false;
+   size_t largeValueCount(0);
    for (string line = pSigFile.readLine(&readError); readError == false; line = pSigFile.readLine(&readError))
    {
       if (isAborted())
@@ -224,10 +245,19 @@ bool SignatureImporter::execute(PlugInArgList* pInArgList, PlugInArgList* OutArg
          if (!error && dataEntry.size() == 2)
          {
             reflectance = StringUtilities::fromXmlString<double>(dataEntry[1], &error);
-            if (units == REFLECTANCE && unitScale == 1.0 && reflectance > 2.0) // scale reflectance values to (0,1)
-                                                                               // Values assumed to be scaled 0 to 10000
+
+            // Since the signature file may not have contained info on units and unitScale (defaults to values of
+            // "REFLECTANCE" and "1.0"), we need to check that the reflectance value is properly scaled.
+            // In theory, a valid reflectance value should be between 0 and 1, but real data may extend beyond these
+            // limits due to errors that occurred in collection, calibration, conversion, etc. We're assuming that a
+            // value greater than 2.0 indicates that the value was scaled by a factor other than 1.0 - a common data
+            // collection practice is to store a data value as an integer value equal to the actual value multiplied
+            // by a scaling factor. This saves storage space while preserving precision. 10000 is a very common
+            // scaling factor and the one we will assume was used. Right now we'll just count the number of large values.
+            // If more than half the values are large, we will assume they were scaled and divide all the values by 10000.
+            if (units == REFLECTANCE && unitScale == 1.0 && fabs(reflectance) > 2.0)
             {
-               reflectance *= 0.0001;
+               ++largeValueCount;
             }
          }
          if (error)
@@ -235,17 +265,8 @@ bool SignatureImporter::execute(PlugInArgList* pInArgList, PlugInArgList* OutArg
             progress.report("Error parsing signature data", 0, ERRORS, true);
          }
 
-         if (reflectance != 0.0)
-         {
-            if (reflectance < 0.0)
-            {
-               // zero out negative reflectances, black holes not expected
-               reflectance = 0.0;
-            }
-
-            wavelengthData.push_back(wavelength);
-            reflectanceData.push_back(reflectance);
-         }
+         wavelengthData.push_back(wavelength);
+         reflectanceData.push_back(reflectance);
       }
    }
 
@@ -253,6 +274,17 @@ bool SignatureImporter::execute(PlugInArgList* pInArgList, PlugInArgList* OutArg
    {
       progress.report("Unable to read signature file", 0, ERRORS, true);
       return false;
+   }
+
+   // check for need to scale the values, i.e., at least half the values are large
+   if (reflectanceData.empty() == false && largeValueCount > 0 && largeValueCount >= (reflectanceData.size() / 2))
+   {
+      warningMsg += (warningMsg.empty() ? "" : "\n");
+      warningMsg += "Values appear to have been scaled - values have been divided by 10000";
+      for (vector<double>::iterator it = reflectanceData.begin(); it != reflectanceData.end(); ++it)
+      {
+         *it *= 0.0001;  // divide by 10000
+      }
    }
    FactoryResource<Units> pReflectanceUnits;
    VERIFY(pReflectanceUnits.get() != NULL);
@@ -266,7 +298,15 @@ bool SignatureImporter::execute(PlugInArgList* pInArgList, PlugInArgList* OutArg
    pSignature->setUnits("Reflectance", pReflectanceUnits.get());
    pSignature->setData("Wavelength", wavelengthData);
    pSignature->setData("Reflectance", reflectanceData);
-   progress.report("Spectral signature loaded", 100, NORMAL);
+   if (warningMsg.empty())
+   {
+      progress.report("Spectral signature loaded", 100, NORMAL);
+   }
+   else
+   {
+      progress.report(warningMsg, 100, WARNING);
+      progress.getCurrentStep()->addMessage(warningMsg, "spectral", "770EB61A-71CD-4f83-8C7B-E0FEF3D7EB8D");
+   }
    progress.upALevel();
    return true;
 }
