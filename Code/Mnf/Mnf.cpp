@@ -709,11 +709,9 @@ bool Mnf::createMnfCube()
       pStep->finalize(Message::Failure, mMessage);
       return false;
    }
-   const Classification* pClass = mpRaster->getClassification();
-   if (pClass != NULL)
-   {
-      pRdd->setClassification(pClass);
-   }
+
+   // copy classification from mpRaster
+   mpMnfRaster->copyClassification(mpRaster);
 
    // Bad values
    vector<int>badValue(1);

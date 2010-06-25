@@ -733,6 +733,9 @@ RasterElement* Iarr::createOutputRasterElement()
       pOutputUnits->setUnitType(REFLECTANCE);
    }
 
+   // copy the classification from mpInputRasterElement
+   pOutputRasterElement->copyClassification(mpInputRasterElement);
+
    return pOutputRasterElement;
 }
 
