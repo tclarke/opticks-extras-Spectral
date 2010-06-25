@@ -196,6 +196,9 @@ bool MnfInverse::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
       return false;
    }
 
+   // copy classification from mpRaster
+   pInverseRaster->copyClassification(mpRaster);
+
    // add wavelengths if available to inverse raster
    if (wavelengths.empty() == false)
    {
