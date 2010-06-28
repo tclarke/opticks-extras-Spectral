@@ -55,6 +55,7 @@ private:
    QSpinBox* mpRegionOpacitySpin;
    QLabel* mpRegionColorLabel;
    CustomColorButton* mpRegionColorButton;
+   QCheckBox* mpRescaleOnAdd;
 };
 
 #endif

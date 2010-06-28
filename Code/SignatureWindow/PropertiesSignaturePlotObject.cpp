@@ -58,8 +58,19 @@ PropertiesSignaturePlotObject::PropertiesSignaturePlotObject() :
    pRegionGrid->setRowStretch(3, 10);
    pRegionGrid->setColumnStretch(2, 10);
 
+   // Rescale
+   QWidget* pRescaleWidget = new QWidget(this);
+   mpRescaleOnAdd = new QCheckBox("Rescale on addition", pRescaleWidget);
+   mpRescaleOnAdd->setToolTip("Check to enable rescaling the plot when a new signature is added.");
+   LabeledSection* pRescaleSection = new LabeledSection(pRescaleWidget, "Auto Rescaling", this);
+   QHBoxLayout* pRescaleLayout = new QHBoxLayout(pRescaleWidget);
+   pRescaleLayout->setMargin(0);
+   pRescaleLayout->setSpacing(5);
+   pRescaleLayout->addWidget(mpRescaleOnAdd);
+
    // Initialization
    addSection(pRegionSection);
+   addSection(pRescaleSection);
    addStretch(10);
    setSizeHint(325, 125);
 
@@ -102,6 +113,9 @@ bool PropertiesSignaturePlotObject::initialize(SessionItem* pSessionItem)
    mpRegionOpacitySpin->setValue(mpPlot->getRegionOpacity());
    enableRegionProperties(mpPlot->areRegionsDisplayed());
 
+   // Rescale
+   mpRescaleOnAdd->setChecked(mpPlot->getRescaleOnAdd());
+
    return true;
 }
 
@@ -116,6 +130,9 @@ bool PropertiesSignaturePlotObject::applyChanges()
    mpPlot->displayRegions(mpRegionCheck->isChecked());
    mpPlot->setRegionOpacity(mpRegionOpacitySpin->value());
    mpPlot->setRegionColor(mpRegionColorButton->getColor());
+
+   // Rescale
+   mpPlot->setRescaleOnAdd(mpRescaleOnAdd->isChecked());
 
    // Refresh the plot
    PlotWidget* pPlotWidget = mpPlot->getPlotWidget();

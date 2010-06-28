@@ -17,6 +17,7 @@
 
 class AoiElement;
 class DataRequest;
+class Progress;
 class RasterElement;
 class Signature;
 
@@ -64,43 +65,76 @@ namespace SpectralUtilities
    Signature* getPixelSignature(RasterElement* pDataset, const Opticks::PixelLocation& pixel);
 
    /**
-    * Generate a signature from values in a raster element over an AOI.
+    *  Generate a signature from values in a raster element over an AOI.
     *
-    * Data points in pElement where pAoi is active are spatially averaged and used
-    * to populate pSignature. The number of signature values will correspond to
-    * the number of bands in pElement. If pElement does not have wavelength data
-    * nothing will happen to pSignature. If the number of bands in pElement is not
-    * equal to the number of wavelength points in the metadata, the longer will be
-    * truncated to ensure the wavelength and reflectance vectors in pSignature are the
-    * same length.
+    *  Data points in \em pElement where \em pAoi is active are spatially averaged and used
+    *  to populate \em pSignature. The number of signature values will correspond to
+    *  the number of bands in \em pElement. If \em pElement does not have wavelength data
+    *  nothing will happen to \em pSignature. If the number of bands in \em pElement is not
+    *  equal to the number of wavelength points in the metadata, the longer will be
+    *  truncated to ensure the wavelength and reflectance vectors in \em pSignature are the
+    *  same length.
     *
-    * @param pAoi
-    *        Use this AOI to determine which points in pElement will be used to generate the signature.
-    *        This must be non-NULL.
-    * @param pSignature
-    *        The destination signature. This must be non-NULL. The "Reflectance" and "Wavelength" data
-    *        will be replaced with the new data from the AOI.
-    * @param pElement
-    *        The raster element used to generate the signature. If this is NULL and pAoi has a parent
-    *        raster element, the parent raster element will be used to generate the signature. This
-    *        must have wavelength metadata.
-    * @return True if the signature data were calculated and set. False otherwise.
+    *  @param   pAoi
+    *           Use this AOI to determine which points in \em pElement will be used to generate the signature.
+    *           This must be non-\c NULL.
+    *  @param   pSignature
+    *           The destination signature. This must be non-\c NULL. The "Reflectance" and "Wavelength" data
+    *           will be replaced with the new data from the AOI.
+    *  @param   pElement
+    *           The raster element used to generate the signature. If this is \c NULL and \em pAoi has a parent
+    *           raster element, the parent raster element will be used to generate the signature. This
+    *           must have wavelength metadata.
+    *  @param   pProgress
+    *           The Progress object to update.
+    *  @param   pAbort
+    *           The abort flag set by the progress object's Cancel button. This method will query the state
+    *           of this flag during computations and will abort if the flag is \c true. If \em pAbort is \c NULL,
+    *           the method will run to completion.
+    *
+    * @return   \c true if the signature data were calculated and set; \c false otherwise.
     */
-   bool convertAoiToSignature(AoiElement* pAoi, Signature* pSignature, RasterElement* pElement);
+   bool convertAoiToSignature(AoiElement* pAoi, Signature* pSignature, RasterElement* pElement,
+                              Progress* pProgress = NULL, bool* pAbort = NULL);
 
    /**
-    * Generate an error message for a failed DataRequest.
+    *  Generate signatures for all the selected pixels in an Area of Interest (AOI).
     *
-    * @warning This method must be called before RasterElement::getDataAccessor().
+    *  This method creates Signature objects with wavelength and reflectance
+    *  data components based on the data values in each band of the given raster element
+    *  for each selected pixel in the AOI.  If the raster element does not contain
+    *  wavelength data, no signature objects are created.
     *
-    * @param pRequest
-    *        The failed DataRequest.
+    *  @param   pAoi
+    *           The AOI from which the signatures should be created.
+    *  @param   pElement
+    *           The raster element from which to create the signatures.
+    *  @param   pProgress
+    *           The Progress object to update.
+    *  @param   pAbort
+    *           The abort flag set by the progress object's Cancel button. This method will query the state
+    *           of this flag during computations and will abort if the flag is \c true. If \em pAbort is \c NULL,
+    *           the method will run to completion.
     *
-    * @param pElement
-    *        The RasterElement which reported a failure.
+    *  @return  The vector containing the signatures with wavelength and reflectance data components.
+    *           The vector will be empty if the raster element does not contain wavelength information.
+    */
+    std::vector<Signature*> getAoiSignatures(const AoiElement* pAoi, RasterElement* pElement,
+                                             Progress* pProgress = NULL, bool* pAbort = NULL);
+
+   /**
+    *  Generate an error message for a failed DataRequest.
     *
-    * @return A string containing suspected reasons for the failure.
-    *        This string will be empty if no common errors were detected.
+    *  @warning This method must be called before RasterElement::getDataAccessor().
+    *
+    *  @param   pRequest
+    *           The failed DataRequest.
+    *
+    *  @param   pElement
+    *           The RasterElement which reported a failure.
+    *
+    *  @return  A string containing suspected reasons for the failure.
+    *           This string will be empty if no common errors were detected.
     */
    std::string getFailedDataRequestErrorMessage(const DataRequest* pRequest, const RasterElement* pElement);
 }
