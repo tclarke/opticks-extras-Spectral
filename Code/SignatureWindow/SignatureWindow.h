@@ -14,6 +14,8 @@
 
 #include "AlgorithmShell.h"
 #include "AttachmentPtr.h"
+#include "DesktopServices.h"
+#include "Progress.h"
 #include "SessionExplorer.h"
 #include "Wavelengths.h"
 #include "Window.h"
@@ -24,7 +26,6 @@
 
 class MouseMode;
 class PlotWidget;
-class Progress;
 class RasterLayer;
 class SessionItemDeserializer;
 class SessionItemSerializer;
@@ -65,13 +66,17 @@ protected:
    void plotWidgetAdded(Subject& subject, const std::string& signal, const boost::any& value);
    void plotWidgetDeleted(Subject& subject, const std::string& signal, const boost::any& value);
    void sessionRestored(Subject& subject, const std::string& signal, const boost::any& value);
+   void updateProgress(const std::string& msg, int percent, ReportingLevel level);
 
    void addPixelSignatureMode(SpatialDataWindow* pWindow);
    void removePixelSignatureMode(SpatialDataWindow* pWindow);
    void enableActions();
 
    SignaturePlotObject* getSignaturePlot(const PlotWidget* pPlot) const;
-   SignaturePlotObject* getSignaturePlot(SpatialDataView* pView, const std::string& plotName);
+   SignaturePlotObject* getSignaturePlot(const std::string& plotName);
+   SignaturePlotObject* getSignaturePlotForAverage() const;
+   bool setCurrentPlotSet(const std::string& plotsetName);
+   std::string getPlotSetName() const;
 
    friend class PropertiesSignaturePlotObject;
 
@@ -81,6 +86,8 @@ protected slots:
    void renameCurrentPlot();
    void deleteCurrentPlot();
    void displayAoiSignatures();
+   void displayAoiAverageSig();
+   void pinSignatureWindow(bool enable);
 
 private:
    struct SignaturePlotObjectInitializer
@@ -90,6 +97,7 @@ private:
          mWavelengthUnits(Wavelengths::MICRONS),
          mBandsDisplayed(false),
          mClearOnAdd(false),
+         mRescaleOnAdd(true),
          mpRasterLayer(NULL),
          mRegionsDisplayed(false),
          mRegionColor(Qt::red),
@@ -102,19 +110,26 @@ private:
       Wavelengths::WavelengthUnitsType mWavelengthUnits;
       bool mBandsDisplayed;
       bool mClearOnAdd;
+      bool mRescaleOnAdd;
       RasterLayer* mpRasterLayer;
       bool mRegionsDisplayed;
       QColor mRegionColor;
       int mRegionOpacity;
    };
 
+   Service<DesktopServices> mpDesktop;
    AttachmentPtr<SessionExplorer> mpExplorer;
    Progress* mpProgress;
+   std::string mSignatureWindowName;
+   std::string mDefaultPlotSetName;
 
    QAction* mpWindowAction;
+   QAction* mpPinSigPlotAction;
    MouseMode* mpPixelSignatureMode;
    QAction* mpPixelSignatureAction;
    QAction* mpAoiSignaturesAction;
+   QAction* mpAoiAverageSigAction;
+   bool mbNotifySigPlotObjectsOfAbort;  // used to prevent passing abort to plot when progress passed to SpectralUtilities
 
    std::vector<SignaturePlotObject*> mPlots;
    std::vector<SignaturePlotObjectInitializer> mSessionPlots;

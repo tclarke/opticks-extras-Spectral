@@ -32,7 +32,6 @@
 #include "PlotWidget.h"
 #include "PlugInArgList.h"
 #include "PlugInResource.h"
-#include "Progress.h"
 #include "PropertiesSignaturePlotObject.h"
 #include "RegionObject.h"
 #include "RasterElement.h"
@@ -45,6 +44,7 @@
 #include "SignatureSelector.h"
 #include "SignatureSet.h"
 #include "SignatureWindowIcons.h"
+#include "SignatureWindowOptions.h"
 #include "Slot.h"
 #include "SpecialMetadata.h"
 #include "SpectralContextMenuActions.h"
@@ -66,7 +66,6 @@ SignaturePlotObject::SignaturePlotObject(PlotWidget* pPlotWidget, Progress* pPro
    mpProgress(pProgress),
    mbAbort(false),
    mpSigSelector(NULL),
-   mclrDefault(Qt::black),
    mWaveUnits(Wavelengths::MICRONS),
    meActiveBandColor(),
    mbClearOnAdd(false),
@@ -85,7 +84,8 @@ SignaturePlotObject::SignaturePlotObject(PlotWidget* pPlotWidget, Progress* pPro
    mpCentimetersAction(NULL),
    mpDisplayModeMenu(NULL),
    mpGrayscaleAction(NULL),
-   mpRgbAction(NULL)
+   mpRgbAction(NULL),
+   mpRescaleOnAdd(NULL)
 {
    string shortcutContext = "Signature Window/Signature Plot";
 
@@ -162,10 +162,10 @@ SignaturePlotObject::SignaturePlotObject(PlotWidget* pPlotWidget, Progress* pPro
    // X-axis menu
    REQUIRE (mpPlotWidget != NULL);
 
-   PlotView* pPlot = mpPlotWidget->getPlot();
-   REQUIRE(pPlot != NULL);
+   PlotView* pPlotView = mpPlotWidget->getPlot();
+   REQUIRE(pPlotView != NULL);
 
-   QWidget* pWidget = pPlot->getWidget();
+   QWidget* pWidget = pPlotView->getWidget();
    REQUIRE(pWidget != NULL);
 
    mpSignatureUnitsMenu = new QMenu("Signature &Units", pWidget);
@@ -184,10 +184,17 @@ SignaturePlotObject::SignaturePlotObject(PlotWidget* pPlotWidget, Progress* pPro
    mpDisplayModeMenu->addAction(mpRgbAction);
 
    // Plot
-   pPlot->attach(SIGNAL_NAME(Subject, Modified), Slot(this, &SignaturePlotObject::plotModified));
+   mpRescaleOnAdd = new QAction("Rescale on addition", this);
+   mpRescaleOnAdd->setAutoRepeat(false);
+   mpRescaleOnAdd->setCheckable(true);
+   mpRescaleOnAdd->setChecked(SignatureWindowOptions::getSettingRescaleOnAdd());
+   mpRescaleOnAdd->setToolTip("Check to enable rescaling plot when a signature is added");
+   mpRescaleOnAdd->setStatusTip("Enable/disable rescaling the plot when adding new signatures.");
+
+   pPlotView->attach(SIGNAL_NAME(Subject, Modified), Slot(this, &SignaturePlotObject::plotModified));
    pWidget->installEventFilter(this);
 
-   Locator* pLocator = pPlot->getMouseLocator();
+   Locator* pLocator = pPlotView->getMouseLocator();
    if (pLocator != NULL)
    {
       pLocator->setStyle(Locator::VERTICAL_LOCATOR);
@@ -200,7 +207,7 @@ SignaturePlotObject::SignaturePlotObject(PlotWidget* pPlotWidget, Progress* pPro
    // Initialization
    enableBandCharacteristics(false);
 
-   MouseMode* pSelectionMode = pPlot->getMouseMode("SelectionMode");
+   MouseMode* pSelectionMode = pPlotView->getMouseMode("SelectionMode");
    if (pSelectionMode != NULL)
    {
       QAction* pSelectionAction = pSelectionMode->getAction();
@@ -210,7 +217,7 @@ SignaturePlotObject::SignaturePlotObject(PlotWidget* pPlotWidget, Progress* pPro
       }
    }
 
-   MouseMode* pLocatorMode = pPlot->getMouseMode("LocatorMode");
+   MouseMode* pLocatorMode = pPlotView->getMouseMode("LocatorMode");
    if (pLocatorMode != NULL)
    {
       QAction* pLocatorAction = pLocatorMode->getAction();
@@ -235,10 +242,10 @@ SignaturePlotObject::~SignaturePlotObject()
 
    if (mpPlotWidget != NULL)
    {
-      PlotView* pPlot = mpPlotWidget->getPlot();
-      if (pPlot != NULL)
+      PlotView* pPlotView = mpPlotWidget->getPlot();
+      if (pPlotView != NULL)
       {
-         pPlot->detach(SIGNAL_NAME(Subject, Modified), Slot(this, &SignaturePlotObject::plotModified));
+         pPlotView->detach(SIGNAL_NAME(Subject, Modified), Slot(this, &SignaturePlotObject::plotModified));
       }
 
       mpPlotWidget->detach(SIGNAL_NAME(PlotWidget, AboutToShowContextMenu),
@@ -258,14 +265,14 @@ void SignaturePlotObject::initializeFromPlot(const vector<Signature*>& signature
       return;
    }
 
-   PlotView* pPlot = mpPlotWidget->getPlot();
-   if (pPlot == NULL)
+   PlotView* pPlotView = mpPlotWidget->getPlot();
+   if (pPlotView == NULL)
    {
       return;
    }
 
    list<PlotObject*> plotObjects;
-   pPlot->getObjects(CURVE_COLLECTION, plotObjects);
+   pPlotView->getObjects(CURVE_COLLECTION, plotObjects);
 
    for (list<PlotObject*>::iterator iter = plotObjects.begin(); iter != plotObjects.end(); ++iter)
    {
@@ -361,8 +368,8 @@ void SignaturePlotObject::displayedBandChanged(Subject& subject, const string& s
 
 void SignaturePlotObject::plotModified(Subject& subject, const string& signal, const boost::any& value)
 {
-   PlotView* pPlot = dynamic_cast<PlotView*>(&subject);
-   if (pPlot != NULL)
+   PlotView* pPlotView = dynamic_cast<PlotView*>(&subject);
+   if (pPlotView != NULL)
    {
       updateBandCharacteristicsFromPlot();
    }
@@ -562,6 +569,10 @@ void SignaturePlotObject::updateContextMenu(Subject& subject, const string& sign
    pMenu->addActionAfter(pSeparatorAction, SPECTRAL_SIGNATUREPLOT_SEPARATOR_ACTION,
       SPECTRAL_SIGNATUREPLOT_CLEAR_ACTION);
 
+   // rescale on addition
+   pMenu->addActionBefore(mpRescaleOnAdd, SPECTRAL_SIGNATUREPLOT_RESCALE_ON_ADD_ACTION,
+      APP_PLOTVIEW_RESCALE_AXES_ACTION);
+
    // Signature units
    pMenu->addActionBefore(mpSignatureUnitsMenu->menuAction(), SPECTRAL_SIGNATUREPLOT_SIG_UNITS_ACTION,
       APP_PLOTVIEW_SECURITY_MARKINGS_ACTION);
@@ -610,22 +621,22 @@ void SignaturePlotObject::updatePropertiesDialog(Subject& subject, const string&
 
 bool SignaturePlotObject::eventFilter(QObject* pObject, QEvent* pEvent)
 {
-   PlotView* pPlot = NULL;
+   PlotView* pPlotView = NULL;
    QWidget* pViewWidget = NULL;
 
    if (mpPlotWidget != NULL)
    {
-      pPlot = mpPlotWidget->getPlot();
-      if (pPlot != NULL)
+      pPlotView = mpPlotWidget->getPlot();
+      if (pPlotView != NULL)
       {
-         pViewWidget = pPlot->getWidget();
+         pViewWidget = pPlotView->getWidget();
       }
    }
 
    string modeName = "";
-   if (pPlot != NULL)
+   if (pPlotView != NULL)
    {
-      const MouseMode* pMouseMode = pPlot->getCurrentMouseMode();
+      const MouseMode* pMouseMode = pPlotView->getCurrentMouseMode();
       if (pMouseMode != NULL)
       {
          pMouseMode->getName(modeName);
@@ -640,7 +651,7 @@ bool SignaturePlotObject::eventFilter(QObject* pObject, QEvent* pEvent)
 
          if (pMouseEvent->button() == Qt::LeftButton)
          {
-            if ((pObject == pViewWidget) && (pPlot != NULL))
+            if ((pObject == pViewWidget) && (pPlotView != NULL))
             {
                if (modeName == "LocatorMode")
                {
@@ -651,14 +662,14 @@ bool SignaturePlotObject::eventFilter(QObject* pObject, QEvent* pEvent)
                   }
 
                   LocationType llCorner, ulCorner, urCorner, lrCorner;
-                  pPlot->getVisibleCorners(llCorner, ulCorner, urCorner, lrCorner);
+                  pPlotView->getVisibleCorners(llCorner, ulCorner, urCorner, lrCorner);
 
                   double minY = llCorner.mY;
                   double maxY = ulCorner.mY;
 
                   double dataX = 0.0;
                   double dataY = 0.0;
-                  pPlot->translateScreenToData(ptMouse.x(), ptMouse.y(), dataX, dataY);
+                  pPlotView->translateScreenToData(ptMouse.x(), ptMouse.y(), dataX, dataY);
 
                   QColor clrActive;
                   meActiveBandColor = RasterChannelType();
@@ -701,7 +712,7 @@ bool SignaturePlotObject::eventFilter(QObject* pObject, QEvent* pEvent)
                      activeColor.mBlue = clrActive.blue();
                   }
 
-                  Locator* pLocator = pPlot->getMouseLocator();
+                  Locator* pLocator = pPlotView->getMouseLocator();
                   if (pLocator != NULL)
                   {
                      LocationType locatorPoint = getClosestBandLocation(LocationType(ptMouse.x(), ptMouse.y()));
@@ -724,7 +735,7 @@ bool SignaturePlotObject::eventFilter(QObject* pObject, QEvent* pEvent)
 
          if (pMouseEvent->buttons() == Qt::LeftButton)
          {
-            if ((pObject == pViewWidget) && (pPlot != NULL))
+            if ((pObject == pViewWidget) && (pPlotView != NULL))
             {
                if (modeName == "LocatorMode")
                {
@@ -734,7 +745,7 @@ bool SignaturePlotObject::eventFilter(QObject* pObject, QEvent* pEvent)
                      ptMouse.setY(pViewWidget->height() - pMouseEvent->pos().y());
                   }
 
-                  Locator* pLocator = pPlot->getMouseLocator();
+                  Locator* pLocator = pPlotView->getMouseLocator();
                   if (pLocator != NULL)
                   {
                      LocationType locatorPoint = getClosestBandLocation(LocationType(ptMouse.x(), ptMouse.y()));
@@ -753,13 +764,13 @@ bool SignaturePlotObject::eventFilter(QObject* pObject, QEvent* pEvent)
 
          if (pMouseEvent->button() == Qt::LeftButton)
          {
-            if ((pObject == pViewWidget) && (pPlot != NULL))
+            if ((pObject == pViewWidget) && (pPlotView != NULL))
             {
                if (modeName == "LocatorMode")
                {
                   double dValue = 0.0;
 
-                  Locator* pLocator = pPlot->getMouseLocator();
+                  Locator* pLocator = pPlotView->getMouseLocator();
                   if (pLocator != NULL)
                   {
                      LocationType location = pLocator->getLocation();
@@ -814,10 +825,10 @@ QString SignaturePlotObject::getPlotName() const
    QString strPlotName;
    if (mpPlotWidget != NULL)
    {
-      PlotView* pPlot = mpPlotWidget->getPlot();
-      if (pPlot != NULL)
+      PlotView* pPlotView = mpPlotWidget->getPlot();
+      if (pPlotView != NULL)
       {
-         string plotName = pPlot->getName();
+         string plotName = pPlotView->getName();
          if (plotName.empty() == false)
          {
             strPlotName = QString::fromStdString(plotName);
@@ -828,7 +839,7 @@ QString SignaturePlotObject::getPlotName() const
    return strPlotName;
 }
 
-void SignaturePlotObject::insertSignature(Signature* pSignature)
+void SignaturePlotObject::insertSignature(Signature* pSignature, ColorType color)
 {
    if (pSignature == NULL)
    {
@@ -844,64 +855,30 @@ void SignaturePlotObject::insertSignature(Signature* pSignature)
          Signature* pCurrentSignature = signatures[i];
          if (pCurrentSignature != NULL)
          {
-            insertSignature(pCurrentSignature);
+            insertSignature(pCurrentSignature, color);
          }
       }
 
       return;
    }
 
-   // Get the plot and the plot widget
-   PlotView* pPlot = NULL;
-   QWidget* pPlotWidget = NULL;
-   if (mpPlotWidget != NULL)
+   if (isValidAddition(pSignature))
    {
-      pPlot = mpPlotWidget->getPlot();
-      pPlotWidget = mpPlotWidget->getWidget();
-   }
-
-   const Units* pUnits = pSignature->getUnits("Reflectance");
-   if (pUnits != NULL)
-   {
-      UnitType eUnits = pUnits->getUnitType();
-      if ((eUnits != RADIANCE) && (eUnits != REFLECTANCE) && (eUnits != EMISSIVITY) &&
-         (eUnits != DIGITAL_NO) && (eUnits != CUSTOM_UNIT) && (eUnits != REFLECTANCE_FACTOR) &&
-         (eUnits != TRANSMITTANCE) && (eUnits != ABSORPTANCE) && (eUnits != ABSORBANCE))
+      bool firstAddition = mSignatures.empty();
+      if (firstAddition)  // first signature, so need to set the data units for the plot
       {
-         QMessageBox::critical(pPlotWidget, getPlotName(), "This signature does not have "
-            "known data units.  It will not be added to the plot.");
-         return;
-      }
-
-      const string& unitName = pUnits->getUnitName();
-      if (mSignatures.count() > 0)
-      {
-         if (unitName != mSpectralUnits)
-         {
-            QMessageBox::warning(pPlotWidget, getPlotName(), "The data units of the signature "
-               "and plot do not match.  Please clear the plot before adding this signature.");
-            return;
-         }
-      }
-      else
-      {
-         mSpectralUnits = unitName;
+         // since units were checked in isValidAddition, don't need to check again
+         const Units* pUnits = pSignature->getUnits("Reflectance");
+         VERIFYNRV(pUnits != NULL);
+         mSpectralUnits = pUnits->getUnitName();
          setYAxisTitle();
       }
-   }
-   else
-   {
-      QMessageBox::critical(pPlotWidget, getPlotName(), "This signature does not have "
-         "known data units.  It will not be added to the plot.");
-      return;
-   }
-
-   bool bExists = containsSignature(pSignature);
-   if (bExists == false)
-   {
-      if (pPlot != NULL)
+ 
+      VERIFYNRV(mpPlotWidget != NULL);
+      PlotView* pPlotView = mpPlotWidget->getPlot();
+      if (pPlotView != NULL)
       {
-         CurveCollection* pCollection = static_cast<CurveCollection*>(pPlot->addObject(CURVE_COLLECTION, true));
+         CurveCollection* pCollection = static_cast<CurveCollection*>(pPlotView->addObject(CURVE_COLLECTION, true));
          if (pCollection != NULL)
          {
             pSignature->attach(SIGNAL_NAME(Subject, Deleted), Slot(this, &SignaturePlotObject::signatureDeleted));
@@ -910,8 +887,11 @@ void SignaturePlotObject::insertSignature(Signature* pSignature)
             mSignatures.insert(pSignature, pCollection);
 
             // Set the signature color
-            ColorType defaultColor(mclrDefault.red(), mclrDefault.green(), mclrDefault.blue());
-            pCollection->setColor(defaultColor);
+            if (!color.isValid())
+            {
+               color = ColorType(0, 0, 0);  // default to black
+            }
+            pCollection->setColor(color);
 
             // Set the object name
             const string& signatureName = pSignature->getName();
@@ -919,12 +899,16 @@ void SignaturePlotObject::insertSignature(Signature* pSignature)
 
             // Set the signature values in the plot
             setSignaturePlotValues(pCollection, pSignature);
+            if (firstAddition)
+            {
+               pPlotView->zoomExtents();
+            }
          }
       }
    }
 }
 
-void SignaturePlotObject::addSignatures(const vector<Signature*>& signatures)
+void SignaturePlotObject::addSignatures(const vector<Signature*>& signatures, ColorType color)
 {
    if (signatures.empty() == true)
    {
@@ -936,28 +920,48 @@ void SignaturePlotObject::addSignatures(const vector<Signature*>& signatures)
       clearSignatures();
    }
 
+   // determine if this is the first addition of a signature
+   bool firstAdd = mSignatures.empty();
+
    vector<Signature*>::const_iterator iter;
+   size_t numSignatures = signatures.size();
+   size_t count(0);
+   updateProgress("Adding signatures to plot...", 0, NORMAL);
    for (iter = signatures.begin(); iter != signatures.end(); ++iter)
    {
+      if (mbAbort)
+      {
+         updateProgress("Add signatures aborted.", 0, ABORT);
+         mbAbort = false;
+         return;
+      }
+
       Signature* pSignature = *iter;
       if (pSignature != NULL)
       {
-         insertSignature(pSignature);
+         insertSignature(pSignature, color);
       }
+      ++count;
+      updateProgress("Adding signatures to plot...", count * 100 / numSignatures, NORMAL);
    }
 
    if (mpPlotWidget != NULL)
    {
-      PlotView* pPlot = mpPlotWidget->getPlot();
-      if (pPlot != NULL)
+      PlotView* pPlotView = mpPlotWidget->getPlot();
+      if (pPlotView != NULL)
       {
-         pPlot->zoomExtents();
-         pPlot->refresh();
+         if (firstAdd || mpRescaleOnAdd->isChecked())
+         {
+            pPlotView->zoomExtents();
+         }
+         pPlotView->refresh();
       }
    }
+
+   updateProgress("Finished adding signatures to plot", 100, NORMAL);
 }
 
-void SignaturePlotObject::addSignature(Signature* pSignature)
+void SignaturePlotObject::addSignature(Signature* pSignature, ColorType color)
 {
    if (pSignature == NULL)
    {
@@ -969,17 +973,23 @@ void SignaturePlotObject::addSignature(Signature* pSignature)
       clearSignatures();
    }
 
+   // determine if this is the first addition of a signature
+   bool firstAdd = mSignatures.empty();
+
    // Insert the signature in the plot
-   insertSignature(pSignature);
+   insertSignature(pSignature, color);
 
    // Update the plot view
    if (mpPlotWidget != NULL)
    {
-      PlotView* pPlot = mpPlotWidget->getPlot();
-      if (pPlot != NULL)
+      PlotView* pPlotView = mpPlotWidget->getPlot();
+      if (pPlotView != NULL)
       {
-         pPlot->zoomExtents();
-         pPlot->refresh();
+         if (firstAdd || mpRescaleOnAdd->isChecked())
+         {
+            pPlotView->zoomExtents();
+         }
+         pPlotView->refresh();
       }
    }
 }
@@ -1005,15 +1015,15 @@ void SignaturePlotObject::removeSignature(Signature* pSignature, bool bDelete)
       CurveCollection* pCollection = signaturesIter.value();
       if (pCollection != NULL)
       {
-         PlotView* pPlot = NULL;
+         PlotView* pPlotView = NULL;
          if (mpPlotWidget != NULL)
          {
-            pPlot = mpPlotWidget->getPlot();
+            pPlotView = mpPlotWidget->getPlot();
          }
 
-         if (pPlot != NULL)
+         if (pPlotView != NULL)
          {
-            pPlot->deleteObject(pCollection);
+            pPlotView->deleteObject(pCollection);
          }
       }
 
@@ -1119,10 +1129,10 @@ void SignaturePlotObject::selectAllSignatures(bool bSelect)
 {
    if (mpPlotWidget != NULL)
    {
-      PlotView* pPlot = mpPlotWidget->getPlot();
-      if (pPlot != NULL)
+      PlotView* pPlotView = mpPlotWidget->getPlot();
+      if (pPlotView != NULL)
       {
-         pPlot->selectObjects(bSelect);
+         pPlotView->selectObjects(bSelect);
       }
    }
 }
@@ -1206,10 +1216,10 @@ void SignaturePlotObject::removeSelectedSignatures()
 
    if (mpPlotWidget != NULL)
    {
-      PlotView* pPlot = mpPlotWidget->getPlot();
-      if (pPlot != NULL)
+      PlotView* pPlotView = mpPlotWidget->getPlot();
+      if (pPlotView != NULL)
       {
-         pPlot->deleteSelectedObjects(false);
+         pPlotView->deleteSelectedObjects(false);
       }
    }
 
@@ -1219,15 +1229,15 @@ void SignaturePlotObject::removeSelectedSignatures()
 void SignaturePlotObject::clearSignatures()
 {
    // Clear the plot
-   PlotView* pPlot = NULL;
+   PlotView* pPlotView = NULL;
    if (mpPlotWidget != NULL)
    {
-      pPlot = mpPlotWidget->getPlot();
+      pPlotView = mpPlotWidget->getPlot();
    }
 
-   if (pPlot != NULL)
+   if (pPlotView != NULL)
    {
-      pPlot->clear();
+      pPlotView->clear();
    }
 
    // Remove the signatures
@@ -1249,8 +1259,10 @@ void SignaturePlotObject::abort()
    {
       mpSigSelector->abortSearch();
    }
-
-   mbAbort = true;
+   else
+   {
+      mbAbort = true;  // only set if sig selector not being aborted
+   }
 }
 
 void SignaturePlotObject::changeSignaturesColor()
@@ -1394,10 +1406,10 @@ void SignaturePlotObject::setWavelengthUnits(QAction* pAction)
 
    if (mpPlotWidget != NULL)
    {
-      PlotView* pPlot = mpPlotWidget->getPlot();
-      if (pPlot != NULL)
+      PlotView* pPlotView = mpPlotWidget->getPlot();
+      if (pPlotView != NULL)
       {
-         pPlot->zoomExtents();
+         pPlotView->zoomExtents();
       }
    }
 
@@ -1423,42 +1435,42 @@ QString SignaturePlotObject::getSpectralUnits() const
 
 void SignaturePlotObject::enableBandCharacteristics(bool bEnable)
 {
-   PlotView* pPlot = NULL;
+   PlotView* pPlotView = NULL;
    if (mpPlotWidget != NULL)
    {
-      pPlot = mpPlotWidget->getPlot();
+      pPlotView = mpPlotWidget->getPlot();
    }
 
    if (bEnable == false)
    {
       mpWavelengthAction->activate(QAction::Trigger);
 
-      if (pPlot != NULL)
+      if (pPlotView != NULL)
       {
          // Displayed grayscale band lines
          if (mpGrayscaleBandCollection != NULL)
          {
-            pPlot->deleteObject(mpGrayscaleBandCollection);
+            pPlotView->deleteObject(mpGrayscaleBandCollection);
             mpGrayscaleBandCollection = NULL;
          }
 
          // Displayed RGB band lines
          if (mpRgbBandCollection != NULL)
          {
-            pPlot->deleteObject(mpRgbBandCollection);
+            pPlotView->deleteObject(mpRgbBandCollection);
             mpRgbBandCollection = NULL;
          }
 
          // Bad band regions
          list<PlotObject*> regions;
-         pPlot->getObjects(REGION, regions);
+         pPlotView->getObjects(REGION, regions);
 
          for (list<PlotObject*>::iterator iter = regions.begin(); iter != regions.end(); ++iter)
          {
             RegionObject* pRegion = dynamic_cast<RegionObject*>(*iter);
             if ((pRegion != NULL) && (pRegion->isPrimary() == false))
             {
-               pPlot->deleteObject(pRegion);
+               pPlotView->deleteObject(pRegion);
             }
          }
       }
@@ -1467,12 +1479,12 @@ void SignaturePlotObject::enableBandCharacteristics(bool bEnable)
    {
       mpBandDisplayAction->activate(QAction::Trigger);
 
-      if (pPlot != NULL)
+      if (pPlotView != NULL)
       {
          // Displayed grayscale band lines
          if (mpGrayscaleBandCollection == NULL)
          {
-            mpGrayscaleBandCollection = static_cast<CurveCollection*>(pPlot->addObject(CURVE_COLLECTION, false));
+            mpGrayscaleBandCollection = static_cast<CurveCollection*>(pPlotView->addObject(CURVE_COLLECTION, false));
             if (mpGrayscaleBandCollection != NULL)
             {
                mpGrayscaleBandCollection->setObjectName("Grayscale Band");
@@ -1482,7 +1494,7 @@ void SignaturePlotObject::enableBandCharacteristics(bool bEnable)
          // Displayed RGB band lines
          if (mpRgbBandCollection == NULL)
          {
-            mpRgbBandCollection = static_cast<CurveCollection*>(pPlot->addObject(CURVE_COLLECTION, false));
+            mpRgbBandCollection = static_cast<CurveCollection*>(pPlotView->addObject(CURVE_COLLECTION, false));
             if (mpRgbBandCollection != NULL)
             {
                mpRgbBandCollection->setObjectName("RGB Bands");
@@ -1546,7 +1558,7 @@ void SignaturePlotObject::enableBandCharacteristics(bool bEnable)
                      {
                         if (pRegion == NULL)
                         {
-                           pRegion = static_cast<RegionObject*>(pPlot->addObject(REGION, false));
+                           pRegion = static_cast<RegionObject*>(pPlotView->addObject(REGION, false));
                            if (pRegion != NULL)
                            {
                               regionStart = i + 0.5;
@@ -1564,7 +1576,7 @@ void SignaturePlotObject::enableBandCharacteristics(bool bEnable)
                         if (pRegion != NULL)
                         {
                            LocationType llCorner, ulCorner, urCorner, lrCorner;
-                           pPlot->getVisibleCorners(llCorner, ulCorner, urCorner, lrCorner);
+                           pPlotView->getVisibleCorners(llCorner, ulCorner, urCorner, lrCorner);
 
                            double dMinY = llCorner.mY;
                            double dMaxY = ulCorner.mY;
@@ -1595,12 +1607,12 @@ void SignaturePlotObject::enableBandCharacteristics(bool bEnable)
       mpCentimetersAction->setChecked(true);
    }
 
-   if (pPlot != NULL)
+   if (pPlotView != NULL)
    {
-      const MouseMode* pMouseMode = pPlot->getMouseMode("LocatorMode");
+      const MouseMode* pMouseMode = pPlotView->getMouseMode("LocatorMode");
       if (pMouseMode != NULL)
       {
-         pPlot->enableMouseMode(pMouseMode, bEnable);
+         pPlotView->enableMouseMode(pMouseMode, bEnable);
       }
    }
 
@@ -1650,10 +1662,10 @@ void SignaturePlotObject::displayBandNumbers()
 
    if (mpPlotWidget != NULL)
    {
-      PlotView* pPlot = mpPlotWidget->getPlot();
-      if (pPlot != NULL)
+      PlotView* pPlotView = mpPlotWidget->getPlot();
+      if (pPlotView != NULL)
       {
-         pPlot->zoomExtents();
+         pPlotView->zoomExtents();
       }
    }
 
@@ -1676,14 +1688,14 @@ void SignaturePlotObject::displayRegions(bool bDisplay)
          return;
       }
 
-      PlotView* pPlot = mpPlotWidget->getPlot();
-      if (pPlot == NULL)
+      PlotView* pPlotView = mpPlotWidget->getPlot();
+      if (pPlotView == NULL)
       {
          return;
       }
 
       list<PlotObject*> regions;
-      pPlot->getObjects(REGION, regions);
+      pPlotView->getObjects(REGION, regions);
 
       for (list<PlotObject*>::iterator iter = regions.begin(); iter != regions.end(); ++iter)
       {
@@ -1715,14 +1727,14 @@ void SignaturePlotObject::setRegionColor(const QColor& clrRegion)
             return;
          }
 
-         PlotView* pPlot = mpPlotWidget->getPlot();
-         if (pPlot == NULL)
+         PlotView* pPlotView = mpPlotWidget->getPlot();
+         if (pPlotView == NULL)
          {
             return;
          }
 
          list<PlotObject*> regions;
-         pPlot->getObjects(REGION, regions);
+         pPlotView->getObjects(REGION, regions);
 
          for (list<PlotObject*>::iterator iter = regions.begin(); iter != regions.end(); ++iter)
          {
@@ -1754,14 +1766,14 @@ void SignaturePlotObject::setRegionOpacity(int iOpacity)
          return;
       }
 
-      PlotView* pPlot = mpPlotWidget->getPlot();
-      if (pPlot == NULL)
+      PlotView* pPlotView = mpPlotWidget->getPlot();
+      if (pPlotView == NULL)
       {
          return;
       }
 
       list<PlotObject*> regions;
-      pPlot->getObjects(REGION, regions);
+      pPlotView->getObjects(REGION, regions);
 
       for (list<PlotObject*>::iterator iter = regions.begin(); iter != regions.end(); ++iter)
       {
@@ -2068,56 +2080,44 @@ void SignaturePlotObject::addSignature()
          }
 
          string message = "Adding the signatures to the plot...";
-         if (mpProgress != NULL)
-         {
-            mpProgress->updateProgress(message, 0, NORMAL);
-         }
+         updateProgress(message, 0, NORMAL);
 
          unsigned int numSigs = signatures.size();
-
+         bool firstAdd = mSignatures.empty();
          vector<Signature*>::size_type i = 0;
          for (i = 0; i < numSigs; ++i)
          {
             if (mbAbort)
             {
                message = "Add signatures aborted.";
-               if (mpProgress != NULL)
-               {
-                  mpProgress->updateProgress(message, 0, ABORT);
-               }
-
-               mbAbort = false;
+               updateProgress(message, 0, ABORT);
                break;
             }
-
             Signature* pSignature = signatures[i];
             if (pSignature != NULL)
             {
                insertSignature(pSignature);
             }
 
-            if (mpProgress != NULL)
-            {
-               mpProgress->updateProgress(message, i * 100 / numSigs, NORMAL);
-            }
+            updateProgress(message, i * 100 / numSigs, NORMAL);
          }
 
          if (i == numSigs)
          {
-            if (mpProgress != NULL)
-            {
-               message = "Add signatures complete.";
-               mpProgress->updateProgress(message, 100, NORMAL);
-            }
+            message = "Add signatures complete.";
+            updateProgress(message, 100, NORMAL);
          }
 
          if (mpPlotWidget != NULL)
          {
-            PlotView* pPlot = mpPlotWidget->getPlot();
-            if (pPlot != NULL)
+            PlotView* pPlotView = mpPlotWidget->getPlot();
+            if (pPlotView != NULL)
             {
-               pPlot->zoomExtents();
-               pPlot->refresh();
+               if (firstAdd || mpRescaleOnAdd->isChecked())
+               {
+                  pPlotView->zoomExtents();
+               }
+               pPlotView->refresh();
             }
          }
       }
@@ -2125,14 +2125,15 @@ void SignaturePlotObject::addSignature()
 
    delete mpSigSelector;
    mpSigSelector = NULL;
+   mbAbort = false;  // reset in case add was aborted
 }
 
 void SignaturePlotObject::saveSignatures()
 {
-   QWidget* pPlotWidget = NULL;
+   QWidget* pWidget = NULL;
    if (mpPlotWidget != NULL)
    {
-      pPlotWidget = mpPlotWidget->getWidget();
+      pWidget = mpPlotWidget->getWidget();
    }
 
    // Get the selected signatures
@@ -2145,7 +2146,7 @@ void SignaturePlotObject::saveSignatures()
 
    if (saveSigs.empty() == true)
    {
-      QMessageBox::critical(pPlotWidget, getPlotName(), "No signatures are available to save.");
+      QMessageBox::critical(pWidget, getPlotName(), "No signatures are available to save.");
       return;
    }
 
@@ -2166,10 +2167,10 @@ void SignaturePlotObject::saveSignatures()
 
 void SignaturePlotObject::saveSignatureLibrary()
 {
-   QWidget* pPlotWidget = NULL;
+   QWidget* pWidget = NULL;
    if (mpPlotWidget != NULL)
    {
-      pPlotWidget = mpPlotWidget->getWidget();
+      pWidget = mpPlotWidget->getWidget();
    }
 
    // Get the selected signatures
@@ -2182,7 +2183,7 @@ void SignaturePlotObject::saveSignatureLibrary()
 
    if (saveSigs.empty() == true)
    {
-      QMessageBox::critical(pPlotWidget, getPlotName(), "At least one signature must be present "
+      QMessageBox::critical(pWidget, getPlotName(), "At least one signature must be present "
          "to save as a signature library.");
       return;
    }
@@ -2205,7 +2206,7 @@ void SignaturePlotObject::saveSignatureLibrary()
 
    if (pSignatureSet == NULL)
    {
-      QMessageBox::critical(pPlotWidget, getPlotName(), "Could not create a new signature library!");
+      QMessageBox::critical(pWidget, getPlotName(), "Could not create a new signature library!");
       return;
    }
 
@@ -2347,19 +2348,19 @@ void SignaturePlotObject::setDisplayBand(RasterChannelType eColor, DimensionDesc
 
 void SignaturePlotObject::updateBandCharacteristicsFromPlot()
 {
-   PlotView* pPlot = NULL;
+   PlotView* pPlotView = NULL;
    if (mpPlotWidget != NULL)
    {
-      pPlot = mpPlotWidget->getPlot();
+      pPlotView = mpPlotWidget->getPlot();
    }
 
-   if (pPlot == NULL)
+   if (pPlotView == NULL)
    {
       return;
    }
 
    LocationType llCorner, ulCorner, urCorner, lrCorner;
-   pPlot->getVisibleCorners(llCorner, ulCorner, urCorner, lrCorner);
+   pPlotView->getVisibleCorners(llCorner, ulCorner, urCorner, lrCorner);
 
    double dMinX = llCorner.mX;
    double dMinY = llCorner.mY;
@@ -2454,14 +2455,14 @@ void SignaturePlotObject::updateBandCharacteristics()
       return;
    }
 
-   PlotView* pPlot = mpPlotWidget->getPlot();
-   if (pPlot == NULL)
+   PlotView* pPlotView = mpPlotWidget->getPlot();
+   if (pPlotView == NULL)
    {
       return;
    }
 
    LocationType llCorner, ulCorner, urCorner, lrCorner;
-   pPlot->getVisibleCorners(llCorner, ulCorner, urCorner, lrCorner);
+   pPlotView->getVisibleCorners(llCorner, ulCorner, urCorner, lrCorner);
 
    double dMinY = llCorner.mY;
    double dMaxY = ulCorner.mY;
@@ -2769,20 +2770,20 @@ LocationType SignaturePlotObject::getClosestBandLocation(const LocationType& plo
 {
    LocationType bandPoint;
 
-   PlotView* pPlot = NULL;
+   PlotView* pPlotView = NULL;
    if (mpPlotWidget != NULL)
    {
-      pPlot = mpPlotWidget->getPlot();
+      pPlotView = mpPlotWidget->getPlot();
    }
 
-   if (pPlot == NULL)
+   if (pPlotView == NULL)
    {
       return bandPoint;
    }
 
    double dXValue = 0.0;
    double dYValue = 0.0;
-   pPlot->translateScreenToData(plotPoint.mX, plotPoint.mY, dXValue, dYValue);
+   pPlotView->translateScreenToData(plotPoint.mX, plotPoint.mY, dXValue, dYValue);
 
    DimensionDescriptor bandDim;
    if (mpBandDisplayAction->isChecked() == true)
@@ -2839,25 +2840,25 @@ LocationType SignaturePlotObject::getClosestBandLocation(const LocationType& plo
 
 void SignaturePlotObject::updateRegions()
 {
-   PlotView* pPlot = NULL;
+   PlotView* pPlotView = NULL;
    if (mpPlotWidget != NULL)
    {
-      pPlot = mpPlotWidget->getPlot();
+      pPlotView = mpPlotWidget->getPlot();
    }
 
-   if (pPlot == NULL)
+   if (pPlotView == NULL)
    {
       return;
    }
 
    LocationType llCorner, ulCorner, urCorner, lrCorner;
-   pPlot->getVisibleCorners(llCorner, ulCorner, urCorner, lrCorner);
+   pPlotView->getVisibleCorners(llCorner, ulCorner, urCorner, lrCorner);
 
    double dMinY = llCorner.mY;
    double dMaxY = ulCorner.mY;
 
    list<PlotObject*> regions;
-   pPlot->getObjects(REGION, regions);
+   pPlotView->getObjects(REGION, regions);
 
    for (list<PlotObject*>::iterator iter = regions.begin(); iter != regions.end(); ++iter)
    {
@@ -2891,10 +2892,99 @@ void SignaturePlotObject::refresh()
 {
    if (mpPlotWidget != NULL)
    {
-      PlotView* pPlot = mpPlotWidget->getPlot();
-      if (pPlot != NULL)
+      PlotView* pPlotView = mpPlotWidget->getPlot();
+      if (pPlotView != NULL)
       {
-         pPlot->refresh();
+         pPlotView->refresh();
       }
+   }
+}
+
+void SignaturePlotObject::setRescaleOnAdd(bool enabled)
+{
+   mpRescaleOnAdd->setChecked(enabled);
+}
+
+bool SignaturePlotObject::getRescaleOnAdd()const
+{
+   return mpRescaleOnAdd->isChecked();
+}
+
+bool SignaturePlotObject::isValidAddition(Signature* pSignature)
+{
+   if (pSignature == NULL)
+   {
+      return false;
+   }
+
+   VERIFY(mpPlotWidget != NULL);
+   QWidget* pWidget = mpPlotWidget->getWidget();
+
+   // don't add if already in plot
+   if (containsSignature(pSignature))
+   {
+      return false;
+   }
+
+   // check for wavelengths if band display is disabled - plot can only display in wavelengths
+   if (mpBandDisplayAction->isEnabled() == false)
+   {
+      bool warnNoWavelengths(true);
+      const DataVariant& variant = pSignature->getData("Wavelength");
+      if (variant.isValid())
+      {
+         const vector<double>* pSigWavelengths = variant.getPointerToValue<vector<double> >();
+         if (pSigWavelengths != NULL && pSigWavelengths->empty() == false)
+         {
+            warnNoWavelengths = false;
+         }
+      }
+      if (warnNoWavelengths)
+      {
+         QMessageBox::critical(pWidget, getPlotName(), "This signature does not have "
+            "any wavelength information.  It will not be added to the plot.");
+         return false;
+      }
+   }
+
+   // check for valid units
+   const Units* pUnits = pSignature->getUnits("Reflectance");
+   VERIFY(pUnits != NULL);
+   UnitType eUnits = pUnits->getUnitType();
+   if ((eUnits != RADIANCE) && (eUnits != REFLECTANCE) && (eUnits != EMISSIVITY) &&
+      (eUnits != DIGITAL_NO) && (eUnits != CUSTOM_UNIT) && (eUnits != REFLECTANCE_FACTOR) &&
+      (eUnits != TRANSMITTANCE) && (eUnits != ABSORPTANCE) && (eUnits != ABSORBANCE))
+   {
+      QMessageBox::critical(pWidget, getPlotName(), "This signature does not have "
+         "known data units.  It will not be added to the plot.");
+      return false;
+   }
+
+   // check that signature has same units as other signatures in the plot unless plot will be cleared before add
+   const string& unitName = pUnits->getUnitName();
+   if (mSignatures.count() > 0 && mbClearOnAdd == false)
+   {
+      if (unitName != mSpectralUnits)
+      {
+         QMessageBox::StandardButton button = QMessageBox::warning(pWidget, getPlotName(),
+            "The data units of the signature being added do not match the current data units of this plot.  "
+            "The plot will have to be cleared to add this signature.  Do you want to clear the plot and "
+            "add the signature or cancel adding this signature?", QMessageBox::Yes | QMessageBox::Cancel);
+         if (button == QMessageBox::Cancel)
+         {
+            return false;
+         }
+         clearSignatures();
+      }
+   }
+
+   return true;
+}
+
+void SignaturePlotObject::updateProgress(const string& msg, int percent, ReportingLevel level)
+{
+   if (mpProgress != NULL)
+   {
+      mpProgress->updateProgress(msg, percent, level);
    }
 }
