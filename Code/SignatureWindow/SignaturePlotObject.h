@@ -15,10 +15,12 @@
 #include <QtGui/QAction>
 
 #include "AttachmentPtr.h"
+#include "ColorType.h"
 #include "DimensionDescriptor.h"
 #include "LocationType.h"
 #include "ObjectResource.h"
 #include "Observer.h"
+#include "Progress.h"
 #include "RasterLayer.h"
 #include "SessionExplorer.h"
 #include "TypesFile.h"
@@ -32,7 +34,6 @@
 class Classification;
 class CurveCollection;
 class PlotWidget;
-class Progress;
 class RegionObject;
 class Signature;
 class SignatureSelector;
@@ -149,8 +150,10 @@ public:
     *  @param   pSignature
     *           The Signature object to add.  This method does nothing if
     *           \c NULL is passed in.
+    *  @param   color
+    *           The color to use for the added signature.
     */
-   void addSignature(Signature* pSignature);
+   void addSignature(Signature* pSignature, ColorType color = ColorType(0, 0, 0));
 
    /**
     *  Adds a signature to the plot without updating the scales or redrawing.
@@ -163,8 +166,10 @@ public:
     *  @param   pSignature
     *           The Signature object to add.  This method does nothing if
     *           \c NULL is passed in.
-    */
-   void insertSignature(Signature* pSignature);
+    *  @param   color
+    *           The color to use for the signature.
+   */
+   void insertSignature(Signature* pSignature, ColorType color = ColorType(0, 0, 0));
 
    /**
     *  Adds multiple signatures to the plot.
@@ -175,8 +180,10 @@ public:
     *  @param   signatures
     *           The signatures to add.  If a \c NULL pointer exists in the
     *           vector, it is ignored.
+    *  @param   color
+    *           The color to use for the signatures being added.
     */
-   void addSignatures(const std::vector<Signature*>& signatures);
+   void addSignatures(const std::vector<Signature*>& signatures, ColorType color = ColorType(0, 0, 0));
 
    /**
     *  Removes a signature from the plot.
@@ -184,8 +191,8 @@ public:
     *  @param    pSignature
     *            The signature to remove.
     *  @param    bDelete
-    *            TRUE if the signature should be deleted from the data model.  Otherwise,
-    *            FALSE.
+    *            Set \c true if the signature should be deleted from the data model.  Otherwise,
+    *            set \c false.
     */
    void removeSignature(Signature* pSignature, bool bDelete);
 
@@ -195,7 +202,7 @@ public:
     *  @param    pSignature
     *            The signature to query its display state.  Cannot be NULL.
     *
-    *  @return   TRUE if the signature is displayed, otherwise FALSE.
+    *  @return   Returns \c true if the signature is displayed, otherwise returns \c false.
     */
    bool containsSignature(Signature* pSignature) const;
 
@@ -216,7 +223,7 @@ public:
     *  @param    pSignature
     *            The signature to select or deselect
     *  @param    bSelect
-    *            TRUE to select the signature.  FALSE to deselect the signature.
+    *            Set \c true to select the signature.  Set \c false to deselect the signature.
     */
    void selectSignature(Signature* pSignature, bool bSelect);
 
@@ -226,7 +233,7 @@ public:
     *  @param    signatures
     *            A vector containing the signatures to select.
     *  @param    bSelect
-    *            TRUE if the given signatures should be selected, FALSE if the given signatures
+    *            Set \c true if the given signatures should be selected, set \c false if the given signatures
     *            should be deselected.
     *
     *  @see      getSelectedSignatures(), isSignatureSelected()
@@ -237,7 +244,7 @@ public:
     *  Selects or deselects all signatures in the plot.
     *
     *  @param    bSelect
-    *            TRUE if the signatures should be selected, FALSE if the signatures
+    *            Set \c true if the signatures should be selected, set \c false if the signatures
     *            should be deselected.
     *
     *  @see      selectSignatures(), isSignatureSelected()
@@ -250,7 +257,7 @@ public:
     *  @param    pSignature
     *            The signature.
     *
-    *  @return   TRUE if the signature is selected.  FALSE if the signature is not selected
+    *  @return   Returns \c true if the signature is selected.  Returns \c false if the signature is not selected
     *            or if the signature is not displayed.
     */
    bool isSignatureSelected(Signature* pSignature) const;
@@ -291,8 +298,8 @@ public:
     *  @param    clrSignature
     *            The new color for the signature.
     *  @param    bRedraw
-    *            TRUE if the plot should be redrawn after the new color has been set.
-    *            FALSE if the plot should not be redrawn.
+    *            Set \c true if the plot should be redrawn after the new color has been set.
+    *            Set \c false if the plot should not be redrawn.
     */
    void setSignatureColor(Signature* pSignature, const QColor& clrSignature, bool bRedraw);
 
@@ -310,6 +317,21 @@ public:
    //
    // Plot
    //
+
+   /**
+    *  Sets the plot to rescale or not rescale when a signature is added.
+    *
+    *  @param   enabled
+    *           \c true to enable auto rescaling.
+    */
+   void setRescaleOnAdd(bool enabled);
+
+   /**
+    *  Returns whether or not the plot will be rescaled when a signature is added.
+    *
+    *  @return   \c true if the plot will be rescaled when a signature is added.
+    */
+   bool getRescaleOnAdd() const;
 
    /**
     *  Sets the units of the wavelength values on the X-axis.
@@ -337,14 +359,14 @@ public:
     *  Sets the plot to clear when a new signature is added.
     *
     *  @param    bClear
-    *            TRUE to clear the plot when a new signature is added.
+    *            \c true to clear the plot when a new signature is added.
     */
    void setClearOnAdd(bool bClear);
 
    /**
     *  Queries whether the plot is cleared when a new signature is added.
     *
-    *  @return   TRUE if the plot is set to clear when a new signature is added.
+    *  @return   \c true if the plot is set to clear when a new signature is added.
     */
    bool isClearOnAdd() const;
 
@@ -359,7 +381,7 @@ public:
     *  mode, display mode, and band number axis values are enabled.
     *
     *  @param    bDisplay
-    *            TRUE to display spectral band numbers on the X-axis.  FALSE to display
+    *            Set \c true to display spectral band numbers on the X-axis.  Set \c false to display
     *            wavelengths.
     */
    void displayBandNumbers(bool bDisplay);
@@ -367,7 +389,7 @@ public:
    /**
     *  Queries whether spectral band numbers are displayed on the X-axis.
     *
-    *  @return   TRUE if spectral band numbers are displayed.  FALSE if wavelengths are
+    *  @return   Returns \c true if spectral band numbers are displayed.  Returns \c false if wavelengths are
     *            displayed.
     */
    bool areBandNumbersDisplayed() const;
@@ -377,7 +399,7 @@ public:
     *  that were not loaded with the data cube.
     *
     *  @param    bDisplay
-    *            TRUE if the non-loaded band regions should be displayed, otherwise FALSE.
+    *            Set \c true if the non-loaded band regions should be displayed, otherwise set \c false.
     */
    void displayRegions(bool bDisplay);
 
@@ -385,7 +407,7 @@ public:
     *  Queries whether regions of the plot where spectral bands have not been loaded with
     *  the data cube are shaded.
     *
-    *  @return   TRUE if non-loaded band regions are displayed, otherwise FALSE.
+    *  @return   Returns \c true if non-loaded band regions are displayed, otherwise returns \c false.
     */
    bool areRegionsDisplayed() const;
 
@@ -506,7 +528,7 @@ protected:
     *  @param    pEvent
     *            The event message.
     *
-    *  @return   TRUE if the event should not be passed to the respective object.  FALSE
+    *  @return   Returns \c true if the event should not be passed to the respective object.  Returns \c false
     *            if the event should be processed normally.
     */
    bool eventFilter(QObject* pObject, QEvent* pEvent);
@@ -572,9 +594,22 @@ protected:
     *  @param    pSignature
     *            The signature from which to compare its wavelengths with the data set.
     *
-    *  @return   TRUE if the signature is considered a data set signature, otherwise FALSE.
+    *  @return   Returns \c true if the signature is considered a data set signature, otherwise returns \c false.
     */
    bool isDatasetSignature(Signature* pSignature) const;
+
+   /**
+    *  Perform checks to determine if a signature can be added to the plot.
+    *
+    *  This method checks if the signature is already in the plot, has same data units as other signatures in the plot,
+    *  and if the signature contains wavelength information if band display is disabled for the plot.
+    *
+    *  @param    pSignature
+    *            The signature to check.
+    *
+    *  @return   Returns \c true if the signature can be added to the plot, otherwise returns \c false.
+    */
+   bool isValidAddition(Signature* pSignature);
 
 protected slots:
    /**
@@ -585,7 +620,7 @@ protected slots:
     *  be displayed.
     *
     *  @param    bEnable
-    *            TRUE to enable spectral band information in the plot.  FALSE to disable
+    *            Set \c true to enable spectral band information in the plot.  Set \ false to disable
     *            band information.
     */
    void enableBandCharacteristics(bool bEnable);
@@ -685,7 +720,7 @@ protected slots:
     *
     *  This method updates the location of the bad band region plot objects to
     *  extend to the visible minimum and maximum y-coordinates.  It also sets
-    *  the regions to not display if wavelegnths are displayed on the x-axis.
+    *  the regions to not display if wavelengths are displayed on the x-axis.
     */
    void updateRegions();
 
@@ -693,6 +728,20 @@ protected slots:
     *  Redraws the signature plot.
     */
    void refresh();
+
+   /**
+    *  Updates the progress.
+    *
+    *  This method updates the progress instance if it exists.
+    *
+    *  @param   msg
+    *           The progress message to display.
+    *  @param   percent
+    *           The percentage completion of the task.
+    *  @param   level
+    *           The reporting level for the message.
+    */
+   void updateProgress(const std::string& msg, int percent, ReportingLevel level);
 
 private:
    AttachmentPtr<SessionExplorer> mpExplorer;
@@ -712,7 +761,6 @@ private:
 
    // Signatures
    QMap<Signature*, CurveCollection*> mSignatures;
-   QColor mclrDefault;
 
    // Plot
    Wavelengths::WavelengthUnitsType mWaveUnits;
@@ -741,6 +789,7 @@ private:
    QMenu* mpDisplayModeMenu;
    QAction* mpGrayscaleAction;
    QAction* mpRgbAction;
+   QAction* mpRescaleOnAdd;
 
    // Convenience methods
    void setXAxisTitle();

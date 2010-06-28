@@ -15,6 +15,7 @@
 #include "DataRequest.h"
 #include "DataVariant.h"
 #include "MessageLogResource.h"
+#include "Progress.h"
 #include "RasterDataDescriptor.h"
 #include "RasterElement.h"
 #include "Signature.h"
@@ -179,7 +180,8 @@ Signature* SpectralUtilities::getPixelSignature(RasterElement* pDataset, const O
    return pSignature;
 }
 
-bool SpectralUtilities::convertAoiToSignature(AoiElement* pAoi, Signature* pSignature, RasterElement* pElement)
+bool SpectralUtilities::convertAoiToSignature(AoiElement* pAoi, Signature* pSignature, RasterElement* pElement,
+                                              Progress* pProgress, bool* pAbort)
 {
    VERIFY(pAoi != NULL && pSignature != NULL);
 
@@ -199,6 +201,16 @@ bool SpectralUtilities::convertAoiToSignature(AoiElement* pAoi, Signature* pSign
    const BitMask* pPoints = pAoi->getSelectedPoints();
    VERIFY(pPoints != NULL);
    BitMaskIterator it(pPoints, pElement);
+
+   // check for empty AOI
+   if (it == it.end())
+   {
+      if (pProgress != NULL)
+      {
+         pProgress->updateProgress("There are no selected pixels in the AOI", 0, ERRORS);
+      }
+      return false;
+   }
    FactoryResource<DataRequest> request;
    request->setInterleaveFormat(BIP);
    request->setRows(pDesc->getActiveRow(it.getBoundingBoxStartRow()),
@@ -210,8 +222,23 @@ bool SpectralUtilities::convertAoiToSignature(AoiElement* pAoi, Signature* pSign
 
    std::vector<double> reflectances(pDesc->getBandCount());
    int cnt = 0;
+   int numRows = it.getNumSelectedRows();
+   int rowIndex(0);
+   std::string msg = "Computing average signature for AOI...";
+   if (pProgress != NULL)
+   {
+      pProgress->updateProgress(msg, 0, NORMAL);
+   }
    for (int y = it.getBoundingBoxStartRow(); y <= it.getBoundingBoxEndRow(); ++y)
    {
+      if (pAbort != NULL && *pAbort)
+      {
+         if (pProgress != NULL)
+         {
+            pProgress->updateProgress("Compute AOI average signature aborted", 0, ABORT);
+         }
+         return false;
+      }
       for (int x = it.getBoundingBoxStartColumn(); x <= it.getBoundingBoxEndColumn(); ++x)
       {
          accessor->toPixel(y, x);
@@ -221,6 +248,11 @@ bool SpectralUtilities::convertAoiToSignature(AoiElement* pAoi, Signature* pSign
             switchOnEncoding(pDesc->getDataType(), averageSignatureAccum, accessor->getColumn(), reflectances);
             cnt++;
          }
+      }
+      ++rowIndex;
+      if (pProgress != NULL)
+      {
+         pProgress->updateProgress(msg, rowIndex * 100 / numRows, NORMAL);
       }
    }
    if (cnt != 0)
@@ -266,6 +298,11 @@ bool SpectralUtilities::convertAoiToSignature(AoiElement* pAoi, Signature* pSign
    pSignature->setData("Reflectance", reflectances);
    pSignature->setData("Wavelength", wavelengthData);
    pSignature->setUnits("Reflectance", pDesc->getUnits());
+
+   if (pProgress != NULL)
+   {
+      pProgress->updateProgress("Finished computing AOI average signature", 100, NORMAL);
+   }
    return true;
 }
 
@@ -315,4 +352,72 @@ std::string SpectralUtilities::getFailedDataRequestErrorMessage(const DataReques
    }
 
    return errorMessage;
+}
+
+std::vector<Signature*> SpectralUtilities::getAoiSignatures(const AoiElement* pAoi, RasterElement* pElement,
+                                                            Progress* pProgress, bool* pAbort)
+{
+   std::vector<Signature*> signatures;
+
+   if (pAoi == NULL || pElement == NULL)
+   {
+      return signatures;
+   }
+
+   // Get each selected pixel signature
+   if (pProgress != NULL)
+   {
+      pProgress->updateProgress("Generating AOI pixel signatures...", 0, NORMAL);
+   }
+
+   BitMaskIterator bit(pAoi->getSelectedPoints(), pElement);
+
+   // check for empty AOI
+   if (bit == bit.end())
+   {
+      if (pProgress != NULL)
+      {
+         pProgress->updateProgress("There are no selected pixels in the AOI", 0, ERRORS);
+      }
+      return signatures;
+   }
+   int startRow(0);
+   int endRow(0);
+   int startCol(0);
+   int endCol(0);
+   bit.getBoundingBox(startCol, startRow, endCol, endRow);
+   int numRows = endRow - startRow + 1;
+   int rowCounter(0);
+   int lastRow(startRow);
+   for (; bit != bit.end(); ++bit)
+   {
+      if (pAbort != NULL && *pAbort)
+      {
+         if (pProgress != NULL)
+         {
+            pProgress->updateProgress("Generating AOI pixel signatures aborted", 0, ABORT);
+         }
+         signatures.clear();
+         return signatures;
+      }
+      Opticks::PixelLocation pixLoc(bit.getPixelColumnLocation(), bit.getPixelRowLocation());
+      Signature* pSignature = SpectralUtilities::getPixelSignature(pElement, pixLoc);
+      if (pSignature != NULL)
+      {
+         signatures.push_back(pSignature);
+      }
+      if (pProgress != NULL && pixLoc.mY > lastRow)
+      {
+         ++rowCounter;
+         lastRow = pixLoc.mY;
+         pProgress->updateProgress("Generating AOI pixel signatures...", rowCounter * 100 / numRows, NORMAL);
+      }
+
+   }
+   if (pProgress != NULL)
+   {
+      pProgress->updateProgress("Finished generating AOI pixel signatures", 100, NORMAL);
+   }
+
+   return signatures;
 }
