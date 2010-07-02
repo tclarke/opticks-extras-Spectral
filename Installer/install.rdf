@@ -13,16 +13,9 @@
       <rdf:Description>
         <aebl:id>opticks@ballforge.net</aebl:id>
         <aebl:minVersion>${opticks_min_version}</aebl:minVersion>
-        <aebl:maxVersion>4.3.*</aebl:maxVersion>
+        <aebl:maxVersion>${opticks_max_version}</aebl:maxVersion>
       </rdf:Description>
     </aebl:targetApplication>
-    <aebl:incompatible>
-      <rdf:Description>
-        <aebl:id>comet@balldayton.com</aebl:id>
-        <aebl:minVersion>4.3.0</aebl:minVersion>
-        <aebl:maxVersion>4.3.2</aebl:maxVersion>
-      </rdf:Description>
-    </aebl:incompatible>
     ${target_platforms}
   </rdf:Description>
 </rdf:RDF>
