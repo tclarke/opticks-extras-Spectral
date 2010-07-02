@@ -558,7 +558,7 @@ def build_installer(aeb_platforms=[], aeb_output=None, depend_path=None,
     #DefaultSettings folder
     default_settings_path = os.path.join("Release", "DefaultSettings")
     target_default_settings_path = os.path.join("content", "DefaultSettings")
-    copy_file_to_zip(default_settings_path, target_default_settings_path, "41-ResamplerOptions.cfg", zfile)
+    copy_file_to_zip(default_settings_path, target_default_settings_path, "41-SpectralOptions.cfg", zfile)
 
     #platform dependent items
     for plat in aeb_platforms:
