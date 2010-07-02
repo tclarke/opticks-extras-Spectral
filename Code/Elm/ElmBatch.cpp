@@ -65,7 +65,7 @@ bool ElmBatch::getInputSpecification(PlugInArgList*& pArgList)
 
 bool ElmBatch::getOutputSpecification(PlugInArgList*& pArgList)
 {
-   pArgList = mpPlugInManager->getPlugInArgList();
+   pArgList = Service<PlugInManagerServices>()->getPlugInArgList();
    VERIFY(pArgList != NULL);
 
    // Batch mode: RasterElement

@@ -23,6 +23,7 @@
 
 class AoiElement;
 class Filename;
+class PlugInArgList;
 class Progress;
 class RasterDataDescriptor;
 class RasterElement;
