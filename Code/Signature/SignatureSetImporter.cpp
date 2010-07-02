@@ -115,8 +115,8 @@ vector<ImportDescriptor*> SignatureSetImporter::getImportDescriptors(const strin
       mDatasetNumber = 0;
       ImportDescriptorFilter filter;
       DOMTreeWalker* pTree = pDoc->createTreeWalker(pDoc->getDocumentElement(), DOMNodeFilter::SHOW_ELEMENT, &filter, false);
-      descriptors = createImportDescriptors(pTree, vector<string>());
-   
+      std::vector<std::string> dummy;
+      descriptors = createImportDescriptors(pTree, dummy);
    }
    catch(const DOMException &) {}
    catch(const XMLException &) {}
