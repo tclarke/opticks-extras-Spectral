@@ -15,6 +15,7 @@
 #include "ResamplerOptions.h"
 #include "SpectralVersion.h"
 #include "SplineInterpolator.h"
+#include <memory>
 
 using namespace std;
 
