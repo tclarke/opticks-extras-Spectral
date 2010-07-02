@@ -13,7 +13,8 @@
 #include "ConfigurationSettings.h"
 #include "DataAccessorImpl.h"
 #include "DataRequest.h"
-#include "PlugInManagerServices.h"
+#include "Progress.h"
+#include "RasterDataDescriptor.h"
 #include "SpectralUtilities.h"
 
 #include <limits>
@@ -52,7 +53,6 @@ protected:
    Progress* mpProgress;
    RasterElement* mpRasterElement;
    RasterDataDescriptor* mpRasterDataDescriptor;
-   Service<PlugInManagerServices> const mpPlugInManager;
 
    std::vector<double> mCenterWavelengths;
 

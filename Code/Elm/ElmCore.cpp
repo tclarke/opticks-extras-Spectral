@@ -25,6 +25,7 @@
 #include "MessageLogResource.h"
 #include "ModelServices.h"
 #include "PlugInArgList.h"
+#include "PlugInManagerServices.h"
 #include "PlugInResource.h"
 #include "Progress.h"
 #include "RasterDataDescriptor.h"
@@ -64,7 +65,7 @@ const RasterElement* ElmCore::getRasterElement() const
 
 bool ElmCore::getInputSpecification(PlugInArgList*& pArgList)
 {
-   pArgList = mpPlugInManager->getPlugInArgList();
+   pArgList = Service<PlugInManagerServices>()->getPlugInArgList();
    VERIFY(pArgList != NULL);
    VERIFY(pArgList->addArg<Progress>(Executable::ProgressArg()));
    VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg()));

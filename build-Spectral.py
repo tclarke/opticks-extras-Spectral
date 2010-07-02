@@ -19,7 +19,9 @@ aeb_platform_mappings = {'win32':'win32-x86-msvc8.1-release',
                          'win64':'win64-x86-msvc8.1-release',
                          'win64-debug':'win64-x86-msvc8.1-debug',
                          'solaris':'solaris-sparc-studio12-release',
-                         'solaris-debug':'solaris-sparc-studio12-debug'}
+                         'solaris-debug':'solaris-sparc-studio12-debug',
+                         'linux':'linux-x86_64-gcc4-release',
+                         'linux-debug':'linux-x86_64-gcc4-debug'}
 
 def execute_process(args, bufsize=0, executable=None, preexec_fn=None,
       close_fds=None, shell=False, cwd=None, env=None,
@@ -363,6 +365,48 @@ class SolarisBuilder(Builder):
     def prep_to_run(self):
         self.prep_to_run_helper([".so"])
 
+class LinuxBuilder(SolarisBuilder):
+    platform = "linux-x86_64"
+    def __init__(self, dependencies, opticks_code_dir, build_in_debug,
+                 opticks_build_dir, verbosity):
+        SolarisBuilder.__init__(self, dependencies, opticks_code_dir, build_in_debug,
+            opticks_build_dir, verbosity)
+
+    def get_doxygen_path(self):
+        return join(self.depend_path, "/", "usr", "bin", "doxygen")
+
+    def get_plugin_dir(self):
+        return os.path.abspath(join(self.opticks_build_dir,
+            "Binaries-%s-%s" % (self.platform, self.mode), "PlugIns"))
+
+    def get_binaries_dir(self):
+        return os.path.abspath(join("Code", "Build", "Binaries-%s-%s" % (self.platform, self.mode)))
+
+    def build_doxygen(self):
+        if self.verbosity > 1:
+            print "Generating HTML..."
+        doc_path = os.path.abspath(join("Code", "Build", "DoxygenOutput"))
+        if os.path.exists(doc_path):
+            #delete any already generated documentation
+            shutil.rmtree(doc_path, True)
+        os.makedirs(doc_path)
+        doxygen_cmd = self.get_doxygen_path()
+        config_dir = os.path.abspath(join("Code", "ApiDocs"))
+        args = [doxygen_cmd, join(config_dir, "application.dox")]
+        env = os.environ
+        env["SOURCE"] = os.path.abspath("Code")
+        env["OUTPUT_DIR"] = doc_path
+        env["CONFIG_DIR"] = config_dir
+        graphviz_dir = os.path.abspath(join("/", "usr"))
+        env["DOT_DIR"] = join(graphviz_dir, "bin")
+        version_info = read_version_h()
+        env["VERSION"] = version_info["SPECTRAL_VERSION_NUMBER"][1:-1]
+        retcode = execute_process(args, env=env)
+        if retcode != 0:
+            raise ScriptException("Unable to run doxygen generation script")
+        if self.verbosity > 1:
+            print "Done generating HTML"
+
 def read_version_h():
     version_path = join("Code", "Include", "SpectralVersion.h")
     version_file = open(version_path, "rt")
@@ -443,6 +487,12 @@ def build_sdk(aeb_platforms=[], verbosity=None):
             copy_file_to_zip(lib_path, lib_path, "SpectralUtilities.lib", zfile)
         elif plat_parts[0] == 'solaris':
             bin_dir = os.path.join("Code", "Build", "Binaries-%s-%s" % (SolarisBuilder.platform, plat_parts[-1]))
+            lib_path = join(bin_dir, "Lib")
+
+            #Lib folder
+            copy_file_to_zip(lib_path, lib_path, "libSpectralUtilities.a", zfile)
+        elif plat_parts[0] == 'linux':
+            bin_dir = os.path.join("Code", "Build", "Binaries-%s-%s" % (LinuxBuilder.platform, plat_parts[-1]))
             lib_path = join(bin_dir, "Lib")
 
             #Lib folder
@@ -537,15 +587,15 @@ def build_installer(aeb_platforms=[], aeb_output=None, depend_path=None,
             copy_file_to_zip(plugin_path, target_plugin_path, "SignatureWindow.dll", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "SpectralLibrary.dll", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Wavelength.dll", zfile)
-        elif plat_parts[0] == 'solaris':
-            if not(is_windows()):
-                solaris_dir = "."
-            else:
+        elif plat_parts[0] == 'solaris' or plat_parts[0] == 'linux':
+            prefix_dir = os.path.abspath(".")
+            if is_windows():
                 if not(solaris_dir) or not(os.path.exists(solaris_dir)):
                     raise ScriptException("You must use the --solaris-dir "\
                         "command-line argument to build an AEB using "\
                         "any of the solaris platforms.")
-            bin_dir = os.path.join(os.path.abspath(solaris_dir), "Code", "Build", "Binaries-%s-%s" % (SolarisBuilder.platform, plat_parts[-1]))
+                prefix_dir = os.path.abspath(solaris_dir)
+            bin_dir = os.path.join(prefix_dir, "Code", "Build", "Binaries-%s-%s" % (plat_parts[0], plat_parts[-1]))
             plugin_path = join(bin_dir, "PlugIns")
             target_plugin_path = join("platform", plat, "PlugIns")
 
@@ -745,8 +795,12 @@ def main(args):
             build_in_debug = False
 
         if not is_windows():
-            builder = SolarisBuilder(opticks_depends, opticks_code_dir, build_in_debug,
-                opticks_build_dir, options.verbosity)
+            if sys.platform == 'linux2':
+                builder = LinuxBuilder(opticks_depends, opticks_code_dir, build_in_debug,
+                    opticks_build_dir, options.verbosity)
+            else:
+                builder = SolarisBuilder(opticks_depends, opticks_code_dir, build_in_debug,
+                    opticks_build_dir, options.verbosity)
         else:
             if not os.path.exists(options.visualstudio):
                 raise ScriptException("Visual Studio path is invalid")
@@ -779,6 +833,8 @@ def main(args):
             if options.build_sdk == "all":
                 if is_windows():
                     sdk_platforms = [x for x in aeb_platform_mappings.values() if x.startswith("win")]
+                elif sys.platform == 'linux2':
+                    sdk_platforms = [x for x in aeb_platform_mappings.values() if x.startswith("linux")]
                 else:
                     sdk_platforms = [x for x in aeb_platform_mappings.values() if x.startswith("solaris")]
             else:

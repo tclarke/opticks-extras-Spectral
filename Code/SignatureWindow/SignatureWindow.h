@@ -92,7 +92,7 @@ protected slots:
 private:
    struct SignaturePlotObjectInitializer
    {
-      SignaturePlotObjectInitializer::SignaturePlotObjectInitializer() :
+      SignaturePlotObjectInitializer() :
          mpPlotWidget(NULL),
          mWavelengthUnits(Wavelengths::MICRONS),
          mBandsDisplayed(false),

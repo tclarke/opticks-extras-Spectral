@@ -15,6 +15,7 @@
 #include "DataRequest.h"
 #include "MessageLogResource.h"
 #include "RasterElement.h"
+#include "RasterUtilities.h"
 #include "Statistics.h"
 #include "Testable.h"
 #include "TypesFile.h"
@@ -136,7 +137,7 @@ bool Iarr::runTest(unsigned int numRows, unsigned int numColumns,
       {
          // Compute the averages of pData
          const T* pSourceData = pData;
-         vector<double> gains(numBands);
+         std::vector<double> gains(numBands);
          for (unsigned int band = 0; band < numBands; ++band)
          {
             double totalValue = 0.0;
