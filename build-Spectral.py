@@ -227,6 +227,25 @@ class Builder:
             if self.verbosity > 1:
                 print "Done creating ApplicationUserSettings folder"
 
+    def run_scons(self, path, debug, concurrency, environ,
+                  clean, extra_args=None):
+        scons_exec = "scons"
+        if is_windows():
+            scons_exec += ".bat"
+        arguments = [scons_exec, "--directory=Code"]
+        arguments.append("-j%s" % (concurrency))
+        if clean:
+            arguments.append("-c")
+        if not debug:
+            arguments.append("RELEASE=yes")
+        if extra_args:
+            arguments.extend(extra_args)
+        ret_code = execute_process(arguments,
+                                 env=environ,
+                                 cwd=path)
+        if ret_code != 0:
+            raise ScriptException("Scons did not compile project")
+
     def build_doxygen(self):
         if self.verbosity > 1:
             print "Generating HTML..."
@@ -255,16 +274,28 @@ class Builder:
 
 class WindowsBuilder(Builder):
     def __init__(self, dependencies, opticks_code_dir, build_in_debug,
-                 opticks_build_dir, visualstudio, verbosity):
+                 opticks_build_dir, visualstudio, use_scons, verbosity):
         Builder.__init__(self, dependencies, opticks_code_dir, build_in_debug,
             opticks_build_dir, verbosity)
         self.vs_path = visualstudio
+        self.use_scons = use_scons
 
     def compile_code(self, env, clean, concurrency):
-        solution_file = os.path.abspath("Code/Spectral.sln")
-        self.build_in_visual_studio(solution_file,
-            self.build_debug_mode, self.is_64_bit, concurrency,
-            self.vs_path, env, clean)
+        if self.use_scons:
+            args = ["all"]
+            if self.is_64_bit:
+                args.append("BITS=64")
+            else:
+                args.append("BITS=32")
+            if self.build_debug_mode:
+                args.append("SDKDEBUG=YES")
+            self.run_scons(os.path.abspath("."), self.build_debug_mode,
+                concurrency, env, clean, args)
+        else:
+            solution_file = os.path.abspath("Code/Spectral.sln")
+            self.build_in_visual_studio(solution_file,
+                self.build_debug_mode, self.is_64_bit, concurrency,
+                self.vs_path, env, clean)
 
     def get_plugin_dir(self):
         return os.path.abspath(join(self.opticks_build_dir,
@@ -284,6 +315,9 @@ class WindowsBuilder(Builder):
     def build_in_visual_studio(self, solutionfile, debug,
                                build_64_bit, concurrency, vspath,
                                environ, clean):
+        if not os.path.exists(vspath):
+            raise ScriptException("Visual Studio path is invalid")
+
         if debug and not build_64_bit:
             mode = "Debug|Win32"
         if not debug and not build_64_bit:
@@ -309,17 +343,17 @@ class WindowsBuilder(Builder):
 class Windows32bitBuilder(WindowsBuilder):
     platform = "Win32"
     def __init__(self, dependencies, opticks_code_dir, build_in_debug,
-                 opticks_build_dir, visualstudio, verbosity):
+                 opticks_build_dir, visualstudio, use_scons, verbosity):
         WindowsBuilder.__init__(self, dependencies, opticks_code_dir, build_in_debug,
-            opticks_build_dir, visualstudio, verbosity)
+            opticks_build_dir, visualstudio, use_scons, verbosity)
         self.is_64_bit = False
 
 class Windows64bitBuilder(WindowsBuilder):
     platform = "x64"
     def __init__(self, dependencies, opticks_code_dir, build_in_debug,
-                 opticks_build_dir, visualstudio, verbosity):
+                 opticks_build_dir, visualstudio, use_scons, verbosity):
         WindowsBuilder.__init__(self, dependencies, opticks_code_dir, build_in_debug,
-            opticks_build_dir, visualstudio, verbosity)
+            opticks_build_dir, visualstudio, use_scons, verbosity)
         self.is_64_bit = True
 
 class SolarisBuilder(Builder):
@@ -336,23 +370,6 @@ class SolarisBuilder(Builder):
         #Build extension plugins
         self.run_scons(os.path.abspath("."), self.build_debug_mode,
             concurrency, env, clean, ["all"])
-
-    def run_scons(self, path, debug, concurrency, environ,
-                  clean, extra_args=None):
-        scons_exec = "scons"
-        arguments = [scons_exec, "--directory=Code", "--no-cache"]
-        arguments.append("-j%s" % (concurrency))
-        if clean:
-            arguments.append("-c")
-        if not debug:
-            arguments.append("RELEASE=yes")
-        if extra_args:
-            arguments.extend(extra_args)
-        ret_code = execute_process(arguments,
-                                 env=environ,
-                                 cwd=path)
-        if ret_code != 0:
-            raise ScriptException("Scons did not compile project")
 
     def get_plugin_dir(self):
         return os.path.abspath(join(self.opticks_build_dir,
@@ -706,8 +723,14 @@ def main(args):
                  "option should point to a directory that contains a "\
                  "checked out and compiled copy of this extension on "\
                  "Solaris.")
+        options.add_option("--use-scons", action="store_true",
+            dest="use_scons",
+            help="If provided, compile using Scons "\
+                 "on Windows instead of using vcbuild. Use "\
+                 "if you don't have Visual C++ installed. "\
+                 "The default is to use vcbuild")
         options.set_defaults(visualstudio=vs_path, arch="64",
-            solaris_dir=None)
+            solaris_dir=None, use_scons=False)
     options.add_option("-m", "--mode", dest="mode",
         action="store", type="choice", choices=["debug", "release"])
     options.add_option("--clean", dest="clean", action="store_true")
@@ -744,6 +767,7 @@ def main(args):
     options = options.parse_args(args[1:])[0]
     if not(is_windows()):
         options.solaris_dir = None
+        options.use_scons = True
 
     builder = None
     try:
@@ -811,17 +835,14 @@ def main(args):
                 builder = SolarisBuilder(opticks_depends, opticks_code_dir, build_in_debug,
                     opticks_build_dir, options.verbosity)
         else:
-            if not os.path.exists(options.visualstudio):
-                raise ScriptException("Visual Studio path is invalid")
-
             if options.arch == "32":
                 builder = Windows32bitBuilder(opticks_depends, opticks_code_dir,
                     build_in_debug, opticks_build_dir,
-                    options.visualstudio, options.verbosity)
+                    options.visualstudio, options.use_scons, options.verbosity)
             if options.arch == "64":
                 builder = Windows64bitBuilder(opticks_depends, opticks_code_dir,
                     build_in_debug, opticks_build_dir,
-                    options.visualstudio, options.verbosity)
+                    options.visualstudio, options.use_scons, options.verbosity)
 
         builder.update_version_number(options.update_version_scheme,
             options.new_version)
