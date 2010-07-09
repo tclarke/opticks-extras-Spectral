@@ -24,7 +24,6 @@
 #include "RasterLayer.h"
 #include "SessionExplorer.h"
 #include "TypesFile.h"
-#include "Wavelengths.h"
 
 #include <boost/any.hpp>
 #include <map>
@@ -339,14 +338,14 @@ public:
     *  @param    units
     *            The unit type to display.
     */
-   void setWavelengthUnits(Wavelengths::WavelengthUnitsType units);
+   void setWavelengthUnits(WavelengthUnitsType units);
 
    /**
     *  Returns the units of the wavelength values on the X-axis.
     *
     *  @return   The current wavelength unit type.
     */
-   Wavelengths::WavelengthUnitsType getWavelengthUnits() const;
+   WavelengthUnitsType getWavelengthUnits() const;
 
    /**
     *  Returns the units of the signature values on the Y-axis.
@@ -763,7 +762,7 @@ private:
    QMap<Signature*, CurveCollection*> mSignatures;
 
    // Plot
-   Wavelengths::WavelengthUnitsType mWaveUnits;
+   WavelengthUnitsType mWaveUnits;
    std::string mSpectralUnits;
    RasterChannelType meActiveBandColor;
    bool mbClearOnAdd;

@@ -39,15 +39,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Landsat", "Landsat\Landsat.
 		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Wavelength", "Wavelength\Wavelength.vcproj", "{2CD6BFF6-12A2-464B-9A6A-4442C8994C4D}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
-	ProjectSection(ProjectDependencies) = postProject
-		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
-	EndProjectSection
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SignatureWindow", "SignatureWindow\SignatureWindow.vcproj", "{55B33813-8D3B-4572-99DF-70A88F7C5101}"
 	ProjectSection(WebsiteProperties) = preProject
 		Debug.AspNetCompiler.Debug = "True"
@@ -182,14 +173,6 @@ Global
 		{95E195D2-76EE-41DA-A047-9FA7393CB63A}.Release|Win32.Build.0 = Release|Win32
 		{95E195D2-76EE-41DA-A047-9FA7393CB63A}.Release|x64.ActiveCfg = Release|x64
 		{95E195D2-76EE-41DA-A047-9FA7393CB63A}.Release|x64.Build.0 = Release|x64
-		{2CD6BFF6-12A2-464B-9A6A-4442C8994C4D}.Debug|Win32.ActiveCfg = Debug|Win32
-		{2CD6BFF6-12A2-464B-9A6A-4442C8994C4D}.Debug|Win32.Build.0 = Debug|Win32
-		{2CD6BFF6-12A2-464B-9A6A-4442C8994C4D}.Debug|x64.ActiveCfg = Debug|x64
-		{2CD6BFF6-12A2-464B-9A6A-4442C8994C4D}.Debug|x64.Build.0 = Debug|x64
-		{2CD6BFF6-12A2-464B-9A6A-4442C8994C4D}.Release|Win32.ActiveCfg = Release|Win32
-		{2CD6BFF6-12A2-464B-9A6A-4442C8994C4D}.Release|Win32.Build.0 = Release|Win32
-		{2CD6BFF6-12A2-464B-9A6A-4442C8994C4D}.Release|x64.ActiveCfg = Release|x64
-		{2CD6BFF6-12A2-464B-9A6A-4442C8994C4D}.Release|x64.Build.0 = Release|x64
 		{55B33813-8D3B-4572-99DF-70A88F7C5101}.Debug|Win32.ActiveCfg = Debug|Win32
 		{55B33813-8D3B-4572-99DF-70A88F7C5101}.Debug|Win32.Build.0 = Debug|Win32
 		{55B33813-8D3B-4572-99DF-70A88F7C5101}.Debug|x64.ActiveCfg = Debug|x64

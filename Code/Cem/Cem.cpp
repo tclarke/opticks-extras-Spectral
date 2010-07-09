@@ -316,11 +316,8 @@ bool CemAlgorithm::processAll()
    }
 
    // get cube wavelengths
-   Wavelengths wavelengths(pElement->getMetadata());
-   if (!wavelengths.isEmpty() && (!wavelengths.hasEndValues() || !wavelengths.hasStartValues()))
-   {
-      wavelengths.calculateFwhm();
-   }
+   FactoryResource<Wavelengths> pWavelengths;
+   pWavelengths->initializeFromDynamicObject(pElement->getMetadata(), false);
 
    // Create a pseudocolor results matrix if necessary
    RasterElement* pPseudocolorMatrix = NULL;
@@ -436,14 +433,14 @@ bool CemAlgorithm::processAll()
       vector<double> spectrumValues;
       vector<int> resampledBands, prevResampledBands;
       vector<double> woper(numBands);
-      success = resampleSpectrum(pSignature, spectrumValues, wavelengths, resampledBands);
+      success = resampleSpectrum(pSignature, spectrumValues, pWavelengths.get(), resampledBands);
 
       // Check for limited spectral coverage and warning log 
-      if (success && wavelengths.hasCenterValues() &&
-         resampledBands.size() != wavelengths.getCenterValues().size())
+      if (success && pWavelengths->hasCenterValues() &&
+         resampledBands.size() != pWavelengths->getCenterValues().size())
       {
          QString buf = QString("The spectrum only provides spectral coverage for %1 of %2 bands.")
-            .arg(resampledBands.size()).arg(wavelengths.getCenterValues().size());
+            .arg(resampledBands.size()).arg(pWavelengths->getCenterValues().size());
          progress.report(buf.toStdString(), 0, WARNING, true);
       }
 
@@ -470,7 +467,7 @@ bool CemAlgorithm::processAll()
                unitScaleRatio));
          }
 
-         if (resampledBands.size() != wavelengths.getCenterValues().size())
+         if (resampledBands.size() != pWavelengths->getCenterValues().size())
          {
             vector<double> smmSubset(numBands * numBands);
             if (!compareBands(resampledBands, prevResampledBands))
@@ -684,13 +681,13 @@ void CemAlgorithm::computeWoper(std::vector<double>& spectrumValues, double* pSm
 
 bool CemAlgorithm::resampleSpectrum(Signature* pSignature, 
                                     vector<double>& resampledAmplitude,
-                                    const Wavelengths& wavelengths, 
+                                    Wavelengths* pWavelengths, 
                                     vector<int>& resampledBands)
 {
    StepResource pStep("Resample Signature", "spectral", "D201C66A-64C0-4257-928F-A6A8D4F8B3C4");
 
    Progress* pProgress = getProgress();
-   if (wavelengths.isEmpty())
+   if ((pWavelengths == NULL) || (pWavelengths->isEmpty()))
    {
       // Check for an in-scene signature
       RasterElement* pElement = getRasterElement();
@@ -718,7 +715,7 @@ bool CemAlgorithm::resampleSpectrum(Signature* pSignature,
       return false;
    }
 
-   vector<double> fwhm = const_cast<Wavelengths&>(wavelengths).getFwhm();
+   vector<double> fwhm = pWavelengths->getFwhm();
    PlugInResource resampler("Resampler");
    Resampler* pResampler = dynamic_cast<Resampler*>(resampler.get());
    if (pResampler == NULL)
@@ -737,7 +734,7 @@ bool CemAlgorithm::resampleSpectrum(Signature* pSignature,
       if (!pResampler->execute(sigReflectance,
                               resampledAmplitude,
                               dv_cast<vector<double> >(pSignature->getData("Wavelength")),
-                              wavelengths.getCenterValues(),
+                              pWavelengths->getCenterValues(),
                               fwhm,
                               resampledBands,
                               err))

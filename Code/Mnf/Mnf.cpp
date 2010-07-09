@@ -1733,9 +1733,10 @@ bool Mnf::writeOutMnfTransform(const string& filename)
    }
 
    DynamicObject* pMetadata = mpRaster->getMetadata();
-   Wavelengths wavelengths(pMetadata);
-   const std::vector<double>& centerWavelengths = wavelengths.getCenterValues();
+   FactoryResource<Wavelengths> pWavelengths;
+   pWavelengths->initializeFromDynamicObject(pMetadata, false);
 
+   const std::vector<double>& centerWavelengths = pWavelengths->getCenterValues();
    if (centerWavelengths.size() == mNumBands)
    {
       fprintf(pFile, "\nWavelengths\n");
