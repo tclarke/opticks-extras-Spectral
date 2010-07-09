@@ -15,6 +15,7 @@
 #include "DataRequest.h"
 #include "DataVariant.h"
 #include "MessageLogResource.h"
+#include "ObjectResource.h"
 #include "Progress.h"
 #include "RasterDataDescriptor.h"
 #include "RasterElement.h"
@@ -98,8 +99,9 @@ Signature* SpectralUtilities::getPixelSignature(RasterElement* pDataset, const O
    DynamicObject* pMetadata = pDescriptor->getMetadata();
    if (pMetadata != NULL)
    {
-      Wavelengths wavelengths(pMetadata);
-      centerWaves = wavelengths.getCenterValues();
+      FactoryResource<Wavelengths> pWavelengths;
+      pWavelengths->initializeFromDynamicObject(pMetadata, false);
+      centerWaves = pWavelengths->getCenterValues();
    }
 
    // Get the reflectance data
@@ -196,7 +198,6 @@ bool SpectralUtilities::convertAoiToSignature(AoiElement* pAoi, Signature* pSign
 
    const RasterDataDescriptor* pDesc = static_cast<const RasterDataDescriptor*>(pElement->getDataDescriptor());
    VERIFY(pDesc != NULL);
-   Wavelengths wavelengths(pElement->getMetadata());
 
    const BitMask* pPoints = pAoi->getSelectedPoints();
    VERIFY(pPoints != NULL);
@@ -262,8 +263,11 @@ bool SpectralUtilities::convertAoiToSignature(AoiElement* pAoi, Signature* pSign
          *reflectance /= cnt;
       }
    }
-   std::vector<double> wavelengthData;
-   wavelengthData = wavelengths.getCenterValues();
+
+   FactoryResource<Wavelengths> pWavelengths;
+   pWavelengths->initializeFromDynamicObject(pElement->getMetadata(), false);
+
+   std::vector<double> wavelengthData = pWavelengths->getCenterValues();
    unsigned int sz = reflectances.size();
    if (!wavelengthData.empty() && wavelengthData.size() < sz)
    {

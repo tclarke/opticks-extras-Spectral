@@ -17,7 +17,7 @@
 #include "DesktopServices.h"
 #include "Progress.h"
 #include "SessionExplorer.h"
-#include "Wavelengths.h"
+#include "TypesFile.h"
 #include "Window.h"
 
 #include <boost/any.hpp>
@@ -94,7 +94,7 @@ private:
    {
       SignaturePlotObjectInitializer() :
          mpPlotWidget(NULL),
-         mWavelengthUnits(Wavelengths::MICRONS),
+         mWavelengthUnits(MICRONS),
          mBandsDisplayed(false),
          mClearOnAdd(false),
          mRescaleOnAdd(true),
@@ -107,7 +107,7 @@ private:
 
       PlotWidget* mpPlotWidget;
       std::vector<Signature*> mSignatures;
-      Wavelengths::WavelengthUnitsType mWavelengthUnits;
+      WavelengthUnitsType mWavelengthUnits;
       bool mBandsDisplayed;
       bool mClearOnAdd;
       bool mRescaleOnAdd;

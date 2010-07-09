@@ -281,19 +281,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\SpectralStringUtilities.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\SpectralUtilities.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\Wavelengths.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\WavelengthUnitsComboBox.cpp"
 				>
 			</File>
 		</Filter>
@@ -361,64 +349,12 @@
 				RelativePath=".\SpectralUtilities.h"
 				>
 			</File>
-			<File
-				RelativePath=".\Wavelengths.h"
-				>
-			</File>
-			<File
-				RelativePath=".\WavelengthUnitsComboBox.h"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="Moc&apos;ing $(InputName).h..."
-						CommandLine="&quot;$(QTBIN)\moc.exe&quot; &quot;$(InputPath)&quot; -o &quot;$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp&quot;&#x0D;&#x0A;"
-						Outputs="$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="Moc&apos;ing $(InputName).h..."
-						CommandLine="&quot;$(QTBIN)\moc.exe&quot; &quot;$(InputPath)&quot; -o &quot;$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp&quot;&#x0D;&#x0A;"
-						Outputs="$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="Moc&apos;ing $(InputName).h..."
-						CommandLine="&quot;$(QTBIN)\moc.exe&quot; &quot;$(InputPath)&quot; -o &quot;$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp&quot;&#x0D;&#x0A;"
-						Outputs="$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						Description="Moc&apos;ing $(InputName).h..."
-						CommandLine="&quot;$(QTBIN)\moc.exe&quot; &quot;$(InputPath)&quot; -o &quot;$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp&quot;&#x0D;&#x0A;"
-						Outputs="$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp"
-					/>
-				</FileConfiguration>
-			</File>
 		</Filter>
 		<Filter
 			Name="moc"
 			>
 			<File
 				RelativePath="$(BuildDir)\Moc\$(ProjectName)\moc_SpectralSignatureSelector.cpp"
-				>
-			</File>
-			<File
-				RelativePath="$(BuildDir)\Moc\$(ProjectName)\moc_WavelengthUnitsComboBox.cpp"
 				>
 			</File>
 		</Filter>
