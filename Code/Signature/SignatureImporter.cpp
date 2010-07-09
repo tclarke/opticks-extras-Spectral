@@ -239,7 +239,7 @@ bool SignatureImporter::execute(PlugInArgList* pInArgList, PlugInArgList* OutArg
             if (wavelength > 50.0)
             {
                // Assume wavelength values are in nanometers and convert to microns
-               wavelength = Wavelengths::convertValue(wavelength, Wavelengths::NANOMETERS, Wavelengths::MICRONS);
+               wavelength = Wavelengths::convertValue(wavelength, NANOMETERS, MICRONS);
             }
          }
          if (!error && dataEntry.size() == 2)

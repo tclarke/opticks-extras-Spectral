@@ -493,7 +493,7 @@ bool SignatureWindow::deserialize(SessionItemDeserializer& deserializer)
             }
 
             // Plot
-            initializer.mWavelengthUnits = StringUtilities::fromXmlString<Wavelengths::WavelengthUnitsType>(
+            initializer.mWavelengthUnits = StringUtilities::fromXmlString<WavelengthUnitsType>(
                A(pElement->getAttribute(X("wavelengthUnits"))));
             initializer.mBandsDisplayed = StringUtilities::fromXmlString<bool>(
                A(pElement->getAttribute(X("bandsDisplayed"))));

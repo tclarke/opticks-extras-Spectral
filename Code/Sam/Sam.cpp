@@ -195,7 +195,7 @@ bool SamAlgorithm::preprocess()
 
 bool SamAlgorithm::processAll()
 {
-   auto_ptr<Wavelengths> pWavelengths;
+   FactoryResource<Wavelengths> pWavelengths;
 
    ProgressTracker progress(getProgress(), "Starting SAM", "spectral", "C4320027-6359-4F5B-8820-8BC72BF1B8F0");
    progress.getCurrentStep()->addProperty("Interactive", isInteractive());
@@ -220,13 +220,8 @@ bool SamAlgorithm::processAll()
    DynamicObject* pMetadata = pElement->getMetadata();
    if (pMetadata != NULL)
    {
-      pWavelengths.reset(new Wavelengths(pMetadata));
-      if (!pWavelengths->isEmpty() && (!pWavelengths->hasEndValues() || !pWavelengths->hasStartValues()))
-      {
-         pWavelengths->calculateFwhm();
-      }
+      pWavelengths->initializeFromDynamicObject(pMetadata, false);
    }
-   VERIFY(pWavelengths.get() != NULL);
 
    int sig_index = 0;
    bool bSuccess = true;
@@ -362,7 +357,7 @@ bool SamAlgorithm::processAll()
 
       vector<double> spectrumValues;
       vector<int> resampledBands;
-      bSuccess = resampleSpectrum(pSignature, spectrumValues, *pWavelengths.get(), resampledBands);
+      bSuccess = resampleSpectrum(pSignature, spectrumValues, pWavelengths.get(), resampledBands);
 
       // Check for limited spectral coverage and warning log 
       if (bSuccess && pWavelengths->hasCenterValues() &&
@@ -552,15 +547,13 @@ bool SamAlgorithm::processAll()
    return bSuccess;
 }
 
-bool SamAlgorithm::resampleSpectrum(Signature* pSignature, 
-                                    vector<double>& resampledAmplitude,
-                                    const Wavelengths& wavelengths, 
-                                    vector<int>& resampledBands)
+bool SamAlgorithm::resampleSpectrum(Signature* pSignature, vector<double>& resampledAmplitude,
+                                    Wavelengths* pWavelengths, vector<int>& resampledBands)
 {
    StepResource pStep("Resample Signature", "spectral", "E1C6F0EA-4D00-4B0E-851F-F677A479169D");
 
    Progress* pProgress = getProgress();
-   if (wavelengths.isEmpty())
+   if ((pWavelengths == NULL) || (pWavelengths->isEmpty()))
    {
       // Check for an in-scene signature
       RasterElement* pElement = getRasterElement();
@@ -588,7 +581,7 @@ bool SamAlgorithm::resampleSpectrum(Signature* pSignature,
       return false;
    }
 
-   vector<double> fwhm = const_cast<Wavelengths&>(wavelengths).getFwhm();
+   vector<double> fwhm = pWavelengths->getFwhm();
    PlugInResource resampler("Resampler");
    Resampler* pResampler = dynamic_cast<Resampler*>(resampler.get());
    if (pResampler == NULL)
@@ -607,7 +600,7 @@ bool SamAlgorithm::resampleSpectrum(Signature* pSignature,
       if (!pResampler->execute(sigReflectance,
                               resampledAmplitude,
                               dv_cast<vector<double> >(pSignature->getData("Wavelength")),
-                              wavelengths.getCenterValues(),
+                              pWavelengths->getCenterValues(),
                               fwhm,
                               resampledBands,
                               err))

@@ -28,6 +28,7 @@
 #include "Locator.h"
 #include "ModelServices.h"
 #include "MouseMode.h"
+#include "ObjectResource.h"
 #include "PlotView.h"
 #include "PlotWidget.h"
 #include "PlugInArgList.h"
@@ -66,7 +67,7 @@ SignaturePlotObject::SignaturePlotObject(PlotWidget* pPlotWidget, Progress* pPro
    mpProgress(pProgress),
    mbAbort(false),
    mpSigSelector(NULL),
-   mWaveUnits(Wavelengths::MICRONS),
+   mWaveUnits(MICRONS),
    meActiveBandColor(),
    mbClearOnAdd(false),
    mpRasterLayer(NULL),
@@ -1342,22 +1343,22 @@ QColor SignaturePlotObject::getSignatureColor(Signature* pSignature) const
    return clrSignature;
 }
 
-void SignaturePlotObject::setWavelengthUnits(Wavelengths::WavelengthUnitsType units)
+void SignaturePlotObject::setWavelengthUnits(WavelengthUnitsType units)
 {
    if (units == mWaveUnits)
    {
       return;
    }
 
-   if (units == Wavelengths::MICRONS)
+   if (units == MICRONS)
    {
       mpMicronsAction->activate(QAction::Trigger);
    }
-   else if (units == Wavelengths::NANOMETERS)
+   else if (units == NANOMETERS)
    {
       mpNanometersAction->activate(QAction::Trigger);
    }
-   else if (units == Wavelengths::INVERSE_CENTIMETERS)
+   else if (units == INVERSE_CENTIMETERS)
    {
       mpCentimetersAction->activate(QAction::Trigger);
    }
@@ -1370,18 +1371,18 @@ void SignaturePlotObject::setWavelengthUnits(QAction* pAction)
       return;
    }
 
-   Wavelengths::WavelengthUnitsType units;
+   WavelengthUnitsType units;
    if (pAction == mpMicronsAction)
    {
-      units = Wavelengths::MICRONS;
+      units = MICRONS;
    }
    else if (pAction == mpNanometersAction)
    {
-      units = Wavelengths::NANOMETERS;
+      units = NANOMETERS;
    }
    else if (pAction == mpCentimetersAction)
    {
-      units = Wavelengths::INVERSE_CENTIMETERS;
+      units = INVERSE_CENTIMETERS;
    }
    else
    {
@@ -1417,7 +1418,7 @@ void SignaturePlotObject::setWavelengthUnits(QAction* pAction)
    refresh();
 }
 
-Wavelengths::WavelengthUnitsType SignaturePlotObject::getWavelengthUnits() const
+WavelengthUnitsType SignaturePlotObject::getWavelengthUnits() const
 {
    return mWaveUnits;
 }
@@ -1594,15 +1595,15 @@ void SignaturePlotObject::enableBandCharacteristics(bool bEnable)
 
    displayBandNumbers();
 
-   if (mWaveUnits == Wavelengths::MICRONS)
+   if (mWaveUnits == MICRONS)
    {
       mpMicronsAction->setChecked(true);
    }
-   else if (mWaveUnits == Wavelengths::NANOMETERS)
+   else if (mWaveUnits == NANOMETERS)
    {
       mpNanometersAction->setChecked(true);
    }
-   else if (mWaveUnits == Wavelengths::INVERSE_CENTIMETERS)
+   else if (mWaveUnits == INVERSE_CENTIMETERS)
    {
       mpCentimetersAction->setChecked(true);
    }
@@ -1947,7 +1948,7 @@ void SignaturePlotObject::setSignaturePlotValues(CurveCollection* pCollection, S
       {
          if (i < wavelengthData.size())
          {
-            double dWavelength = Wavelengths::convertValue(wavelengthData[i], Wavelengths::MICRONS, mWaveUnits);
+            double dWavelength = Wavelengths::convertValue(wavelengthData[i], MICRONS, mWaveUnits);
 
             DimensionDescriptor bandDim = getBandFromWavelength(dWavelength);
             if (bandDim.isOriginalNumberValid())
@@ -1962,7 +1963,7 @@ void SignaturePlotObject::setSignaturePlotValues(CurveCollection* pCollection, S
       }
       else if (i < wavelengthData.size())
       {
-         dXValue = Wavelengths::convertValue(wavelengthData[i], Wavelengths::MICRONS, mWaveUnits);
+         dXValue = Wavelengths::convertValue(wavelengthData[i], MICRONS, mWaveUnits);
       }
 
       if (i < reflectanceData.size())
@@ -2003,15 +2004,15 @@ void SignaturePlotObject::setXAxisTitle()
    {
       axisTitle = "Wavelengths";
 
-      if (mWaveUnits == Wavelengths::MICRONS)
+      if (mWaveUnits == MICRONS)
       {
          axisTitle += " (" + MICRON + "m)";
       }
-      else if (mWaveUnits == Wavelengths::NANOMETERS)
+      else if (mWaveUnits == NANOMETERS)
       {
          axisTitle += " (nm)";
       }
-      else if (mWaveUnits == Wavelengths::INVERSE_CENTIMETERS)
+      else if (mWaveUnits == INVERSE_CENTIMETERS)
       {
          axisTitle += " (1/cm)";
       }
@@ -2253,8 +2254,10 @@ bool SignaturePlotObject::isDatasetSignature(Signature* pSignature) const
       return false;
    }
 
-   Wavelengths rasterWavelengths(pMetadata);
-   const vector<double>& rasterWavelengthData = rasterWavelengths.getCenterValues();
+   FactoryResource<Wavelengths> pRasterWavelengths;
+   pRasterWavelengths->initializeFromDynamicObject(pMetadata, false);
+
+   const vector<double>& rasterWavelengthData = pRasterWavelengths->getCenterValues();
 
    //verify that the center wavelengths from the raster element are entirely
    //contained within the signature center wavelengths
@@ -2651,7 +2654,7 @@ double SignaturePlotObject::getWavelengthFromBand(DimensionDescriptor bandDim) c
       return 0.0;
    }
 
-   DynamicObject* pMetadata = pElement->getMetadata();
+   const DynamicObject* pMetadata = pElement->getMetadata();
    if (pMetadata == NULL)
    {
       return 0.0;
@@ -2659,16 +2662,20 @@ double SignaturePlotObject::getWavelengthFromBand(DimensionDescriptor bandDim) c
 
    if (bandDim.isActiveNumberValid())
    {
-      Wavelengths rasterWavelengths(pMetadata);
+      double wavelength = 0.0;
 
-      const vector<double>& wavelengthValues = rasterWavelengths.getCenterValues();
-      Wavelengths::WavelengthUnitsType units = rasterWavelengths.getUnits();
-
-      unsigned int bandNumber = bandDim.getActiveNumber();
-      if (bandNumber < wavelengthValues.size())
+      const std::vector<double>* pCenterValues =
+         dv_cast<std::vector<double> >(&pMetadata->getAttributeByPath(CENTER_WAVELENGTHS_METADATA_PATH));
+      if (pCenterValues != NULL)
       {
-         return Wavelengths::convertValue(wavelengthValues[bandNumber], units, mWaveUnits);
+         unsigned int bandNumber = bandDim.getActiveNumber();
+         if (bandNumber < pCenterValues->size())
+         {
+            wavelength = pCenterValues->at(bandNumber);
+         }
       }
+
+      return Wavelengths::convertValue(wavelength, MICRONS, mWaveUnits);
    }
 
    return 0.0;
@@ -2700,15 +2707,16 @@ DimensionDescriptor SignaturePlotObject::getBandFromWavelength(double dWavelengt
    }
 
    // Convert wavelength value to raster wavelength units for comparison
-   Wavelengths rasterWavelengths(pMetadata);
+   FactoryResource<Wavelengths> pRasterWavelengths;
+   pRasterWavelengths->initializeFromDynamicObject(pMetadata, false);
 
-   Wavelengths::WavelengthUnitsType units = rasterWavelengths.getUnits();
+   WavelengthUnitsType units = pRasterWavelengths->getUnits();
    dWavelength = Wavelengths::convertValue(dWavelength, mWaveUnits, units);
 
    double dOldDist = numeric_limits<double>::max();
    DimensionDescriptor foundBand;
 
-   const vector<double>& wavelengthValues = rasterWavelengths.getCenterValues();
+   const vector<double>& wavelengthValues = pRasterWavelengths->getCenterValues();
    for (vector<double>::size_type i = 0; i < wavelengthValues.size(); i++)
    {
       double dDist = fabs(dWavelength - wavelengthValues[i]);

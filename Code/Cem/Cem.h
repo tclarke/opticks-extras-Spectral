@@ -49,7 +49,7 @@ class CemAlgorithm : public AlgorithmPattern
    bool initialize(void* pAlgorithmData);
    RasterElement* createResults(int numRows, int numColumns, const std::string& sigName);
    bool resampleSpectrum(Signature* pSignature, std::vector<double>& resampledAmplitude, 
-      const Wavelengths& wavelengths, std::vector<int>& resampledBands);
+      Wavelengths* pWavelengths, std::vector<int>& resampledBands);
    bool canAbort() const;
    bool doAbort();
    void computeWoper(std::vector<double>& pSpectrum, double* pSmm,
