@@ -70,6 +70,7 @@ vector<ImportDescriptor*> LandsatTmImporter::getImportDescriptors(const string& 
    RasterDataDescriptor* pDescriptor = RasterUtilities::generateRasterDataDescriptor(filename, NULL,
       mNumRows, mNumCols, mNumBands, BSQ, INT1UBYTE, IN_MEMORY);
    VERIFYRV(pDescriptor != NULL, descriptors);
+   pDescriptor->setValidDataTypes(vector<EncodingType>(1, INT1UBYTE));
    ImportDescriptorResource pImportDescriptor(pDescriptor);
    VERIFYRV(pImportDescriptor.get() != NULL, descriptors);
    RasterFileDescriptor* pFileDescriptor = static_cast<RasterFileDescriptor*>(
