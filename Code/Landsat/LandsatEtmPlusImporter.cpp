@@ -83,6 +83,7 @@ vector<ImportDescriptor*> LandsatEtmPlusImporter::getImportDescriptors(const str
       RasterDataDescriptor* pDescriptor = RasterUtilities::generateRasterDataDescriptor(lowGainDatasetName, NULL,
          mNumRows, mNumCols, 7, BSQ, INT1UBYTE, IN_MEMORY);
       VERIFYRV(pDescriptor != NULL, descriptors);
+      pDescriptor->setValidDataTypes(vector<EncodingType>(1, INT1UBYTE));
       ImportDescriptorResource pLowGainImportDescriptor(pDescriptor);
       VERIFYRV(pLowGainImportDescriptor.get() != NULL, descriptors);
 
@@ -128,6 +129,7 @@ vector<ImportDescriptor*> LandsatEtmPlusImporter::getImportDescriptors(const str
       RasterDataDescriptor* pDescriptor = RasterUtilities::generateRasterDataDescriptor(panDatasetName, NULL,
          mB8Rows, mB8Cols, 1, BSQ, INT1UBYTE, IN_MEMORY);
       VERIFYRV(pDescriptor != NULL, descriptors);
+      pDescriptor->setValidDataTypes(vector<EncodingType>(1, INT1UBYTE));
       ImportDescriptorResource pPanImportDescriptor(pDescriptor);
       VERIFYRV(pPanImportDescriptor.get() != NULL, descriptors);
       pPanImportDescriptor->setImported(false);
