@@ -39,8 +39,8 @@ namespace
    {
    public:
       ImportDescriptorFilter() {}
-      ~ImportDescriptorFilter() {}
-      short acceptNode(const DOMNode* pNode) const
+      virtual ~ImportDescriptorFilter() {}
+      virtual FilterAction acceptNode(const DOMNode* pNode) const
       {
          if (pNode == NULL)
          {
@@ -54,11 +54,6 @@ namespace
          return FILTER_SKIP;
       }
    };
-
-   Signature* toSignature(DataElement* p)
-   {
-      return dynamic_cast<Signature*>(p);
-   }
 };
 
 REGISTER_PLUGIN_BASIC(SpectralSignature, SignatureSetImporter);
@@ -213,7 +208,7 @@ bool SignatureSetImporter::execute(PlugInArgList* pInArgList, PlugInArgList* Out
          }
       }
       expr += "/signature";
-      XPath2Result *pResult = mXml.query(expr, XPath2Result::SNAPSHOT_RESULT);
+      DOMXPathResult* pResult = mXml.query(expr, DOMXPathResult::SNAPSHOT_RESULT_TYPE);
       VERIFY(pResult != NULL);
       int nodeTotal = pResult->getSnapshotLength();
       for (int nodeNum = 0; nodeNum < nodeTotal; ++nodeNum)
@@ -229,7 +224,7 @@ bool SignatureSetImporter::execute(PlugInArgList* pInArgList, PlugInArgList* Out
          {
             continue;
          }
-         const DOMElement* pElmnt = static_cast<const DOMElement*>(pResult->asNode());
+         const DOMElement* pElmnt = static_cast<const DOMElement*>(pResult->getNodeValue());
          string filename = A(pElmnt->getAttribute(X("filename")));
          if (filename.empty() == false)
          {
