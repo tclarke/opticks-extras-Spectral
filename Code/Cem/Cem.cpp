@@ -617,7 +617,7 @@ bool CemAlgorithm::processAll()
    // Aborts gracefully after clean up
    if (mAbortFlag)
    {
-      progress.abort();
+      progress.report("User aborted the operation.", 0, ABORT, true);
       mAbortFlag = false;
       return false;
    }
