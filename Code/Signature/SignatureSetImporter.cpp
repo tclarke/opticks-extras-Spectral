@@ -215,7 +215,7 @@ bool SignatureSetImporter::execute(PlugInArgList* pInArgList, PlugInArgList* Out
       {
          if (isAborted())
          {
-            progress.abort();
+            progress.report("User aborted the operation.", 0, ABORT, true);
             return false;
          }
          int percent = static_cast<int>(100.0 * nodeNum / nodeTotal);
