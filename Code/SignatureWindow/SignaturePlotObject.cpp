@@ -431,8 +431,11 @@ void SignaturePlotObject::signatureModified(Subject& subject, const string& sign
       QMap<Signature*, CurveCollection*>::Iterator iter = mSignatures.find(pSignature);
       if (iter != mSignatures.end())
       {
-         const string& signatureName = pSignature->getName();
-
+         string signatureName = pSignature->getDisplayName();
+         if (signatureName.empty())
+         {
+            signatureName = pSignature->getName();
+         }
          pCollection = iter.value();
          if (pCollection != NULL)
          {
@@ -895,7 +898,11 @@ void SignaturePlotObject::insertSignature(Signature* pSignature, ColorType color
             pCollection->setColor(color);
 
             // Set the object name
-            const string& signatureName = pSignature->getName();
+            string signatureName = pSignature->getDisplayName();
+            if (signatureName.empty())
+            {
+               signatureName = pSignature->getName();
+            }
             pCollection->setObjectName(signatureName);
 
             // Set the signature values in the plot
