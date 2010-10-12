@@ -382,7 +382,7 @@ bool SamAlgorithm::processAll()
 
          // Initializes all threads
          mta::MultiThreadedAlgorithm<SamAlgInput, SamAlgOutput, SamThread>
-            mtaSam(Service<ConfigurationSettings>()->getSettingThreadCount(),
+            mtaSam(mta::getNumRequiredThreads(numRows),
             samInput, 
             samOutput, 
             &reporter);
