@@ -490,7 +490,7 @@ bool CemAlgorithm::processAll()
          CemAlgOutput cemOutput;
          mta::ProgressObjectReporter reporter(message, progress.getCurrentProgress());
          mta::MultiThreadedAlgorithm<CemAlgInput, CemAlgOutput, CemThread>
-            mtaCem(Service<ConfigurationSettings>()->getSettingThreadCount(), cemInput, cemOutput, &reporter);
+            mtaCem(mta::getNumRequiredThreads(numRows), cemInput, cemOutput, &reporter);
          mtaCem.run();
          if (cemInput.mpResultsMatrix == NULL)
          {
