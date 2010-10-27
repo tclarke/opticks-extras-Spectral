@@ -100,7 +100,8 @@ bool SignatureExporter::execute(PlugInArgList* pInArgList, PlugInArgList* pOutAr
 #else
    int newFileMode = S_IREAD | S_IWRITE;
 #endif
-   if (!signatureFile.open(pFileDescriptor->getFilename().getFullPathAndName(), O_WRONLY | O_CREAT | O_TEXT, newFileMode))
+   if (!signatureFile.open(pFileDescriptor->getFilename().getFullPathAndName(),
+      O_WRONLY | O_CREAT | O_BINARY, newFileMode))
    {
       progress.report("Unable to open file for export.", 0, ERRORS, true);
       return false;
