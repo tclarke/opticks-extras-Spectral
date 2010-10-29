@@ -76,6 +76,9 @@ SignaturePlotObject::SignaturePlotObject(PlotWidget* pPlotWidget, Progress* pPro
    mDisplayRegions(false),
    mRegionColor(Qt::red),
    mRegionOpacity(35),
+   mpFirstSignature(NULL),
+   mMinValue(0.0),
+   mRange(0.0),
    mpSignatureUnitsMenu(NULL),
    mpWavelengthAction(NULL),
    mpBandDisplayAction(NULL),
@@ -86,7 +89,8 @@ SignaturePlotObject::SignaturePlotObject(PlotWidget* pPlotWidget, Progress* pPro
    mpDisplayModeMenu(NULL),
    mpGrayscaleAction(NULL),
    mpRgbAction(NULL),
-   mpRescaleOnAdd(NULL)
+   mpRescaleOnAdd(NULL),
+   mpScaleToFirst(NULL)
 {
    string shortcutContext = "Signature Window/Signature Plot";
 
@@ -191,6 +195,14 @@ SignaturePlotObject::SignaturePlotObject(PlotWidget* pPlotWidget, Progress* pPro
    mpRescaleOnAdd->setChecked(SignatureWindowOptions::getSettingRescaleOnAdd());
    mpRescaleOnAdd->setToolTip("Check to enable rescaling plot when a signature is added");
    mpRescaleOnAdd->setStatusTip("Enable/disable rescaling the plot when adding new signatures.");
+
+   mpScaleToFirst = new QAction("Scale signatures to first signature", this);
+   mpScaleToFirst->setAutoRepeat(false);
+   mpScaleToFirst->setCheckable(true);
+   mpScaleToFirst->setChecked(SignatureWindowOptions::getSettingScaleToFirstSignature());
+   mpScaleToFirst->setToolTip("Check to enable scaling signatures in plot\nto the first signature that was added");
+   mpScaleToFirst->setStatusTip("Enable/disable scaling signatures to the first signature.");
+   VERIFYNR(connect(mpScaleToFirst, SIGNAL(toggled(bool)), this, SLOT(updatePlotForScaleToFirst(bool))));
 
    pPlotView->attach(SIGNAL_NAME(Subject, Modified), Slot(this, &SignaturePlotObject::plotModified));
    pWidget->installEventFilter(this);
@@ -576,6 +588,10 @@ void SignaturePlotObject::updateContextMenu(Subject& subject, const string& sign
    // rescale on addition
    pMenu->addActionBefore(mpRescaleOnAdd, SPECTRAL_SIGNATUREPLOT_RESCALE_ON_ADD_ACTION,
       APP_PLOTVIEW_RESCALE_AXES_ACTION);
+
+   // scale to first signature
+   pMenu->addActionBefore(mpScaleToFirst, SPECTRAL_SIGNATUREPLOT_SCALE_TO_FIRST_ACTION,
+      SPECTRAL_SIGNATUREPLOT_RESCALE_ON_ADD_ACTION);
 
    // Signature units
    pMenu->addActionBefore(mpSignatureUnitsMenu->menuAction(), SPECTRAL_SIGNATUREPLOT_SIG_UNITS_ACTION,
@@ -1036,6 +1052,12 @@ void SignaturePlotObject::removeSignature(Signature* pSignature, bool bDelete)
       }
 
       mSignatures.erase(signaturesIter);
+   }
+   if (pSignature == mpFirstSignature)
+   {
+      mpFirstSignature = NULL;
+      mMinValue = 0.0;
+      mRange = 0.0;
    }
 
    if (mSignatures.count() == 0)
@@ -1892,6 +1914,15 @@ void SignaturePlotObject::setSignaturePlotValues(CurveCollection* pCollection, S
    Curve* pCurve = NULL;
    vector<LocationType> signaturesPoints;
 
+   // have to get statistics now if needed - can't wait for following loop which saves
+   // subsets of points for bad band breaks
+   double minValue(0.0);
+   double range(0.0);
+   if (mpFirstSignature == NULL || mpScaleToFirst->isChecked())
+   {
+      getMinAndRange(reflectanceData, dScale, minValue, range);
+   }
+
    unsigned int originalNumber = 0;
    for (unsigned int i = 0; i < reflectanceData.size(); i++)
    {
@@ -1927,6 +1958,10 @@ void SignaturePlotObject::setSignaturePlotValues(CurveCollection* pCollection, S
             {
                if (signaturesPoints.size() > 0)
                {
+                  if (mpFirstSignature != NULL && mpScaleToFirst->isChecked())
+                  {
+                     scalePoints(signaturesPoints, minValue, range);
+                  }
                   pCurve->setPoints(signaturesPoints);
                   pCurve = NULL;
 
@@ -1990,6 +2025,16 @@ void SignaturePlotObject::setSignaturePlotValues(CurveCollection* pCollection, S
    {
       if (signaturesPoints.size() > 0)
       {
+         if (mpFirstSignature == NULL)
+         {
+            mpFirstSignature = pSignature;
+            mMinValue = minValue;
+            mRange = range;
+         }
+         else if (mpScaleToFirst->isChecked())
+         {
+            scalePoints(signaturesPoints, minValue, range);
+         }
          pCurve->setPoints(signaturesPoints);
       }
    }
@@ -2043,6 +2088,11 @@ void SignaturePlotObject::setYAxisTitle()
    if (mSpectralUnits.empty() == false)
    {
       axisTitle = mSpectralUnits;
+   }
+
+   if (mpScaleToFirst->isChecked())
+   {
+      axisTitle = "Scaled Values";
    }
 
    Axis* pAxis = mpPlotWidget->getAxis(AXIS_LEFT);
@@ -2925,6 +2975,16 @@ bool SignaturePlotObject::getRescaleOnAdd()const
    return mpRescaleOnAdd->isChecked();
 }
 
+void SignaturePlotObject::setScaleToFirst(bool enabled)
+{
+   mpScaleToFirst->setChecked(enabled);
+}
+
+bool SignaturePlotObject::getScaleToFirst()const
+{
+   return mpScaleToFirst->isChecked();
+}
+
 bool SignaturePlotObject::isValidAddition(Signature* pSignature)
 {
    if (pSignature == NULL)
@@ -3001,5 +3061,71 @@ void SignaturePlotObject::updateProgress(const string& msg, int percent, Reporti
    if (mpProgress != NULL)
    {
       mpProgress->updateProgress(msg, percent, level);
+   }
+}
+
+void SignaturePlotObject::updatePlotForScaleToFirst(bool enableScaling)
+{
+   setYAxisTitle();
+   if (mSignatures.empty())
+   {
+      return;
+   }
+
+   for (QMap<Signature*, CurveCollection*>::const_iterator it = mSignatures.constBegin();
+      it != mSignatures.constEnd(); ++it)
+   {
+      setSignaturePlotValues(it.value(), it.key());
+   }
+
+   if (mpPlotWidget != NULL)
+   {
+      PlotView* pView = mpPlotWidget->getPlot();
+      if (pView != NULL)
+      {
+         if (getRescaleOnAdd())
+         {
+            pView->zoomExtents();
+         }
+         pView->refresh();
+      }
+   }
+}
+
+void SignaturePlotObject::getMinAndRange(const std::vector<double>& values, const double scaleFactor,
+                                         double& minValue, double& range) const
+{
+   minValue = numeric_limits<double>::max();
+   range = 0.0;
+   double maxValue = -minValue;
+   for (std::vector<double>::const_iterator it = values.begin(); it != values.end(); ++it)
+   {
+      double value = *it;
+      if (scaleFactor != 0.0)
+      {
+         value *= scaleFactor;
+      }
+      if (value < minValue)
+      {
+         minValue = value;
+      }
+      if (value > maxValue)
+      {
+         maxValue = value;
+      }
+   }
+   range = maxValue - minValue;
+}
+
+void SignaturePlotObject::scalePoints(std::vector<LocationType>& points, double minValue, double range) const
+{
+   if (range == 0.0)
+   {
+      return;   // don't want any divide by zero problems
+   }
+
+   for (std::vector<LocationType>::iterator it = points.begin(); it != points.end(); ++it)
+   {
+      it->mY = ((it->mY - minValue) / range) * mRange + mMinValue;
    }
 }

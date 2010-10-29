@@ -26,6 +26,7 @@
 #include "PlotView.h"
 #include "PlotWidget.h"
 #include "PlotWindow.h"
+#include "PlugInArgList.h"
 #include "PlugInManagerServices.h"
 #include "PlugInRegistration.h"
 #include "RasterDataDescriptor.h"
@@ -37,6 +38,7 @@
 #include "SessionResource.h"
 #include "Signature.h"
 #include "SignaturePlotObject.h"
+#include "SignatureSet.h"
 #include "SignatureWindow.h"
 #include "SignatureWindowIcons.h"
 #include "SignatureWindowOptions.h"
@@ -69,7 +71,8 @@ SignatureWindow::SignatureWindow() :
    mpPixelSignatureAction(NULL),
    mpAoiSignaturesAction(NULL),
    mpAoiAverageSigAction(NULL),
-   mbNotifySigPlotObjectsOfAbort(true)
+   mbNotifySigPlotObjectsOfAbort(true),
+   mbFirstTime(true)
 {
    AlgorithmShell::setName("Signature Window");
    setCreator("Ball Aerospace & Technologies, Corp.");
@@ -181,7 +184,23 @@ bool SignatureWindow::setBatch()
 
 bool SignatureWindow::getInputSpecification(PlugInArgList*& pArgList)
 {
-   pArgList = NULL;
+   if (mbFirstTime)
+   {
+      pArgList = NULL;
+   }
+   else
+   {
+      pArgList = Service<PlugInManagerServices>()->getPlugInArgList();
+      VERIFY(pArgList != NULL);
+      bool addPlot(false);
+      VERIFY(pArgList->addArg<bool>("Add Plot", &addPlot));
+      VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL));
+      VERIFY(pArgList->addArg<Signature>("Signature to add", NULL));
+      ColorType defaultColor(0, 0, 0);
+      VERIFY(pArgList->addArg<ColorType>("Curve color", &defaultColor));
+      VERIFY(pArgList->addArg<bool>("Clear before adding", &addPlot));
+   }
+
    return !isBatch();
 }
 
@@ -198,145 +217,183 @@ bool SignatureWindow::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgL
       return false;
    }
 
-   QPixmap pixSignatureWindow(SignatureWindowIcons::SignatureWindowIcon);
-   pixSignatureWindow.setMask(QPixmap(SignatureWindowIcons::SignatureWindowMask));
-   QIcon signatureWindowIcon(pixSignatureWindow);
-
-   // Add a menu command and toolbar button to invoke the window
-   ToolBar* pToolBar = static_cast<ToolBar*>(mpDesktop->getWindow("Spectral", TOOLBAR));
-   if (pToolBar != NULL)
+   // check for first time executed
+   if (mbFirstTime)
    {
-      MenuBar* pMenuBar = pToolBar->getMenuBar();
-      if (pMenuBar != NULL)
-      {
-         mpWindowAction = pMenuBar->addCommand("Spectral/Support Tools/&Signature Window", "Signature Window");
-         if (mpWindowAction != NULL)
-         {
-            mpWindowAction->setAutoRepeat(false);
-            mpWindowAction->setIcon(signatureWindowIcon);
-            mpWindowAction->setCheckable(true);
-            mpWindowAction->setToolTip("Signature Window");
-            mpWindowAction->setStatusTip("Toggles the display of the Signature Window");
-            VERIFYNR(connect(mpWindowAction, SIGNAL(triggered(bool)), this, SLOT(displaySignatureWindow(bool))));
+      mbFirstTime = false;
+      QPixmap pixSignatureWindow(SignatureWindowIcons::SignatureWindowIcon);
+      pixSignatureWindow.setMask(QPixmap(SignatureWindowIcons::SignatureWindowMask));
+      QIcon signatureWindowIcon(pixSignatureWindow);
 
-            pToolBar->addButton(mpWindowAction);
+      // Add a menu command and toolbar button to invoke the window
+      ToolBar* pToolBar = static_cast<ToolBar*>(mpDesktop->getWindow("Spectral", TOOLBAR));
+      if (pToolBar != NULL)
+      {
+         MenuBar* pMenuBar = pToolBar->getMenuBar();
+         if (pMenuBar != NULL)
+         {
+            mpWindowAction = pMenuBar->addCommand("Spectral/Support Tools/&Signature Window", "Signature Window");
+            if (mpWindowAction != NULL)
+            {
+               mpWindowAction->setAutoRepeat(false);
+               mpWindowAction->setIcon(signatureWindowIcon);
+               mpWindowAction->setCheckable(true);
+               mpWindowAction->setToolTip("Signature Window");
+               mpWindowAction->setStatusTip("Toggles the display of the Signature Window");
+               VERIFYNR(connect(mpWindowAction, SIGNAL(triggered(bool)), this, SLOT(displaySignatureWindow(bool))));
+
+               pToolBar->addButton(mpWindowAction);
+            }
          }
       }
-   }
 
-   if (mpWindowAction == NULL)
-   {
-      return false;
-   }
-
-   // Create the progress object and the progress dialog
-   Service<PlugInManagerServices> pMgr;
-   mpProgress = pMgr->getProgress(this);
-   if (mpProgress != NULL)
-   {
-      mpDesktop->createProgressDialog(getName(), mpProgress);
-   }
-
-   // Create the window
-   PlotWindow* pWindow = static_cast<PlotWindow*>(mpDesktop->getWindow(mSignatureWindowName, PLOT_WINDOW));
-   if (pWindow == NULL)
-   {
-      pWindow = static_cast<PlotWindow*>(mpDesktop->createWindow(mSignatureWindowName, PLOT_WINDOW));
-      if (pWindow == NULL)
+      if (mpWindowAction == NULL)
       {
          return false;
       }
+
+      // Create the progress object and the progress dialog
+      Service<PlugInManagerServices> pMgr;
+      mpProgress = pMgr->getProgress(this);
+      if (mpProgress != NULL)
+      {
+         mpDesktop->createProgressDialog(getName(), mpProgress);
+      }
+
+      // Create the window
+      PlotWindow* pWindow = static_cast<PlotWindow*>(mpDesktop->getWindow(mSignatureWindowName, PLOT_WINDOW));
+      if (pWindow == NULL)
+      {
+         pWindow = static_cast<PlotWindow*>(mpDesktop->createWindow(mSignatureWindowName, PLOT_WINDOW));
+         if (pWindow == NULL)
+         {
+            return false;
+         }
+      }
+
+      // Attach the window
+      pWindow->attach(SIGNAL_NAME(DockWindow, Shown), Slot(this, &SignatureWindow::plotWindowShown));
+      pWindow->attach(SIGNAL_NAME(DockWindow, Hidden), Slot(this, &SignatureWindow::plotWindowHidden));
+      pWindow->attach(SIGNAL_NAME(DockWindow, AboutToShowContextMenu),
+         Slot(this, &SignatureWindow::updateContextMenu));
+      pWindow->attach(SIGNAL_NAME(PlotWindow, PlotSetAdded), Slot(this, &SignatureWindow::plotSetAdded));
+      pWindow->attach(SIGNAL_NAME(PlotWindow, SessionItemDropped), Slot(this, &SignatureWindow::dropSessionItem));
+
+      // Create the pixel spectrum action
+      QPixmap pixPixelSignature(SignatureWindowIcons::PixelSignatureIcon);
+      QBitmap bmpPixelSignatureMask(SignatureWindowIcons::PixelSignatureMask);
+      pixPixelSignature.setMask(bmpPixelSignatureMask);
+
+      mpPixelSignatureAction = new QAction(QIcon(pixPixelSignature), "&Display Pixel Signature", this);
+      mpPixelSignatureAction->setAutoRepeat(false);
+      mpPixelSignatureAction->setCheckable(true);
+      mpPixelSignatureAction->setStatusTip("Displays the signature of a pixel selected with the mouse");
+
+      // Create the AOI signatures action
+      QPixmap pixAoiSignatures(SignatureWindowIcons::AoiSignatureIcon);
+      QBitmap bmpAoiSignaturesMask(SignatureWindowIcons::AoiSignatureMask);
+      pixAoiSignatures.setMask(bmpAoiSignaturesMask);
+
+      mpAoiSignaturesAction = new QAction(QIcon(pixAoiSignatures), "&Display AOI Signatures and Average "
+         "Signature", this);
+      mpAoiSignaturesAction->setAutoRepeat(false);
+      mpAoiSignaturesAction->setStatusTip("Displays the pixel signatures and average signature of "
+         "the selected pixels in the current AOI layer.");
+      VERIFYNR(connect(mpAoiSignaturesAction, SIGNAL(triggered()), this, SLOT(displayAoiSignatures())));
+
+      // Create the pin signature plot action
+      QPixmap pixPlotPinned(SignatureWindowIcons::PinIcon);
+      QPixmap pixPlotUnpinned(SignatureWindowIcons::UnPinIcon);
+      QIcon pinIcon;
+      pinIcon.addPixmap(pixPlotUnpinned);
+      pinIcon.addPixmap(pixPlotPinned, QIcon::Normal, QIcon::On);
+      mpPinSigPlotAction = new QAction(pinIcon, "Pin/Unpin the Signature Window", this);
+      mpPinSigPlotAction->setAutoRepeat(false);
+      mpPinSigPlotAction->setStatusTip("Pins or unpins the Signature Window such that signatures are added to a custom plot");
+      mpPinSigPlotAction->setCheckable(true);
+      mpPinSigPlotAction->setChecked(SignatureWindowOptions::getSettingPinSignaturePlot());
+      VERIFYNR(connect(mpPinSigPlotAction, SIGNAL(toggled(bool)), this, SLOT(pinSignatureWindow(bool))));
+
+      // Create the AOI average signature action
+      QPixmap pixAoiAverageSig(SignatureWindowIcons::AoiAverageSignatureIcon);
+      QBitmap bmpAoiAverageSigMask(SignatureWindowIcons::AoiAverageSignatureMask);
+      pixAoiAverageSig.setMask(bmpAoiAverageSigMask);
+
+      mpAoiAverageSigAction = new QAction(QIcon(pixAoiAverageSig), "&Display AOI Average Signature", this);
+      mpAoiAverageSigAction->setAutoRepeat(false);
+      mpAoiAverageSigAction->setStatusTip("Displays the average signature of the selected pixels in the "
+         "active AOI layer");
+      VERIFYNR(connect(mpAoiAverageSigAction, SIGNAL(triggered()), this, SLOT(displayAoiAverageSig())));
+
+      // Add buttons to the toolbar
+      if (pToolBar != NULL)
+      {
+         pToolBar->addButton(mpPinSigPlotAction);
+         pToolBar->addButton(mpPixelSignatureAction);
+         pToolBar->addButton(mpAoiSignaturesAction);
+         pToolBar->addButton(mpAoiAverageSigAction);
+      }
+
+      // Add a default plot to the window
+      Service<SessionManager> pSessionManager;
+      if (pSessionManager->isSessionLoading() == false)
+      {
+         addDefaultPlot();
+      }
+
+      // Attach to the session manager
+      pSessionManager->attach(SIGNAL_NAME(SessionManager, SessionRestored),
+         Slot(this, &SignatureWindow::sessionRestored));
+
+      // Initialization
+      enableActions();
+      pWindow->setIcon(signatureWindowIcon);
+      pWindow->enableSessionItemDrops(this);
+      pWindow->hide();
+
+      // Connections
+      mpDesktop->attach(SIGNAL_NAME(DesktopServices, WindowAdded), Slot(this, &SignatureWindow::windowAdded));
+      mpDesktop->attach(SIGNAL_NAME(DesktopServices, WindowActivated), Slot(this, &SignatureWindow::windowActivated));
+      mpDesktop->attach(SIGNAL_NAME(DesktopServices, WindowRemoved), Slot(this, &SignatureWindow::windowRemoved));
+
+      Service<SessionExplorer> pExplorer;
+      mpExplorer.reset(pExplorer.get());
+
+      return true;
    }
 
-   // Attach the window
-   pWindow->attach(SIGNAL_NAME(DockWindow, Shown), Slot(this, &SignatureWindow::plotWindowShown));
-   pWindow->attach(SIGNAL_NAME(DockWindow, Hidden), Slot(this, &SignatureWindow::plotWindowHidden));
-   pWindow->attach(SIGNAL_NAME(DockWindow, AboutToShowContextMenu),
-      Slot(this, &SignatureWindow::updateContextMenu));
-   pWindow->attach(SIGNAL_NAME(PlotWindow, PlotSetAdded), Slot(this, &SignatureWindow::plotSetAdded));
-   pWindow->attach(SIGNAL_NAME(PlotWindow, SessionItemDropped), Slot(this, &SignatureWindow::dropSessionItem));
-
-   // Create the pixel spectrum action
-   QPixmap pixPixelSignature(SignatureWindowIcons::PixelSignatureIcon);
-   QBitmap bmpPixelSignatureMask(SignatureWindowIcons::PixelSignatureMask);
-   pixPixelSignature.setMask(bmpPixelSignatureMask);
-
-   mpPixelSignatureAction = new QAction(QIcon(pixPixelSignature), "&Display Pixel Signature", this);
-   mpPixelSignatureAction->setAutoRepeat(false);
-   mpPixelSignatureAction->setCheckable(true);
-   mpPixelSignatureAction->setStatusTip("Displays the signature of a pixel selected with the mouse");
-
-   // Create the AOI signatures action
-   QPixmap pixAoiSignatures(SignatureWindowIcons::AoiSignatureIcon);
-   QBitmap bmpAoiSignaturesMask(SignatureWindowIcons::AoiSignatureMask);
-   pixAoiSignatures.setMask(bmpAoiSignaturesMask);
-
-   mpAoiSignaturesAction = new QAction(QIcon(pixAoiSignatures), "&Display AOI Signatures and Average "
-      "Signature", this);
-   mpAoiSignaturesAction->setAutoRepeat(false);
-   mpAoiSignaturesAction->setStatusTip("Displays the pixel signatures and average signature of "
-      "the selected pixels in the current AOI layer.");
-   VERIFYNR(connect(mpAoiSignaturesAction, SIGNAL(triggered()), this, SLOT(displayAoiSignatures())));
-
-   // Create the pin signature plot action
-   QPixmap pixPlotPinned(SignatureWindowIcons::PinIcon);
-   QPixmap pixPlotUnpinned(SignatureWindowIcons::UnPinIcon);
-   QIcon pinIcon;
-   pinIcon.addPixmap(pixPlotUnpinned);
-   pinIcon.addPixmap(pixPlotPinned, QIcon::Normal, QIcon::On);
-   mpPinSigPlotAction = new QAction(pinIcon, "Pin/Unpin the Signature Window", this);
-   mpPinSigPlotAction->setAutoRepeat(false);
-   mpPinSigPlotAction->setStatusTip("Pins or unpins the Signature Window such that signatures are added to a custom plot");
-   mpPinSigPlotAction->setCheckable(true);
-   mpPinSigPlotAction->setChecked(SignatureWindowOptions::getSettingPinSignaturePlot());
-   VERIFYNR(connect(mpPinSigPlotAction, SIGNAL(toggled(bool)), this, SLOT(pinSignatureWindow(bool))));
-
-   // Create the AOI average signature action
-   QPixmap pixAoiAverageSig(SignatureWindowIcons::AoiAverageSignatureIcon);
-   QBitmap bmpAoiAverageSigMask(SignatureWindowIcons::AoiAverageSignatureMask);
-   pixAoiAverageSig.setMask(bmpAoiAverageSigMask);
-
-   mpAoiAverageSigAction = new QAction(QIcon(pixAoiAverageSig), "&Display AOI Average Signature", this);
-   mpAoiAverageSigAction->setAutoRepeat(false);
-   mpAoiAverageSigAction->setStatusTip("Displays the average signature of the selected pixels in the "
-      "active AOI layer");
-   VERIFYNR(connect(mpAoiAverageSigAction, SIGNAL(triggered()), this, SLOT(displayAoiAverageSig())));
-
-   // Add buttons to the toolbar
-   if (pToolBar != NULL)
+   // add plot interface
+   if (pInArgList != NULL)
    {
-      pToolBar->addButton(mpPinSigPlotAction);
-      pToolBar->addButton(mpPixelSignatureAction);
-      pToolBar->addButton(mpAoiSignaturesAction);
-      pToolBar->addButton(mpAoiAverageSigAction);
+      bool* pAddPlot = pInArgList->getPlugInArgValue<bool>("Add Plot");
+      VERIFY(pAddPlot != NULL);
+      if (*pAddPlot)
+      {
+         RasterElement* pRaster = pInArgList->getPlugInArgValue<RasterElement>(Executable::DataElementArg());
+         Signature* pSignature = pInArgList->getPlugInArgValue<Signature>("Signature to add");
+         ColorType color(0, 0, 0);  //default color
+         pInArgList->getPlugInArgValue<ColorType>("Curve color", color);
+         bool* pClear = pInArgList->getPlugInArgValue<bool>("Clear before adding");
+         VERIFY(pRaster != NULL && pSignature != NULL && color.isValid() && pClear != NULL);
+         if (pSignature->getType() == TypeConverter::toString<SignatureSet>())
+         {
+            SignatureSet* pSet = dynamic_cast<SignatureSet*>(pSignature);
+            VERIFY(pSet != NULL);
+            std::vector<Signature*> signatures = pSet->getSignatures();
+            for (std::vector<Signature*>::iterator it = signatures.begin(); it != signatures.end(); ++it)
+            {
+               addPlot(pRaster, *it, color, *pClear);
+            }
+         }
+         else
+         {
+            addPlot(pRaster, pSignature, color, *pClear);
+         }
+         return true;
+      }
    }
 
-   // Add a default plot to the window
-   Service<SessionManager> pSessionManager;
-   if (pSessionManager->isSessionLoading() == false)
-   {
-      addDefaultPlot();
-   }
-
-   // Attach to the session manager
-   pSessionManager->attach(SIGNAL_NAME(SessionManager, SessionRestored),
-      Slot(this, &SignatureWindow::sessionRestored));
-
-   // Initialization
-   enableActions();
-   pWindow->setIcon(signatureWindowIcon);
-   pWindow->enableSessionItemDrops(this);
-   pWindow->hide();
-
-   // Connections
-   mpDesktop->attach(SIGNAL_NAME(DesktopServices, WindowAdded), Slot(this, &SignatureWindow::windowAdded));
-   mpDesktop->attach(SIGNAL_NAME(DesktopServices, WindowActivated), Slot(this, &SignatureWindow::windowActivated));
-   mpDesktop->attach(SIGNAL_NAME(DesktopServices, WindowRemoved), Slot(this, &SignatureWindow::windowRemoved));
-
-   Service<SessionExplorer> pExplorer;
-   mpExplorer.reset(pExplorer.get());
-
-   return true;
+   return false;
 }
 
 bool SignatureWindow::abort()
@@ -1492,5 +1549,24 @@ void SignatureWindow::updateProgress(const std::string& msg, int percent, Report
    if (mpProgress != NULL)
    {
       mpProgress->updateProgress(msg, percent, level);
+   }
+}
+
+void SignatureWindow::addPlot(const RasterElement* pRaster, Signature* pSignature, const ColorType& color, bool clearBeforeAdd)
+{
+   if (pRaster != NULL && pSignature != NULL && color.isValid())
+   {
+      string sensorName = pRaster->getName();
+
+      SignaturePlotObject* pSignaturePlot = getSignaturePlot(sensorName);
+      if (pSignaturePlot != NULL)
+      {
+         if (clearBeforeAdd)
+         {
+            pSignaturePlot->clearSignatures();
+         }
+         pSignaturePlot->displayBandNumbers(false);
+         pSignaturePlot->addSignature(pSignature, color);
+      }
    }
 }

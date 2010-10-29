@@ -62,11 +62,14 @@ PropertiesSignaturePlotObject::PropertiesSignaturePlotObject() :
    QWidget* pRescaleWidget = new QWidget(this);
    mpRescaleOnAdd = new QCheckBox("Rescale on addition", pRescaleWidget);
    mpRescaleOnAdd->setToolTip("Check to enable rescaling the plot when a new signature is added.");
-   LabeledSection* pRescaleSection = new LabeledSection(pRescaleWidget, "Auto Rescaling", this);
-   QHBoxLayout* pRescaleLayout = new QHBoxLayout(pRescaleWidget);
+   mpScaleToFirst = new QCheckBox("Scale to first signature", pRescaleWidget);
+   mpScaleToFirst->setToolTip("Check to enable scaling signatures in the plot to the first signature added.");
+   LabeledSection* pRescaleSection = new LabeledSection(pRescaleWidget, "Scaling Options", this);
+   QVBoxLayout* pRescaleLayout = new QVBoxLayout(pRescaleWidget);
    pRescaleLayout->setMargin(0);
    pRescaleLayout->setSpacing(5);
    pRescaleLayout->addWidget(mpRescaleOnAdd);
+   pRescaleLayout->addWidget(mpScaleToFirst);
 
    // Initialization
    addSection(pRegionSection);
@@ -115,6 +118,7 @@ bool PropertiesSignaturePlotObject::initialize(SessionItem* pSessionItem)
 
    // Rescale
    mpRescaleOnAdd->setChecked(mpPlot->getRescaleOnAdd());
+   mpScaleToFirst->setChecked(mpPlot->getScaleToFirst());
 
    return true;
 }
@@ -133,6 +137,7 @@ bool PropertiesSignaturePlotObject::applyChanges()
 
    // Rescale
    mpPlot->setRescaleOnAdd(mpRescaleOnAdd->isChecked());
+   mpPlot->setScaleToFirst(mpScaleToFirst->isChecked());
 
    // Refresh the plot
    PlotWidget* pPlotWidget = mpPlot->getPlotWidget();
