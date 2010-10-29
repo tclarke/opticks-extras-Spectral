@@ -24,9 +24,11 @@
 #include <string>
 #include <vector>
 
+class ColorType;
 class MouseMode;
 class PlotWidget;
 class RasterLayer;
+class RasterElement;
 class SessionItemDeserializer;
 class SessionItemSerializer;
 class Signature;
@@ -53,6 +55,7 @@ public:
    bool deserialize(SessionItemDeserializer& deserializer);
 
 protected:
+   void addPlot(const RasterElement* pRaster, Signature* pSignature, const ColorType& color, bool clearBeforeAdd = false);
    bool eventFilter(QObject* pObject, QEvent* pEvent);
    void dropSessionItem(Subject& subject, const std::string& signal, const boost::any& value);
    void updateContextMenu(Subject& subject, const std::string& signal, const boost::any& value);
@@ -130,6 +133,7 @@ private:
    QAction* mpAoiSignaturesAction;
    QAction* mpAoiAverageSigAction;
    bool mbNotifySigPlotObjectsOfAbort;  // used to prevent passing abort to plot when progress passed to SpectralUtilities
+   bool mbFirstTime;                    // used to identify first time plug-in is executed
 
    std::vector<SignaturePlotObject*> mPlots;
    std::vector<SignaturePlotObjectInitializer> mSessionPlots;

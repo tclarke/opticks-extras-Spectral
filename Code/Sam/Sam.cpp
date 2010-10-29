@@ -398,91 +398,94 @@ bool SamAlgorithm::processAll()
             return false;
          }
 
-         if ((isInteractive() || mInputs.mbDisplayResults) && iSignatureCount > 1 && mInputs.mbCreatePseudocolor)
+         if (isInteractive() || mInputs.mbDisplayResults)
          {
-            // Merges results in to one output layer if a Pseudocolor
-            // output layer has been selected
-            FactoryResource<DataRequest> pseudoRequest, currentRequest, lowestRequest;
-            pseudoRequest->setWritable(true);
-            string failedDataRequestErrorMessage =
-               SpectralUtilities::getFailedDataRequestErrorMessage(pseudoRequest.get(), pPseudocolorMatrix);
-            DataAccessor daPseudoAccessor = pPseudocolorMatrix->getDataAccessor(pseudoRequest.release());
-            if (!daPseudoAccessor.isValid())
+            if (iSignatureCount > 1 && mInputs.mbCreatePseudocolor)
             {
-               string msg = "Unable to access data.";
-               if (!failedDataRequestErrorMessage.empty())
+               // Merges results in to one output layer if a Pseudocolor
+               // output layer has been selected
+               FactoryResource<DataRequest> pseudoRequest, currentRequest, lowestRequest;
+               pseudoRequest->setWritable(true);
+               string failedDataRequestErrorMessage =
+                  SpectralUtilities::getFailedDataRequestErrorMessage(pseudoRequest.get(), pPseudocolorMatrix);
+               DataAccessor daPseudoAccessor = pPseudocolorMatrix->getDataAccessor(pseudoRequest.release());
+               if (!daPseudoAccessor.isValid())
                {
-                  msg += "\n" + failedDataRequestErrorMessage;
-               }
-
-               progress.report(msg, 0, ERRORS, true);
-               return false;
-            }
-
-            DataAccessor daCurrentAccessor = pResults->getDataAccessor(currentRequest.release());
-
-            lowestRequest->setWritable(true);
-            failedDataRequestErrorMessage =
-               SpectralUtilities::getFailedDataRequestErrorMessage(lowestRequest.get(), pLowestSAMValueMatrix);
-            DataAccessor daLowestSAMValue = pLowestSAMValueMatrix->getDataAccessor(lowestRequest.release());
-            if (!daLowestSAMValue.isValid())
-            {
-               string msg = "Unable to access data.";
-               if (!failedDataRequestErrorMessage.empty())
-               {
-                  msg += "\n" + failedDataRequestErrorMessage;
-               }
-
-               progress.report(msg, 0, ERRORS, true);
-               return false;
-            }
-
-            float* pPseudoValue = NULL;
-            float* pCurrentValue = NULL;
-            float* pLowestValue = NULL; 
-
-            for (unsigned  int row_ctr = 0; row_ctr < numRows; row_ctr++)
-            {
-               for (unsigned  int col_ctr = 0; col_ctr < numColumns; col_ctr++)
-               {
-                  if (!daPseudoAccessor.isValid() || !daCurrentAccessor.isValid())
+                  string msg = "Unable to access data.";
+                  if (!failedDataRequestErrorMessage.empty())
                   {
-                     Service<ModelServices>()->destroyElement(pResults);
-                     progress.report("Unable to access data.", 0, ERRORS, true);
-                     return false;
+                     msg += "\n" + failedDataRequestErrorMessage;
                   }
-                  daPseudoAccessor->toPixel(row_ctr, col_ctr);
-                  daCurrentAccessor->toPixel(row_ctr, col_ctr);
 
-                  pPseudoValue = reinterpret_cast<float*>(daPseudoAccessor->getColumn());
-                  pCurrentValue = reinterpret_cast<float*>(daCurrentAccessor->getColumn());
+                  progress.report(msg, 0, ERRORS, true);
+                  return false;
+               }
 
-                  daLowestSAMValue->toPixel(row_ctr, col_ctr);
-                  pLowestValue = reinterpret_cast<float*>(daLowestSAMValue->getColumn());
+               DataAccessor daCurrentAccessor = pResults->getDataAccessor(currentRequest.release());
 
-                  if (*pCurrentValue <= mInputs.mThreshold)
+               lowestRequest->setWritable(true);
+               failedDataRequestErrorMessage =
+                  SpectralUtilities::getFailedDataRequestErrorMessage(lowestRequest.get(), pLowestSAMValueMatrix);
+               DataAccessor daLowestSAMValue = pLowestSAMValueMatrix->getDataAccessor(lowestRequest.release());
+               if (!daLowestSAMValue.isValid())
+               {
+                  string msg = "Unable to access data.";
+                  if (!failedDataRequestErrorMessage.empty())
                   {
-                     if (*pCurrentValue < *pLowestValue)
+                     msg += "\n" + failedDataRequestErrorMessage;
+                  }
+
+                  progress.report(msg, 0, ERRORS, true);
+                  return false;
+               }
+
+               float* pPseudoValue = NULL;
+               float* pCurrentValue = NULL;
+               float* pLowestValue = NULL; 
+
+               for (unsigned  int row_ctr = 0; row_ctr < numRows; row_ctr++)
+               {
+                  for (unsigned  int col_ctr = 0; col_ctr < numColumns; col_ctr++)
+                  {
+                     if (!daPseudoAccessor.isValid() || !daCurrentAccessor.isValid())
                      {
-                        *pPseudoValue = sig_index+1;
-                        *pLowestValue = *pCurrentValue;
+                        Service<ModelServices>()->destroyElement(pResults);
+                        progress.report("Unable to access data.", 0, ERRORS, true);
+                        return false;
+                     }
+                     daPseudoAccessor->toPixel(row_ctr, col_ctr);
+                     daCurrentAccessor->toPixel(row_ctr, col_ctr);
+
+                     pPseudoValue = reinterpret_cast<float*>(daPseudoAccessor->getColumn());
+                     pCurrentValue = reinterpret_cast<float*>(daCurrentAccessor->getColumn());
+
+                     daLowestSAMValue->toPixel(row_ctr, col_ctr);
+                     pLowestValue = reinterpret_cast<float*>(daLowestSAMValue->getColumn());
+
+                     if (*pCurrentValue <= mInputs.mThreshold)
+                     {
+                        if (*pCurrentValue < *pLowestValue)
+                        {
+                           *pPseudoValue = sig_index+1;
+                           *pLowestValue = *pCurrentValue;
+                        }
                      }
                   }
                }
             }
-         }
-         else
-         {
-            ColorType color;
-            if (sig_index <= static_cast<int>(layerColors.size()))
+            else
             {
-               color = layerColors[sig_index];
+               ColorType color;
+               if (sig_index <= static_cast<int>(layerColors.size()))
+               {
+                  color = layerColors[sig_index];
+               }
+
+               double dMaxValue = pResults->getStatistics()->getMax();
+
+               // Displays results for current signature
+               displayThresholdResults(pResults, color, LOWER, mInputs.mThreshold, dMaxValue, layerOffset);
             }
-
-            double dMaxValue = pResults->getStatistics()->getMax();
-
-            // Displays results for current signature
-            displayThresholdResults(pResults, color, LOWER, mInputs.mThreshold, dMaxValue, layerOffset);
          }
 
          //If we are on the last signature then destroy the lowest value Matrix

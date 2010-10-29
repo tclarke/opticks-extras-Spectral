@@ -32,6 +32,7 @@ public:
    SETTING(PixelSignaturesColor, SignatureWindow, ColorType, ColorType(0, 0, 0)); // default = black
    SETTING(RescaleOnAdd, SignatureWindow, bool, true);
    SETTING(PinSignaturePlot, SignatureWindow, bool, false);
+   SETTING(ScaleToFirstSignature, SignatureWindow, bool, false);
 
    void applyChanges();
 
@@ -97,6 +98,7 @@ private:
    QRadioButton* mpUseAoiColorForAoiSignatures;
    CustomColorButton* mpPixelSignaturesColor;
    QCheckBox* mpRescaleOnAdd;
+   QCheckBox* mpScaleToFirst;
    QCheckBox* mpPinSigPlot;
 };
 

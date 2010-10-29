@@ -56,6 +56,7 @@ private:
    QLabel* mpRegionColorLabel;
    CustomColorButton* mpRegionColorButton;
    QCheckBox* mpRescaleOnAdd;
+   QCheckBox* mpScaleToFirst;
 };
 
 #endif
