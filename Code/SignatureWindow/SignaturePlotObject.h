@@ -333,6 +333,21 @@ public:
    bool getRescaleOnAdd() const;
 
    /**
+    *  Sets the plot to scale signatures to the first signature added.
+    *
+    *  @param   enabled
+    *           \c true to enable scaling of signatures to the first signature.
+    */
+   void setScaleToFirst(bool enabled);
+
+   /**
+    *  Returns whether or not signatures will be scaled to the first added signature.
+    *
+    *  @return   \c true if the plot will scale signatures to the first signature.
+    */
+   bool getScaleToFirst() const;
+
+   /**
     *  Sets the units of the wavelength values on the X-axis.
     *
     *  @param    units
@@ -610,6 +625,37 @@ protected:
     */
    bool isValidAddition(Signature* pSignature);
 
+   /**
+    *  Find the minimum value and range for the reflectance values in a signature.
+    *
+    *  This method finds the minimum value and range for a signature.
+    *
+    *  @param   values
+    *           The reflectance values for the signature.
+    *  @param   scaleFactor
+    *           The scaling factor for the values.
+    *  @param   minValue
+    *           The returned minimum value.
+    *  @param   range
+    *           The returned range.
+    */
+   void getMinAndRange(const std::vector<double>& values, const double scaleFactor,
+      double& minValue, double& range) const;
+
+   /**
+    *  Scale set of points to first signature.
+    *
+    *  This method scales the reflectance values for a set of points to the range and min value for the first signature.
+    *
+    *  @param   points
+    *           The subset of points to be scaled.
+    *  @param   minValue
+    *           The minimum value for all the reflectance values in the signature being scaled.
+    *  @param   range
+    *           The range of all the reflectance values in the signature being scaled.
+    */
+   void scalePoints(std::vector<LocationType>& points, double minValue, double range) const;
+
 protected slots:
    /**
     *  Sets the plot to contain spectral band information.
@@ -742,6 +788,18 @@ protected slots:
     */
    void updateProgress(const std::string& msg, int percent, ReportingLevel level);
 
+   /**
+    *  Update the plot for scaling the signatures in plot to first signature.
+    *  
+    *  This method will scale all the signatures in the plot to the first signature or
+    *  just plot the signatures depending on value of \em enableScaling.
+    *
+    *  @param   enableScaling
+    *           If \c true, the values of the signatures in the plot will be scaled to first signature, otherwise
+    *           the signature values will not be scaled.
+    */
+   void updatePlotForScaleToFirst(bool enableScaling);
+
 private:
    AttachmentPtr<SessionExplorer> mpExplorer;
 
@@ -777,6 +835,11 @@ private:
    QColor mRegionColor;
    int mRegionOpacity;
 
+   // Stats for first signature
+   Signature* mpFirstSignature;
+   double mMinValue;
+   double mRange;
+
    // Context menu
    QMenu* mpSignatureUnitsMenu;
    QAction* mpWavelengthAction;
@@ -789,6 +852,7 @@ private:
    QAction* mpGrayscaleAction;
    QAction* mpRgbAction;
    QAction* mpRescaleOnAdd;
+   QAction* mpScaleToFirst;
 
    // Convenience methods
    void setXAxisTitle();

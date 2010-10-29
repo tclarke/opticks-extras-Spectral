@@ -615,6 +615,7 @@ def build_installer(aeb_platforms=[], aeb_output=None, depend_path=None,
             copy_file_to_zip(plugin_path, target_plugin_path, "Signature.dll", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "SignatureWindow.dll", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "SpectralLibrary.dll", zfile)
+            copy_file_to_zip(plugin_path, target_plugin_path, "SpectralLibraryMatch.dll", zfile)
         elif plat_parts[0] == 'solaris' or plat_parts[0] == 'linux':
             prefix_dir = os.path.abspath(".")
             if is_windows():
@@ -641,6 +642,7 @@ def build_installer(aeb_platforms=[], aeb_output=None, depend_path=None,
             copy_file_to_zip(plugin_path, target_plugin_path, "Signature.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "SignatureWindow.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "SpectralLibrary.so", zfile)
+            copy_file_to_zip(plugin_path, target_plugin_path, "SpectralLibraryMatch.so", zfile)
         else:
             raise ScriptException("Unknown AEB platform %s" % plat)
     zfile.close()

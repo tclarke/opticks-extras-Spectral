@@ -298,10 +298,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\SpectralContextMenuActions.h"
-				>
-			</File>
-			<File
 				RelativePath=".\SpectralSignatureSelector.h"
 				>
 				<FileConfiguration

@@ -499,92 +499,95 @@ bool CemAlgorithm::processAll()
             mAbortFlag = false;
             return false;
          }
-         if ((isInteractive() || mInputs.mbDisplayResults) && iSignatureCount > 1 && mInputs.mbCreatePseudocolor)
+         if (isInteractive() || mInputs.mbDisplayResults)
          {
-            // Merges results in to one output layer if a Pseudocolor
-            // output layer has been selected
-            FactoryResource<DataRequest> pseudoRequest;
-            pseudoRequest->setWritable(true);
-            string failedDataRequestErrorMessage =
-               SpectralUtilities::getFailedDataRequestErrorMessage(pseudoRequest.get(), pPseudocolorMatrix);
-            DataAccessor daPseudoAccessor = pPseudocolorMatrix->getDataAccessor(pseudoRequest.release());
-            if (!daPseudoAccessor.isValid())
+            if (iSignatureCount > 1 && mInputs.mbCreatePseudocolor)
             {
-               string msg = "Unable to access data.";
-               if (!failedDataRequestErrorMessage.empty())
+               // Merges results in to one output layer if a Pseudocolor
+               // output layer has been selected
+               FactoryResource<DataRequest> pseudoRequest;
+               pseudoRequest->setWritable(true);
+               string failedDataRequestErrorMessage =
+                  SpectralUtilities::getFailedDataRequestErrorMessage(pseudoRequest.get(), pPseudocolorMatrix);
+               DataAccessor daPseudoAccessor = pPseudocolorMatrix->getDataAccessor(pseudoRequest.release());
+               if (!daPseudoAccessor.isValid())
                {
-                  msg += "\n" + failedDataRequestErrorMessage;
-               }
-
-               progress.report(msg, 0, ERRORS, true);
-               return false;
-            }
-
-            DataAccessor daCurrentAccessor = pResults->getDataAccessor();
-
-            FactoryResource<DataRequest> highestRequest;
-            highestRequest->setWritable(true);
-            failedDataRequestErrorMessage =
-               SpectralUtilities::getFailedDataRequestErrorMessage(highestRequest.get(), pHighestCEMValueMatrix);
-            DataAccessor daHighestCEMValue = pHighestCEMValueMatrix->getDataAccessor(highestRequest.release());
-            if (!daHighestCEMValue.isValid())
-            {
-               string msg = "Unable to access data.";
-               if (!failedDataRequestErrorMessage.empty())
-               {
-                  msg += "\n" + failedDataRequestErrorMessage;
-               }
-
-               progress.report(msg, 0, ERRORS, true);
-               return false;
-            }
-
-            float* pPseudoValue = NULL;
-            float* pCurrentValue = NULL;
-            float* pHighestValue = NULL; 
-
-            for (unsigned  int row_ctr = 0; row_ctr < numRows; row_ctr++)
-            {
-               for (unsigned  int col_ctr = 0; col_ctr < numColumns; col_ctr++)
-               {
-                  if (!daPseudoAccessor.isValid() || !daCurrentAccessor.isValid())
+                  string msg = "Unable to access data.";
+                  if (!failedDataRequestErrorMessage.empty())
                   {
-                     Service<ModelServices>()->destroyElement(pResults);
-                     progress.report("Unable to access data.", 0, ERRORS, true);
-                     return false;
+                     msg += "\n" + failedDataRequestErrorMessage;
                   }
-                  daPseudoAccessor->toPixel(row_ctr, col_ctr);
-                  daCurrentAccessor->toPixel(row_ctr, col_ctr);
 
-                  pPseudoValue = reinterpret_cast<float*>(daPseudoAccessor->getColumn());
-                  pCurrentValue = reinterpret_cast<float*>(daCurrentAccessor->getColumn());
+                  progress.report(msg, 0, ERRORS, true);
+                  return false;
+               }
 
-                  daHighestCEMValue->toPixel(row_ctr, col_ctr);
-                  pHighestValue = reinterpret_cast<float*>(daHighestCEMValue->getColumn());
+               DataAccessor daCurrentAccessor = pResults->getDataAccessor();
 
-                  if (*pCurrentValue >= mInputs.mThreshold)
+               FactoryResource<DataRequest> highestRequest;
+               highestRequest->setWritable(true);
+               failedDataRequestErrorMessage =
+                  SpectralUtilities::getFailedDataRequestErrorMessage(highestRequest.get(), pHighestCEMValueMatrix);
+               DataAccessor daHighestCEMValue = pHighestCEMValueMatrix->getDataAccessor(highestRequest.release());
+               if (!daHighestCEMValue.isValid())
+               {
+                  string msg = "Unable to access data.";
+                  if (!failedDataRequestErrorMessage.empty())
                   {
-                     if (*pCurrentValue > *pHighestValue)
+                     msg += "\n" + failedDataRequestErrorMessage;
+                  }
+
+                  progress.report(msg, 0, ERRORS, true);
+                  return false;
+               }
+
+               float* pPseudoValue = NULL;
+               float* pCurrentValue = NULL;
+               float* pHighestValue = NULL; 
+
+               for (unsigned  int row_ctr = 0; row_ctr < numRows; row_ctr++)
+               {
+                  for (unsigned  int col_ctr = 0; col_ctr < numColumns; col_ctr++)
+                  {
+                     if (!daPseudoAccessor.isValid() || !daCurrentAccessor.isValid())
                      {
-                        *pPseudoValue = sig_index+1;
-                        *pHighestValue = *pCurrentValue;
+                        Service<ModelServices>()->destroyElement(pResults);
+                        progress.report("Unable to access data.", 0, ERRORS, true);
+                        return false;
+                     }
+                     daPseudoAccessor->toPixel(row_ctr, col_ctr);
+                     daCurrentAccessor->toPixel(row_ctr, col_ctr);
+
+                     pPseudoValue = reinterpret_cast<float*>(daPseudoAccessor->getColumn());
+                     pCurrentValue = reinterpret_cast<float*>(daCurrentAccessor->getColumn());
+
+                     daHighestCEMValue->toPixel(row_ctr, col_ctr);
+                     pHighestValue = reinterpret_cast<float*>(daHighestCEMValue->getColumn());
+
+                     if (*pCurrentValue >= mInputs.mThreshold)
+                     {
+                        if (*pCurrentValue > *pHighestValue)
+                        {
+                           *pPseudoValue = sig_index+1;
+                           *pHighestValue = *pCurrentValue;
+                        }
                      }
                   }
                }
             }
-         }
-         else
-         {
-            ColorType color;
-            if (sig_index <= static_cast<int>(layerColors.size()))
+            else
             {
-               color = layerColors[sig_index];
+               ColorType color;
+               if (sig_index <= static_cast<int>(layerColors.size()))
+               {
+                  color = layerColors[sig_index];
+               }
+
+               double dMaxValue = pResults->getStatistics()->getMax();
+
+               // Displays results for current signature
+               displayThresholdResults(pResults, color, UPPER, mInputs.mThreshold, dMaxValue, layerOffset);
             }
-
-            double dMaxValue = pResults->getStatistics()->getMax();
-
-            // Displays results for current signature
-            displayThresholdResults(pResults, color, UPPER, mInputs.mThreshold, dMaxValue, layerOffset);
          }
 
          //If we are on the last signature then destroy the highest value Matrix

@@ -91,10 +91,12 @@ SignatureWindowOptions::SignatureWindowOptions()
    QWidget* pSigWinWidget = new QWidget(this);
    QVBoxLayout* pSigWinLayout = new QVBoxLayout(pSigWinWidget);
    mpRescaleOnAdd = new QCheckBox("Rescale plot after adding signature", pSigWinWidget);
+   mpScaleToFirst = new QCheckBox("Scale signatures to first signature", pSigWinWidget);
    mpPinSigPlot = new QCheckBox("Pin Signature Window to single plot", pSigWinWidget);
    pSigWinLayout->setMargin(0);
    pSigWinLayout->setSpacing(5);
    pSigWinLayout->addWidget(mpRescaleOnAdd);
+   pSigWinLayout->addWidget(mpScaleToFirst);
    pSigWinLayout->addWidget(mpPinSigPlot);
    pSigWinLayout->addStretch(10);
    LabeledSection* pRescaleSection = new LabeledSection(pSigWinWidget, "Signature Window Options", this);
@@ -127,6 +129,8 @@ SignatureWindowOptions::SignatureWindowOptions()
    mpPixelSignaturesColor->setColor(color);
    bool rescale = SignatureWindowOptions::getSettingRescaleOnAdd();
    mpRescaleOnAdd->setChecked(rescale);
+   bool scale = SignatureWindowOptions::getSettingScaleToFirstSignature();
+   mpScaleToFirst->setChecked(scale);
    bool pinSigWin = SignatureWindowOptions::getSettingPinSignaturePlot();
    mpPinSigPlot->setChecked(pinSigWin);
 }
@@ -142,5 +146,6 @@ void SignatureWindowOptions::applyChanges()
    SignatureWindowOptions::setSettingUseAoiColorForAoiSignatures(mpUseAoiColorForAoiSignatures->isChecked());
    SignatureWindowOptions::setSettingPixelSignaturesColor(mpPixelSignaturesColor->getColorType());
    SignatureWindowOptions::setSettingRescaleOnAdd(mpRescaleOnAdd->isChecked());
+   SignatureWindowOptions::setSettingScaleToFirstSignature(mpScaleToFirst->isChecked());
    SignatureWindowOptions::setSettingPinSignaturePlot(mpPinSigPlot->isChecked());
 }
