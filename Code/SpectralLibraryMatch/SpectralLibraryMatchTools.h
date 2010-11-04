@@ -23,7 +23,6 @@ class MouseMode;
 class RasterElement;
 class SessionItemDeserializer;
 class SessionItemSerializer;
-class SignatureWindow;
 class SpatialDataView;
 class SpectralLibraryManager;
 class SpectralLibraryMatchResults;
@@ -70,7 +69,7 @@ private:
    Progress* mpProgress;
 
    SpectralLibraryMatchResults* mpResults;
-   SignatureWindow* mpSignatureWindow;
+   PlugIn* mpSignatureWindow;
    SpectralLibraryManager* mpLibMgr;
 
    MouseMode* mpSpectralLibraryMatchMode;
