@@ -29,7 +29,6 @@
 #include "SessionResource.h"
 #include "Signature.h"
 #include "SignatureSet.h"
-#include "SignatureWindow.h"
 #include "Slot.h"
 #include "SpatialDataView.h"
 #include "SpatialDataWindow.h"
@@ -559,7 +558,7 @@ void SpectralLibraryMatchTools::initializeConnections()
    plugIns = pPlugInMgr->getPlugInInstances("Signature Window");
    if (!plugIns.empty())
    {
-      mpSignatureWindow = dynamic_cast<SignatureWindow*>(plugIns.front());
+      mpSignatureWindow = plugIns.front();
    }
    plugIns = pPlugInMgr->getPlugInInstances(SpectralLibraryMatch::getNameLibraryManagerPlugIn());
    if (!plugIns.empty())

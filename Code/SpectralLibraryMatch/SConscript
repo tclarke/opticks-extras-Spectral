@@ -4,8 +4,6 @@ import glob
 # import the environment
 ####
 Import('env build_dir TOOLPATH')
-env = env.Clone()
-env.Append(CPPPATH=["#/SignatureWindow"])
 
 ####
 # build sources
