@@ -8,6 +8,7 @@
  */
 
 #include "Axis.h"
+#include "Classification.h"
 #include "ColorType.h"
 #include "ContextMenu.h"
 #include "ContextMenuActions.h"
@@ -17,6 +18,7 @@
 #include "DynamicObject.h"
 #include "MenuBar.h"
 #include "MouseMode.h"
+#include "ObjectResource.h"
 #include "PlotSet.h"
 #include "PlotView.h"
 #include "PlotWidget.h"
@@ -228,8 +230,22 @@ bool RangeProfilePlotManager::plotProfile(Signature* pSignature)
       }
    }
 
-   mpPlot->setClassificationText(dv_cast<std::string>(
-      pSignature->getMetadata()->getAttribute("Raw Classification"), mpPlot->getClassificationText()));
+   std::string classificationText = dv_cast<std::string>(pSignature->getMetadata()->getAttribute("Raw Classification"),
+      mpPlot->getClassificationText());
+   if (classificationText.empty() == false)
+   {
+      FactoryResource<Classification> pClassification;
+      if (pClassification->setClassification(classificationText) == true)
+      {
+         mpPlot->setClassification(pClassification.get());
+      }
+      else
+      {
+         QMessageBox::warning(Service<DesktopServices>()->getMainWidget(), QString::fromStdString(getName()),
+            "The plot could not be updated with the signature classification.  Please ensure that the plot "
+            "has the proper classification.");
+      }
+   }
 
    getDockWindow()->show();
    mpView->zoomExtents();
