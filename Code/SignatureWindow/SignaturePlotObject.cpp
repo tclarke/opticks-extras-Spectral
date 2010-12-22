@@ -38,7 +38,6 @@
 #include "RasterElement.h"
 #include "RasterDataDescriptor.h"
 #include "RasterFileDescriptor.h"
-#include "SecurityMarkingsDlg.h"
 #include "SessionExplorer.h"
 #include "Signature.h"
 #include "SignaturePlotObject.h"
@@ -413,7 +412,7 @@ void SignaturePlotObject::signatureAttached(Subject& subject, const string& sign
 
             if (mpPlotWidget != NULL)
             {
-               mpPlotWidget->setClassificationText(mpClassification.get());
+               mpPlotWidget->setClassification(mpClassification.get());
             }
          }
       }
@@ -471,7 +470,7 @@ void SignaturePlotObject::signatureModified(Subject& subject, const string& sign
 
             if (mpPlotWidget != NULL)
             {
-               mpPlotWidget->setClassificationText(mpClassification.get());
+               mpPlotWidget->setClassification(mpClassification.get());
             }
          }
       }
@@ -595,7 +594,7 @@ void SignaturePlotObject::updateContextMenu(Subject& subject, const string& sign
 
    // Signature units
    pMenu->addActionBefore(mpSignatureUnitsMenu->menuAction(), SPECTRAL_SIGNATUREPLOT_SIG_UNITS_ACTION,
-      APP_PLOTVIEW_SECURITY_MARKINGS_ACTION);
+      APP_APPLICATIONWINDOW_EXPORT_ACTION);
 
    // Wavelength units
    pMenu->addActionAfter(mpWaveUnitsMenu->menuAction(), SPECTRAL_SIGNATUREPLOT_WAVE_UNITS_ACTION,
@@ -1863,7 +1862,7 @@ void SignaturePlotObject::setRasterLayer(RasterLayer* pRasterLayer)
 
                if (mpPlotWidget != NULL)
                {
-                  mpPlotWidget->setClassificationText(mpClassification.get());
+                  mpPlotWidget->setClassification(mpClassification.get());
                }
             }
          }
