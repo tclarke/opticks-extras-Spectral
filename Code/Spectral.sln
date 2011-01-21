@@ -1,151 +1,38 @@
-Microsoft Visual Studio Solution File, Format Version 9.00
-# Visual Studio 2005
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SpectralMgr", "SpectralMgr.vcproj", "{D7AA532C-72C0-488A-9B6C-633808D55E1B}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SpectralMgr", "SpectralMgr.vcxproj", "{D7AA532C-72C0-488A-9B6C-633808D55E1B}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Signature", "Signature\Signature.vcproj", "{FFA41147-08C4-4FA3-86E1-1E083693B67C}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
-	ProjectSection(ProjectDependencies) = postProject
-		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Signature", "Signature\Signature.vcxproj", "{FFA41147-08C4-4FA3-86E1-1E083693B67C}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SpectralUtilities", "SpectralUtilities\SpectralUtilities.vcproj", "{A695B0C1-CFF7-41AB-91A6-922A5306462C}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SpectralUtilities", "SpectralUtilities\SpectralUtilities.vcxproj", "{A695B0C1-CFF7-41AB-91A6-922A5306462C}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SpectralLibrary", "SpectralLibrary\SpectralLibrary.vcproj", "{961C4152-2F3A-4A1E-94B7-F60491DCE151}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
-	ProjectSection(ProjectDependencies) = postProject
-		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SpectralLibrary", "SpectralLibrary\SpectralLibrary.vcxproj", "{961C4152-2F3A-4A1E-94B7-F60491DCE151}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Landsat", "Landsat\Landsat.vcproj", "{95E195D2-76EE-41DA-A047-9FA7393CB63A}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
-	ProjectSection(ProjectDependencies) = postProject
-		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Landsat", "Landsat\Landsat.vcxproj", "{95E195D2-76EE-41DA-A047-9FA7393CB63A}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SignatureWindow", "SignatureWindow\SignatureWindow.vcproj", "{55B33813-8D3B-4572-99DF-70A88F7C5101}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
-	ProjectSection(ProjectDependencies) = postProject
-		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SignatureWindow", "SignatureWindow\SignatureWindow.vcxproj", "{55B33813-8D3B-4572-99DF-70A88F7C5101}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Sam", "Sam\Sam.vcproj", "{554E00FB-7BDD-43A2-861C-F734181E7D33}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
-	ProjectSection(ProjectDependencies) = postProject
-		{B1E41454-785E-4DF7-B714-483B3CD81843} = {B1E41454-785E-4DF7-B714-483B3CD81843}
-		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Sam", "Sam\Sam.vcxproj", "{554E00FB-7BDD-43A2-861C-F734181E7D33}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Resampler", "Resampler\Resampler.vcproj", "{B1E41454-785E-4DF7-B714-483B3CD81843}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
-	ProjectSection(ProjectDependencies) = postProject
-		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Resampler", "Resampler\Resampler.vcxproj", "{B1E41454-785E-4DF7-B714-483B3CD81843}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Elm", "Elm\Elm.vcproj", "{AAA140D6-77BA-4E36-A5E9-A5D66F0951D2}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
-	ProjectSection(ProjectDependencies) = postProject
-		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
-		{B1E41454-785E-4DF7-B714-483B3CD81843} = {B1E41454-785E-4DF7-B714-483B3CD81843}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Elm", "Elm\Elm.vcxproj", "{AAA140D6-77BA-4E36-A5E9-A5D66F0951D2}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Cem", "Cem\Cem.vcproj", "{4C82E038-4D14-4604-9738-E503EC980C6E}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
-	ProjectSection(ProjectDependencies) = postProject
-		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
-		{B1E41454-785E-4DF7-B714-483B3CD81843} = {B1E41454-785E-4DF7-B714-483B3CD81843}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Cem", "Cem\Cem.vcxproj", "{4C82E038-4D14-4604-9738-E503EC980C6E}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Iarr", "Iarr\Iarr.vcproj", "{7FC6331C-7862-49F3-917E-D48CCEA28B4A}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
-	ProjectSection(ProjectDependencies) = postProject
-		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Iarr", "Iarr\Iarr.vcxproj", "{7FC6331C-7862-49F3-917E-D48CCEA28B4A}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RangeProfile", "RangeProfile\RangeProfile.vcproj", "{2CF87019-BDB4-4753-BF5C-F42A39FCBFCB}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
-	ProjectSection(ProjectDependencies) = postProject
-		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RangeProfile", "RangeProfile\RangeProfile.vcxproj", "{2CF87019-BDB4-4753-BF5C-F42A39FCBFCB}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Mnf", "Mnf\Mnf.vcproj", "{FED42E81-9D92-44BB-A9C6-E2441F4F3423}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
-	ProjectSection(ProjectDependencies) = postProject
-		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Mnf", "Mnf\Mnf.vcxproj", "{FED42E81-9D92-44BB-A9C6-E2441F4F3423}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ApiDocs", "ApiDocs\ApiDocs.vcproj", "{31BD87C5-F952-4860-8320-90A6F7FC153D}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ApiDocs", "ApiDocs\ApiDocs.vcxproj", "{31BD87C5-F952-4860-8320-90A6F7FC153D}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Ndvi", "Ndvi\Ndvi.vcproj", "{98751580-5139-11DF-9879-0800200C9A66}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
-	ProjectSection(ProjectDependencies) = postProject
-		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Ndvi", "Ndvi\Ndvi.vcxproj", "{98751580-5139-11DF-9879-0800200C9A66}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Aster", "Aster\Aster.vcproj", "{3995F4DF-F83A-4207-AEB2-1071B65B9B34}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
-	ProjectSection(ProjectDependencies) = postProject
-		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Aster", "Aster\Aster.vcxproj", "{3995F4DF-F83A-4207-AEB2-1071B65B9B34}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SpectralLibraryMatch", "SpectralLibraryMatch\SpectralLibraryMatch.vcproj", "{531720D7-E20D-4983-B3D1-9AA2EE2ECF22}"
-	ProjectSection(WebsiteProperties) = preProject
-		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.Debug = "False"
-	EndProjectSection
-	ProjectSection(ProjectDependencies) = postProject
-		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SpectralLibraryMatch", "SpectralLibraryMatch\SpectralLibraryMatch.vcxproj", "{531720D7-E20D-4983-B3D1-9AA2EE2ECF22}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
