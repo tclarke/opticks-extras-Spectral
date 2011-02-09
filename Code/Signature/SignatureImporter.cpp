@@ -27,7 +27,6 @@
 
 #include <boost/algorithm/string.hpp>
 
-using namespace boost;
 using namespace boost::algorithm;
 using namespace std;
 

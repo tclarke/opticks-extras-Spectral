@@ -6,6 +6,7 @@ Programs that need to be installed before building the source code:
 - Solaris 10
 - Sun Studio 12
 - Python 2.X, specifically 2.5 or later (http://www.python.org/download/)
+- Java 1.4.X or later
 - Subversion Command Line Client
   (http://downloads.open.collab.net/collabnet-subversion.html)
 - SCons 1.2 or later (http://www.scons.org)
@@ -14,17 +15,17 @@ Programs that need to be installed before building the source code:
 
 Download these required dependencies:
 -----------------------------------------------------
-The Dependencies folder in the Opticks SDK contains a system which automatically
-downloads the appropriate dependencies.  This system requires python v2.5 or
-later.
-> python dependencies.py --help
-will provide a usage summary.  Most of the time, no command line options are
-needed.  Install all the dependencies.
-> python dependencies.py
+The Dependencies folder in the the checkout folder contains a system which
+automatically downloads the appropriate dependencies.  This system requires
+Java 1.4.X or later.
+> dependencies -p 
+will provide a usage summary.  Most of the time, you should use
+retrieve-dependencies.
+> retrieve-dependencies 
 This will download the appropriate dependencies builds and will install
 them in the proper directories.
 
-Point the OPTICKSDEPENDENCIES environment variable at the Dependencies
+Point the SPECTRALDEPENDENCIES environment variable at the Dependencies
 folder so the build system can find the installed dependencies.
 
 Configure Spectral to find the Opticks SDK:
@@ -39,11 +40,11 @@ In order to build Spectral, you will need to run the build-Spectral.py python
 script that is included with the source code.
 
 An example of building Opticks with build.py is shown below:
-   ./build-Spectral.py -d /OpticksSDK/Dependencies --opticks-code-dir=/OpticksSDK --mode=debug --build-extension --concurrency=3
+   ./build-Spectral.py -d /Dependencies --opticks-code-dir=/OpticksSDK --mode=debug --build-extension --concurrency=3
 
 The -d command-line argument is used to point to the location where you
 created the Opticks dependencies as mentioned earlier.  If you have
-created an OPTICKSDEPENDENCIES environment variable, you don't need to
+created a SPECTRALDEPENDENCIES environment variable, you don't need to
 use the -d command-line argument.  You will always need to provide the
 --mode and --build-extension arguments.
 The --opticks-code-dir command-line argument is used to point to the location

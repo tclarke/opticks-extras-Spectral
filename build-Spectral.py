@@ -173,7 +173,7 @@ class Builder:
         if self.verbosity > 1:
             print "Building Spectral plug-ins..."
         buildenv = os.environ
-        buildenv["OPTICKSDEPENDENCIES"] = self.depend_path
+        buildenv["SPECTRALDEPENDENCIES"] = self.depend_path
         buildenv["OPTICKS_CODE_DIR"] = self.opticks_code_dir
 
         if self.verbosity >= 1:
@@ -266,10 +266,10 @@ class Builder:
         else:
             dot_exe = "dot"
         graphviz_dir = os.path.abspath(join(self.depend_path,
-            "64", "bin", "graphviz"))
+            "64", "tools", "graphviz", "bin"))
         if not(os.path.exists(join(graphviz_dir, dot_exe))):
             graphviz_dir = os.path.abspath(join(self.depend_path,
-                "32", "bin", "graphviz"))
+                "32", "tools", "graphviz", "bin"))
         env["DOT_DIR"] = graphviz_dir
         version_info = read_version_h()
         env["VERSION"] = version_info["SPECTRAL_VERSION_NUMBER"][1:-1]
@@ -539,7 +539,7 @@ def build_sdk(aeb_platforms=[], verbosity=None):
     if verbosity > 1:
         print "Done creating SDK"
 
-def build_installer(aeb_platforms=[], aeb_output=None, depend_path=None,
+def build_installer(aeb_platforms=[], aeb_output=None,
                     verbosity=None, solaris_dir=None, opticks_code_dir=None):
     if len(aeb_platforms) == 0:
         raise ScriptException("Invalid AEB platform specification. Valid values are: %s." % ", ".join(aeb_platform_mapping.keys()))
@@ -783,7 +783,7 @@ def main(args):
 
     builder = None
     try:
-        opticks_depends = os.environ.get("OPTICKSDEPENDENCIES", None)
+        opticks_depends = os.environ.get("SPECTRALDEPENDENCIES", None)
         if options.dependencies:
             #allow the -d command-line option to override
             #environment variable
@@ -828,7 +828,7 @@ def main(args):
                     else:
                         aeb_platforms.append(plat)
             build_installer(aeb_platforms, aeb_output,
-                opticks_depends, options.verbosity,
+                options.verbosity,
                 options.solaris_dir, opticks_code_dir)
             if options.verbosity > 1:
                 print "Done building installer"
