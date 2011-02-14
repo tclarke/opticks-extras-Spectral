@@ -35,6 +35,11 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SpectralLibraryMatch", "SpectralLibraryMatch\SpectralLibraryMatch.vcxproj", "{531720D7-E20D-4983-B3D1-9AA2EE2ECF22}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Rx", "Rx\Rx.vcxproj", "{A9576DAB-98BE-4AA0-84FF-9794B5DF7DE5}"
+	ProjectSection(ProjectDependencies) = postProject
+		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Plotting", "Plotting\Plotting.vcxproj", "{9691082C-2E6E-4CF2-9885-E111924FEA5B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -180,6 +185,14 @@ Global
 		{A9576DAB-98BE-4AA0-84FF-9794B5DF7DE5}.Release|Win32.Build.0 = Release|Win32
 		{A9576DAB-98BE-4AA0-84FF-9794B5DF7DE5}.Release|x64.ActiveCfg = Release|x64
 		{A9576DAB-98BE-4AA0-84FF-9794B5DF7DE5}.Release|x64.Build.0 = Release|x64
+		{9691082C-2E6E-4CF2-9885-E111924FEA5B}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9691082C-2E6E-4CF2-9885-E111924FEA5B}.Debug|Win32.Build.0 = Debug|Win32
+		{9691082C-2E6E-4CF2-9885-E111924FEA5B}.Debug|x64.ActiveCfg = Debug|x64
+		{9691082C-2E6E-4CF2-9885-E111924FEA5B}.Debug|x64.Build.0 = Debug|x64
+		{9691082C-2E6E-4CF2-9885-E111924FEA5B}.Release|Win32.ActiveCfg = Release|Win32
+		{9691082C-2E6E-4CF2-9885-E111924FEA5B}.Release|Win32.Build.0 = Release|Win32
+		{9691082C-2E6E-4CF2-9885-E111924FEA5B}.Release|x64.ActiveCfg = Release|x64
+		{9691082C-2E6E-4CF2-9885-E111924FEA5B}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

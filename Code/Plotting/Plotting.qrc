@@ -1,0 +1,8 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+<qresource prefix="/Spectral/icons">
+  <file alias="HorizontalProfilePlot">icons/horiz_profile_icon.png</file>
+  <file alias="VerticalProfilePlot">icons/vert_profile_icon.png</file>
+  <file alias="ProfileMouseMode">icons/profile_mouse_mode.png</file>
+</qresource>
+</RCC>
