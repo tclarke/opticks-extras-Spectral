@@ -34,6 +34,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Aster", "Aster\Aster.vcxpro
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SpectralLibraryMatch", "SpectralLibraryMatch\SpectralLibraryMatch.vcxproj", "{531720D7-E20D-4983-B3D1-9AA2EE2ECF22}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Rx", "Rx\Rx.vcxproj", "{A9576DAB-98BE-4AA0-84FF-9794B5DF7DE5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -170,6 +172,14 @@ Global
 		{531720D7-E20D-4983-B3D1-9AA2EE2ECF22}.Release|Win32.Build.0 = Release|Win32
 		{531720D7-E20D-4983-B3D1-9AA2EE2ECF22}.Release|x64.ActiveCfg = Release|x64
 		{531720D7-E20D-4983-B3D1-9AA2EE2ECF22}.Release|x64.Build.0 = Release|x64
+		{A9576DAB-98BE-4AA0-84FF-9794B5DF7DE5}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A9576DAB-98BE-4AA0-84FF-9794B5DF7DE5}.Debug|Win32.Build.0 = Debug|Win32
+		{A9576DAB-98BE-4AA0-84FF-9794B5DF7DE5}.Debug|x64.ActiveCfg = Debug|x64
+		{A9576DAB-98BE-4AA0-84FF-9794B5DF7DE5}.Debug|x64.Build.0 = Debug|x64
+		{A9576DAB-98BE-4AA0-84FF-9794B5DF7DE5}.Release|Win32.ActiveCfg = Release|Win32
+		{A9576DAB-98BE-4AA0-84FF-9794B5DF7DE5}.Release|Win32.Build.0 = Release|Win32
+		{A9576DAB-98BE-4AA0-84FF-9794B5DF7DE5}.Release|x64.ActiveCfg = Release|x64
+		{A9576DAB-98BE-4AA0-84FF-9794B5DF7DE5}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
