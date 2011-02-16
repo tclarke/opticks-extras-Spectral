@@ -6,11 +6,13 @@ import glob
 Import('env build_dir TOOLPATH')
 env = env.Clone()
 env.Tool("opencv",toolpath=TOOLPATH)
+env.Append(CPPPATH=build_dir)
 
 ####
 # build sources
 ####
 srcs = map(lambda x,bd=build_dir: '%s/%s' % (bd,x), glob.glob("*.cpp"))
+srcs = env.Moc(env.Uic("%s/RxDialog.ui" % build_dir)) + srcs
 objs = env.SharedObject(srcs)
 
 ####

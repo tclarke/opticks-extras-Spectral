@@ -165,6 +165,8 @@ if OS != "windows":
       env.Append(CPPDEFINES=["DEBUG"])
 
 ignore = Split(env['ignore'])
+if OS == "solaris":
+  ignore.append("Rx")
 
 plugins = map(lambda x: os.path.basename(x),
               map(lambda x: x[0],
