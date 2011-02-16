@@ -28,7 +28,7 @@
 #include "SpatialDataView.h"
 #include "SpatialDataWindow.h"
 #include "SpectralVersion.h"
-#include "Toolbar.h"
+#include "ToolBar.h"
 #include "xmlreader.h"
 #include "xmlwriter.h"
 
@@ -49,7 +49,7 @@ PlottingManager::PlottingManager() :
          mpProfileMouseMode(NULL),
          mpProfileAction(NULL)
 {
-   setName("Plotting Manager");
+   PlugInShell::setName("Plotting Manager");
    setDescription("Singleton plug-in to manage the plotting data types and views.");
    setType("Manager");
    setCreator("Ball Aerospace & Technologies Corp.");
@@ -474,3 +474,4 @@ bool PlottingManager::eventFilter(QObject* pObject, QEvent* pEvent)
 
    return QObject::eventFilter(pObject, pEvent);
 }
+
