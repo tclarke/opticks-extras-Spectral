@@ -9,7 +9,7 @@ Import('env build_dir TOOLPATH')
 # build sources
 ####
 srcs = map(lambda x,bd=build_dir: '%s/%s' % (bd,x), glob.glob("*.cpp"))
-srcs.append("Plotting.qrc")
+srcs.append(env.Qrc("%s/Plotting.qrc" % build_dir))
 objs = env.SharedObject(srcs)
 
 ####
