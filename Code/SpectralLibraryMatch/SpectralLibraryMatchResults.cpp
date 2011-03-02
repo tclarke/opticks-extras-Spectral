@@ -241,28 +241,34 @@ ResultsPage* SpectralLibraryMatchResults::createPage(const RasterElement* pRaste
    int index = mpTabWidget->addTab(pPage, tabName);
    mpTabWidget->setTabToolTip(index, QString::fromStdString(pRaster->getName()));
    mpTabWidget->setCurrentIndex(index);
-   const_cast<RasterElement*>(pRaster)->attach(SIGNAL_NAME(Subject, Deleted),
-      Slot(this, &SpectralLibraryMatchResults::elementDeleted));
+   VERIFYNR(const_cast<RasterElement*>(pRaster)->attach(SIGNAL_NAME(Subject, Deleted),
+      Slot(this, &SpectralLibraryMatchResults::elementDeleted)));
+   VERIFYNR(const_cast<RasterElement*>(pRaster)->attach(SIGNAL_NAME(Subject, Modified),
+      Slot(this, &SpectralLibraryMatchResults::elementModified)));
+   mPageMap[pRaster] = pPage;
 
    return pPage;
 }
 
 ResultsPage* SpectralLibraryMatchResults::getPage(const RasterElement* pRaster) const
 {
-   int numPages = mpTabWidget->count();
-
-   // find the page
-   QString tabName = QString::fromStdString(pRaster->getDisplayName(true));
-   for (int index = 0; index < numPages; ++index)
+   std::map<const RasterElement*, ResultsPage*>::const_iterator pit = mPageMap.find(pRaster);
+   if (pit != mPageMap.end())
    {
-      if (mpTabWidget->tabText(index) == tabName)
-      {
-         mpTabWidget->setCurrentIndex(index);
-         return dynamic_cast<ResultsPage*>(mpTabWidget->currentWidget());
-      }
+      return pit->second;
    }
-
    return NULL;
+}
+
+void SpectralLibraryMatchResults::deletePage(const RasterElement* pRaster)
+{
+   std::map<const RasterElement*, ResultsPage*>::iterator pit = mPageMap.find(pRaster);
+   if (pit != mPageMap.end())
+   {
+      ResultsPage* pPage = pit->second;
+      mPageMap.erase(pit);
+      delete pPage;
+   }
 }
 
 void SpectralLibraryMatchResults::updateContextMenu(Subject& subject, const std::string& signal,
@@ -319,6 +325,12 @@ void SpectralLibraryMatchResults::updateContextMenu(Subject& subject, const std:
       VERIFYNR(connect(pCollapseAllAction, SIGNAL(triggered()), this, SLOT(collapseAllPage())));
       pMenu->addAction(pCollapseAllAction, SPECTRAL_LIBRARY_MATCH_RESULTS_COLLAPSE_ALL_ACTION);
 
+      QAction* pDeleteTabAction = new QAction("&Delete Page", pParent);
+      pDeleteTabAction->setAutoRepeat(false);
+      pDeleteTabAction->setStatusTip("Clears the results from the current page");
+      VERIFYNR(connect(pDeleteTabAction, SIGNAL(triggered()), this, SLOT(deletePage())));
+      pMenu->addAction(pDeleteTabAction, SPECTRAL_LIBRARY_MATCH_RESULTS_DELETE_PAGE_ACTION);
+
       if (isSessionItem == false)
       {
          QAction* pLocateAction = new QAction("&Locate Signatures", pParent);
@@ -342,6 +354,15 @@ void SpectralLibraryMatchResults::clearPage()
    if (pPage != NULL)
    {
       pPage->clear();
+   }
+}
+
+void SpectralLibraryMatchResults::deletePage()
+{
+   ResultsPage* pPage = dynamic_cast<ResultsPage*>(mpTabWidget->currentWidget());
+   if (pPage != NULL)
+   {
+      deletePage(getRasterElementForCurrentPage());
    }
 }
 
@@ -371,9 +392,30 @@ void SpectralLibraryMatchResults::elementDeleted(Subject& subject, const std::st
       ResultsPage* pPage = getPage(pRaster);
       if (pPage != NULL)
       {
-         pRaster->detach(SIGNAL_NAME(Subject, Deleted), Slot(this, &SpectralLibraryMatchResults::elementDeleted));
-         mpTabWidget->removeTab(mpTabWidget->indexOf(pPage));
-         delete pPage;  // since removeTab doesn't destroy the tab widget
+         VERIFYNR(pRaster->detach(SIGNAL_NAME(Subject, Deleted),
+            Slot(this, &SpectralLibraryMatchResults::elementDeleted)));
+         VERIFYNR(pRaster->detach(SIGNAL_NAME(Subject, Modified),
+            Slot(this, &SpectralLibraryMatchResults::elementModified)));
+         deletePage(pRaster);
+      }
+   }
+}
+
+void SpectralLibraryMatchResults::elementModified(Subject& subject, const std::string& signal, const boost::any& value)
+{
+   // check for rename
+   RasterElement* pRaster = dynamic_cast<RasterElement*>(&subject);
+   if (pRaster != NULL)
+   {
+      ResultsPage* pPage = getPage(pRaster);
+      if (pPage != NULL)
+      {
+         int index = mpTabWidget->indexOf(pPage);
+         if (index != -1 && mpTabWidget->tabToolTip(index).toStdString() != pRaster->getName())
+         {
+            mpTabWidget->setTabText(index, QString::fromStdString(pRaster->getDisplayName(true)));
+            mpTabWidget->setTabToolTip(index, QString::fromStdString(pRaster->getName()));
+         }
       }
    }
 }
@@ -431,15 +473,20 @@ std::vector<Signature*> SpectralLibraryMatchResults::getSelectedSignatures() con
 
 const RasterElement* SpectralLibraryMatchResults::getRasterElementForCurrentPage() const
 {
-   int index = mpTabWidget->currentIndex();
-   std::string rasterName = mpTabWidget->tabToolTip(index).toStdString();
-   Service<ModelServices> pModel;
-   std::vector<DataElement*> elements = pModel->getElements(rasterName, TypeConverter::toString<RasterElement>());
-   if (elements.size() != 1)
+   ResultsPage* pPage = dynamic_cast<ResultsPage*>(mpTabWidget->currentWidget());
+   if (pPage != NULL)
    {
-      return NULL;
+      for (std::map<const RasterElement*, ResultsPage*>::const_iterator it = mPageMap.begin();
+         it != mPageMap.end(); ++it)
+      {
+         if (pPage == it->second)
+         {
+            return it->first;
+         }
+      }
    }
-   return dynamic_cast<RasterElement*>(elements.front());
+   
+   return NULL;
 }
 
 void SpectralLibraryMatchResults::locateSignaturesInScene()

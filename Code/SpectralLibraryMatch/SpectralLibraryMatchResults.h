@@ -46,7 +46,9 @@ protected:
    virtual QAction* createAction();
    ResultsPage* createPage(const RasterElement* pRaster);
    ResultsPage* getPage(const RasterElement* pRaster) const;
+   void deletePage(const RasterElement* pRaster);
    void elementDeleted(Subject& subject, const std::string& signal, const boost::any& value);
+   void elementModified(Subject& subject, const std::string& signal, const boost::any& value);
    std::vector<Signature*> getSelectedSignatures() const;
    const RasterElement* getRasterElementForCurrentPage() const;
    void updateContextMenu(Subject& subject, const std::string& signal, const boost::any& value);
@@ -55,12 +57,14 @@ protected slots:
    void clearPage();
    void expandAllPage();
    void collapseAllPage();
+   void deletePage();
    void locateSignaturesInScene();
    void createAverageSignature();
 
 private:
    QTabWidget* mpTabWidget;
    AttachmentPtr<SessionExplorer> mpExplorer;
+   std::map<const RasterElement*, ResultsPage*> mPageMap;
 };
 
 #endif
