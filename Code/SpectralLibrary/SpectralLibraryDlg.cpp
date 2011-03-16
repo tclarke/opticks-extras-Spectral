@@ -24,6 +24,7 @@
 #include "DesktopServices.h"
 #include "FileDescriptor.h"
 #include "LibraryBuilder.h"
+#include "MessageLog.h"
 #include "ModelServices.h"
 #include "PlugInArgList.h"
 #include "PlugInResource.h"
