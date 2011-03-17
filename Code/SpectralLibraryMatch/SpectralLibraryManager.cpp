@@ -557,6 +557,8 @@ bool SpectralLibraryManager::deserialize(SessionItemDeserializer& deserializer)
 
    if (success)
    {
+
+      std::vector<Signature*> signatures;
       Service<SessionManager> pSessionManager;
       XmlReader reader(NULL, false);
       DOMElement* pRootElement = deserializer.deserialize(reader, "SpectralLibraryManager");
@@ -566,14 +568,16 @@ bool SpectralLibraryManager::deserialize(SessionItemDeserializer& deserializer)
          if (XMLString::equals(pElement->getNodeName(), X("Signature")))
          {
             std::string signatureId = A(pElement->getAttribute(X("signatureId")));
-
             Signature* pSignature = dynamic_cast<Signature*>(pSessionManager->getSessionItem(signatureId));
             if (pSignature != NULL)
             {
-               mSignatures.push_back(pSignature);
+               signatures.push_back(pSignature);
             }
          }
       }
+
+      clearLibrary();
+      addSignatures(signatures);
    }
 
    return success;
