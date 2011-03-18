@@ -9,6 +9,9 @@
       <UniqueIdentifier>{3af8f443-b421-4ae2-8e57-b5dbb00f52ff}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl</Extensions>
     </Filter>
+    <Filter Include="moc">
+      <UniqueIdentifier>{cbae335b-f1bb-40b4-8358-f0e20d39f8e3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ModuleManager.cpp">
@@ -17,10 +20,21 @@
     <ClCompile Include="Ndvi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="NdviDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_NdviDlg.cpp">
+      <Filter>moc</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Ndvi.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="NdviDlg.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

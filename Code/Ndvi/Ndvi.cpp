@@ -7,9 +7,10 @@
  * http://www.gnu.org/licenses/lgpl.html
  */
 
-#include "AppConfig.h"
 #include "AppVerify.h"
+#include "DesktopServices.h"
 #include "Ndvi.h"
+#include "NdviDlg.h"
 #include "PlugInArgList.h"
 #include "PlugInManagerServices.h"
 #include "PlugInRegistration.h"
@@ -20,6 +21,7 @@
 #include "RasterUtilities.h"
 #include "SpectralVersion.h"
 #include "StringUtilities.h"
+#include "Wavelengths.h"
 #include <vector>
 
 REGISTER_PLUGIN_BASIC(NdviModule, Ndvi);
@@ -80,20 +82,81 @@ bool Ndvi::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
    progress.report("Determining which bands to use for NDVI calculation", 10, NORMAL);
    RasterDataDescriptor* pDesc = static_cast<RasterDataDescriptor*>(pElement->getDataDescriptor());
 
+   FactoryResource<Wavelengths> pWavelengthResource;
+   pWavelengthResource->initializeFromDynamicObject(pDesc->getMetadata(), true);
+
+   if (pWavelengthResource->isEmpty())
+   {
+      progress.report("No wavelength data available for processing.", 0, ERRORS, true);
+      return false;
+   }
+
+   Service<DesktopServices> pDesktopServices;
+
    // Filter wavelength data and select appropriate red band.
    DimensionDescriptor redBandDD = RasterUtilities::findBandWavelengthMatch(redBandLow, redBandHigh, pDesc);
    if (!redBandDD.isValid())
    {
-      progress.report("No bands fall in the red wavelength range.", 0, ERRORS, true);
-      return false;
+      if (!isBatch())
+      {
+         NdviDlg bandDlg(pDesc, pDesktopServices->getMainWidget());
+         std::string title = "Select Red Band (" + StringUtilities::toDisplayString(
+            Wavelengths::convertValue(redBandLow, MICRONS, pWavelengthResource->getUnits())) + "-" +
+            StringUtilities::toDisplayString(
+            Wavelengths::convertValue(redBandHigh, MICRONS, pWavelengthResource->getUnits()))
+            + " " + StringUtilities::toDisplayString(pWavelengthResource->getUnits()) + ")";
+         bandDlg.setWindowTitle(QString::fromStdString(title));
+         if (bandDlg.exec() == QDialog::Rejected)
+         {
+            progress.report("Operation canceled by user request.", 0, ABORT, true);
+            return false;
+         }
+         int redBandNumber = bandDlg.getBand();
+         if (redBandNumber < 0)
+         {
+            progress.report("No bands fall in the red wavelength range.", 0, ERRORS, true);
+            return false;
+         }
+         redBandDD.setActiveNumber(redBandNumber);
+      }
+      else
+      {
+         progress.report("No bands fall in the red wavelength range.", 0, ERRORS, true);
+         return false;
+      }
    }
 
    // Filter wavelength data and select appropriate NIR band
    DimensionDescriptor nirBandDD = RasterUtilities::findBandWavelengthMatch(nirBandLow, nirBandHigh, pDesc);
    if (!nirBandDD.isValid())
    {
-      progress.report("No bands fall in the NIR wavelength range.", 0, ERRORS, true);
-      return false;
+      if (!isBatch())
+      {
+         NdviDlg bandDlg(pDesc, pDesktopServices->getMainWidget());
+         std::string title = "Select NIR Band (" + StringUtilities::toDisplayString(
+            Wavelengths::convertValue(nirBandLow, MICRONS, pWavelengthResource->getUnits())) + "-" +
+            StringUtilities::toDisplayString(
+            Wavelengths::convertValue(nirBandHigh, MICRONS, pWavelengthResource->getUnits()))
+            + " " + StringUtilities::toDisplayString(pWavelengthResource->getUnits()) + ")";
+         bandDlg.setWindowTitle(QString::fromStdString(title));
+         if (bandDlg.exec() == QDialog::Rejected)
+         {
+            progress.report("Operation canceled by user request.", 0, ABORT, true);
+            return false;
+         }
+         int nirBandNumber = bandDlg.getBand();
+         if (nirBandNumber < 0)
+         {
+            progress.report("No bands fall in the NIR wavelength range.", 0, ERRORS, true);
+            return false;
+         }
+         nirBandDD.setActiveNumber(nirBandNumber);
+      }
+      else
+      {
+         progress.report("No bands fall in the NIR wavelength range.", 0, ERRORS, true);
+         return false;
+      }
    }
 
    // Execute Band Math with the appropriate expression
