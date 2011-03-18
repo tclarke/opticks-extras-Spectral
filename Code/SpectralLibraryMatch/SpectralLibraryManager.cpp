@@ -110,7 +110,7 @@ SpectralLibraryManager::~SpectralLibraryManager()
    {
       if (mpEditSpectralLibraryAction != NULL)
       {
-         disconnect(mpEditSpectralLibraryAction, SIGNAL(activated()), this, SLOT(matchAoiAverageSpectrum()));
+         VERIFYNR(disconnect(mpEditSpectralLibraryAction, SIGNAL(triggered()), this, SLOT(editSpectralLibrary())));
          pToolBar->removeItem(mpEditSpectralLibraryAction);
          delete mpEditSpectralLibraryAction;
       }
