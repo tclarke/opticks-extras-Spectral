@@ -373,6 +373,11 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
    // setup read data accessor
    const BitMask* pBitmask = (pAoi == NULL) ? NULL : pAoi->getSelectedPoints();
    BitMaskIterator iter(pBitmask, pElement);
+   if (!*iter)
+   {
+      progress.report("No pixels selected for processing.", 0, ERRORS, true);
+      return false;
+   }
    FactoryResource<DataRequest> pReq;
    pReq->setInterleaveFormat(BIP);
    pReq->setRows(pDesc->getActiveRow(iter.getBoundingBoxStartRow()), pDesc->getActiveRow(iter.getBoundingBoxEndRow()));

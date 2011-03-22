@@ -651,8 +651,11 @@ def build_installer(aeb_platforms=[], aeb_output=None,
             copy_file_to_zip(plugin_path, target_plugin_path, "Plotting.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "RangeProfile.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Resampler.so", zfile)
-            if plat_parts[0] != "solaris":
-                copy_file_to_zip(plugin_path, target_plugin_path, "Rx.so", zfile)
+########################################################
+# Temporarily remove Rx.so from the Linux installer since it is not loading.
+            #if plat_parts[0] != "solaris":
+            #    copy_file_to_zip(plugin_path, target_plugin_path, "Rx.so", zfile)
+########################################################
             copy_file_to_zip(plugin_path, target_plugin_path, "Sam.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Signature.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "SignatureWindow.so", zfile)
