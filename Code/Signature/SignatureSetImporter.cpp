@@ -168,8 +168,8 @@ vector<ImportDescriptor*> SignatureSetImporter::createImportDescriptors(DOMTreeW
 bool SignatureSetImporter::getInputSpecification(PlugInArgList*& pInArgList)
 {
    VERIFY((pInArgList = Service<PlugInManagerServices>()->getPlugInArgList()) != NULL);
-   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg(), NULL));
-   VERIFY(pInArgList->addArg<SignatureSet>(Importer::ImportElementArg()));
+   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg(), NULL, Executable::ProgressArgDescription()));
+   VERIFY(pInArgList->addArg<SignatureSet>(Importer::ImportElementArg(), NULL, "Spectral library to be imported."));
    return true;
 }
 

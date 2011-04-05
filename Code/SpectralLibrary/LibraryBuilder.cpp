@@ -62,7 +62,7 @@ bool LibraryBuilder::getInputSpecification(PlugInArgList*& pArgList)
    pArgList = pManager->getPlugInArgList();
    VERIFY(pArgList != NULL);
 
-   VERIFY(pArgList->addArg<Progress>(Executable::ProgressArg(), NULL));
+   VERIFY(pArgList->addArg<Progress>(Executable::ProgressArg(), NULL, Executable::ProgressArgDescription()));
    return true;
 }
 

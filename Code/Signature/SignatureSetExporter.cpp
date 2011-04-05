@@ -118,11 +118,16 @@ QWidget* SignatureSetExporter::getExportOptionsWidget(const PlugInArgList* pInAr
 bool SignatureSetExporter::getInputSpecification(PlugInArgList*& pInArgList)
 {
    VERIFY((pInArgList = Service<PlugInManagerServices>()->getPlugInArgList()) != NULL);
-   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg(), NULL));
-   VERIFY(pInArgList->addArg<SignatureSet>(Exporter::ExportItemArg()));
-   VERIFY(pInArgList->addArg<FileDescriptor>(Exporter::ExportDescriptorArg()));
-   VERIFY(pInArgList->addArg<string>(SignatureExporterArg(), sDefaultSignatureExporter, string()));
-   VERIFY(pInArgList->addArg<bool>(FreezeSignatureSetArg(), false));
+   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg(), NULL, Executable::ProgressArgDescription()));
+   VERIFY(pInArgList->addArg<SignatureSet>(Exporter::ExportItemArg(), NULL, "Spectral library to be exported."));
+   VERIFY(pInArgList->addArg<FileDescriptor>(Exporter::ExportDescriptorArg(), NULL, "File descriptor for the "
+      "output file."));
+   VERIFY(pInArgList->addArg<string>(SignatureExporterArg(), sDefaultSignatureExporter, "Signature exporter "
+      "to be used."));
+   VERIFY(pInArgList->addArg<bool>(FreezeSignatureSetArg(), false, "Flag for whether the exported spectral library "
+      "should be frozen. Freezing a spectral library will export all signatures in the library to the "
+      "same directory as the spectral library. In addition, references to those signature files "
+      "will be relative to the spectral library."));
    return true;
 }
 
@@ -169,7 +174,7 @@ bool SignatureSetExporter::execute(PlugInArgList* pInArgList, PlugInArgList* pOu
    }
    xml.writeToFile(outFile);
 
-   mProgress.report("Exported signature library.", 100, NORMAL);
+   mProgress.report("Exported spectral library.", 100, NORMAL);
    mProgress.upALevel();
    return true;
 }

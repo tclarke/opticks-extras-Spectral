@@ -252,9 +252,11 @@ Rx::~Rx()
 bool Rx::getInputSpecification(PlugInArgList*& pArgList)
 {
    VERIFY(pArgList = Service<PlugInManagerServices>()->getPlugInArgList());
-   VERIFY(pArgList->addArg<Progress>(ProgressArg(), NULL));
-   VERIFY(pArgList->addArg<RasterElement>(DataElementArg()));
-   VERIFY(pArgList->addArg<SpatialDataView>(ViewArg()));
+   VERIFY(pArgList->addArg<Progress>(Executable::ProgressArg(), NULL, Executable::ProgressArgDescription()));
+   VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL, "Raster element on which RX will be "
+      "performed."));
+   VERIFY(pArgList->addArg<SpatialDataView>(Executable::ViewArg(), NULL, "View to be used with RX from "
+      "which AOI layers can be selected. Additionally, the result of RX will be attached to this view as a new layer."));
    VERIFY(pArgList->addArg<AoiElement>("AOI", NULL, "Execute over this AOI only."));
    VERIFY(pArgList->addArg<double>("Threshold", 2.0, "Default result threshold in stddev."));
    VERIFY(pArgList->addArg<unsigned int>("Local Width", "Width of the local neighborhood used to calculate statistics. "
@@ -269,7 +271,7 @@ bool Rx::getInputSpecification(PlugInArgList*& pArgList)
 bool Rx::getOutputSpecification(PlugInArgList*& pArgList)
 {
    VERIFY(pArgList = Service<PlugInManagerServices>()->getPlugInArgList());
-   VERIFY(pArgList->addArg<RasterElement>("Results"));
+   VERIFY(pArgList->addArg<RasterElement>("Results", NULL, "Raster element resulting from the RX operation."));
    return true;
 }
 

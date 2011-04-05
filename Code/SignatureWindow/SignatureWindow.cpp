@@ -193,12 +193,14 @@ bool SignatureWindow::getInputSpecification(PlugInArgList*& pArgList)
       pArgList = Service<PlugInManagerServices>()->getPlugInArgList();
       VERIFY(pArgList != NULL);
       bool addPlot(false);
-      VERIFY(pArgList->addArg<bool>("Add Plot", &addPlot));
-      VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL));
-      VERIFY(pArgList->addArg<Signature>("Signature to add", NULL));
+      VERIFY(pArgList->addArg<bool>("Add Plot", &addPlot, "Flag for whether a plot should be added to the window."));
+      VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL, "Raster element from which signatures "
+         "will be plotted."));
+      VERIFY(pArgList->addArg<Signature>("Signature to add", NULL, "Signature to be plotted."));
       ColorType defaultColor(0, 0, 0);
-      VERIFY(pArgList->addArg<ColorType>("Curve color", &defaultColor));
-      VERIFY(pArgList->addArg<bool>("Clear before adding", &addPlot));
+      VERIFY(pArgList->addArg<ColorType>("Curve color", &defaultColor, "Curve color for the added plot."));
+      VERIFY(pArgList->addArg<bool>("Clear before adding", &addPlot, "Flag for whether the plot should be cleared "
+         "prior to adding new signatures."));
    }
 
    return !isBatch();

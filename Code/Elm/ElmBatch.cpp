@@ -55,10 +55,18 @@ bool ElmBatch::getInputSpecification(PlugInArgList*& pArgList)
    }
 
    // Batch mode: Use Gains/Offsets Flag, Gains Offsets Filename, Reflectance Filenames, and AOI File/Layer names
-   VERIFY(pArgList->addArg<bool>(UseGainsOffsetsArg(), true));
-   VERIFY(pArgList->addArg<Filename>(GainsOffsetsFilenameArg()));
-   VERIFY(pArgList->addArg<vector<Filename> >(SignatureFilenamesArg()));
-   VERIFY(pArgList->addArg<vector<Filename> >(AoiFilenamesArg()));
+   VERIFY(pArgList->addArg<bool>(UseGainsOffsetsArg(), true, "Flag for whether gains/offsets should be loaded "
+      "from an existing file."));
+   VERIFY(pArgList->addArg<Filename>(GainsOffsetsFilenameArg(), NULL, "Name of the file containing gains/offsets, "
+      "if they are to be loaded from a file."));
+
+   string description = "Filenames of signatures for ELM to use. The number of signatures specified must match the "
+      "number of AOIs specified by " + AoiFilenamesArg() + ".";
+   VERIFY(pArgList->addArg<vector<Filename*> >(SignatureFilenamesArg(), NULL, description));
+
+   description = "Filenames for AOIs over which ELM will be performed. The number of AOIs specified must match "
+      "the number of signatures specified by " + SignatureFilenamesArg() + ".";
+   VERIFY(pArgList->addArg<vector<Filename*> >(AoiFilenamesArg(), NULL, description));
 
    return true;
 }
@@ -69,7 +77,8 @@ bool ElmBatch::getOutputSpecification(PlugInArgList*& pArgList)
    VERIFY(pArgList != NULL);
 
    // Batch mode: RasterElement
-   VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg()));
+   VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL, "Raster element containing reflectance "
+      "data resulting from the ELM operation."));
    return true;
 }
 

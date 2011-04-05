@@ -47,10 +47,12 @@ SignatureExporter::~SignatureExporter()
 bool SignatureExporter::getInputSpecification(PlugInArgList*& pInArgList)
 {
    VERIFY((pInArgList = Service<PlugInManagerServices>()->getPlugInArgList()) != NULL);
-   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg(), NULL));
-   VERIFY(pInArgList->addArg<Signature>(Exporter::ExportItemArg()));
-   VERIFY(pInArgList->addArg<FileDescriptor>(Exporter::ExportDescriptorArg()));
-   VERIFY(pInArgList->addArg<bool>(SpectralCommon::ExportMetadataArg(), true));
+   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg(), NULL, Executable::ProgressArgDescription()));
+   VERIFY(pInArgList->addArg<Signature>(Exporter::ExportItemArg(), NULL, "Signature to be exported."));
+   VERIFY(pInArgList->addArg<FileDescriptor>(Exporter::ExportDescriptorArg(), NULL, "File descriptor for the output "
+      "file."));
+   VERIFY(pInArgList->addArg<bool>(SpectralCommon::ExportMetadataArg(), true, "Flag for whether the signature's "
+      "metadata should be exported."));
    return true;
 }
 

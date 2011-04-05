@@ -182,23 +182,33 @@ bool Mnf::getInputSpecification(PlugInArgList*& pArgList)
    // Set up list
    pArgList = mpPlugInMgr->getPlugInArgList();
    VERIFY(pArgList != NULL);
-   VERIFY(pArgList->addArg<Progress>(Executable::ProgressArg(), NULL));
-   VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL));
+   VERIFY(pArgList->addArg<Progress>(Executable::ProgressArg(), NULL, Executable::ProgressArgDescription()));
+   VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL, "Raster element on which the MNF "
+      "transform will be performed."));
 
    if (isBatch()) // need additional info in batch mode
    {
-      VERIFY(pArgList->addArg<bool>("Use AOI", false));
-      VERIFY(pArgList->addArg<AoiElement>("AOI Element", NULL));
-      VERIFY(pArgList->addArg<bool>("Use Transform File", false));
-      VERIFY(pArgList->addArg<Filename>("Transform Filename", NULL));
+      VERIFY(pArgList->addArg<bool>("Use AOI", false, "Flag for whether the MNF transform should be performed only "
+         "over an AOI."));
+      VERIFY(pArgList->addArg<AoiElement>("AOI Element", NULL, "AOI element over which the MNF transform will be "
+         "performed. This is ignored if \"Use AOI\" is set to false."));
+      VERIFY(pArgList->addArg<bool>("Use Transform File", false, "Flag for whether an existing transform file should "
+         "be used."));
+      VERIFY(pArgList->addArg<Filename>("Transform Filename", NULL, "Location of the transform file on disk. This is "
+         "ignored if \"Use Transform File\" is set to false."));
       string methodDesc = "Valid methods are:\n";
       methodDesc += mNoiseEstimationMethods.join(",\n").toStdString();
       VERIFY(pArgList->addArg<string>("Noise Estimation Method", "", methodDesc));
-      VERIFY(pArgList->addArg<RasterElement>("Dark Current Element", NULL));
-      VERIFY(pArgList->addArg<Filename>("Noise Statistics Filename", NULL));
-      VERIFY(pArgList->addArg<AoiElement>("NoiseStatistics AOI", NULL));
-      VERIFY(pArgList->addArg<unsigned int>("Number of Components", 0));
-      VERIFY(pArgList->addArg<bool>("Display Results", false));
+      VERIFY(pArgList->addArg<RasterElement>("Dark Current Element", NULL, "Raster element to be used as the dark "
+         "current element in noise estimation."));
+      VERIFY(pArgList->addArg<Filename>("Noise Statistics Filename", NULL, "File containing previously calculated "
+         "noise statistics."));
+      VERIFY(pArgList->addArg<AoiElement>("NoiseStatistics AOI", NULL, "AOI over which noise statistics will be "
+         "calculated."));
+      VERIFY(pArgList->addArg<unsigned int>("Number of Components", 0, "Number of bands produced in the resulting "
+         "raster element."));
+      VERIFY(pArgList->addArg<bool>("Display Results", false, "Flag for whether the results of the MNF transform "
+         "should be displayed."));
    }
 
    return true;
@@ -209,7 +219,7 @@ bool Mnf::getOutputSpecification(PlugInArgList*& pArgList)
    // Set up list
    pArgList = mpPlugInMgr->getPlugInArgList();
    VERIFY(pArgList != NULL);
-   VERIFY(pArgList->addArg<RasterElement>("MNF Data Cube", NULL));
+   VERIFY(pArgList->addArg<RasterElement>("MNF Data Cube", NULL, "Raster element resulting from the MNF transform."));
    return true;
 }
 

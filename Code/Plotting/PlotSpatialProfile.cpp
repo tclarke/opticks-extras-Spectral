@@ -50,9 +50,9 @@ PlotSpatialProfile::~PlotSpatialProfile()
 bool PlotSpatialProfile::getInputSpecification(PlugInArgList*& pInArgList)
 {
    VERIFY(pInArgList = Service<PlugInManagerServices>()->getPlugInArgList());
-   VERIFY(pInArgList->addArg<Progress>(ProgressArg()));
-   VERIFY(pInArgList->addArg<RasterLayer>(LayerArg()));
-   VERIFY(pInArgList->addArg<AoiElement>("AOI", "This AOI must contain HLINE, VLINE, ROW and/or COLUMN objects. "
+   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg(), NULL, Executable::ProgressArgDescription()));
+   VERIFY(pInArgList->addArg<RasterLayer>(Executable::LayerArg(), NULL, "Raster layer to be plotted."));
+   VERIFY(pInArgList->addArg<AoiElement>("AOI", NULL, "This AOI must contain HLINE, VLINE, ROW and/or COLUMN objects. "
                                                 "If none are found, an error will occcur."));
    VERIFY(pInArgList->addArg<std::vector<unsigned int> >("Bands", std::vector<unsigned int>(),
          "If specified, these bands (original numbers, 0 based) will be plotted. "\
@@ -63,9 +63,9 @@ bool PlotSpatialProfile::getInputSpecification(PlugInArgList*& pInArgList)
 bool PlotSpatialProfile::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
 {
    VERIFY(pInArgList);
-   ProgressTracker progress(pInArgList->getPlugInArgValue<Progress>(ProgressArg()), "Plotting data",
+   ProgressTracker progress(pInArgList->getPlugInArgValue<Progress>(Executable::ProgressArg()), "Plotting data",
       "spectral", "{4e7d71bf-a98f-41b6-9243-3d65c6fd3526}");
-   RasterLayer* pLayer = pInArgList->getPlugInArgValue<RasterLayer>(LayerArg());
+   RasterLayer* pLayer = pInArgList->getPlugInArgValue<RasterLayer>(Executable::LayerArg());
    SpatialDataView* pSdv = pLayer == NULL ? NULL : dynamic_cast<SpatialDataView*>(pLayer->getView());
    if (pSdv == NULL)
    {

@@ -310,22 +310,30 @@ bool Iarr::getInputSpecification(PlugInArgList*& pArgList)
    // Input arguments
    pArgList = Service<PlugInManagerServices>()->getPlugInArgList();
    VERIFY(pArgList != NULL);
-   VERIFY(pArgList->addArg<Progress>(Executable::ProgressArg()));
-   VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg()));
+   VERIFY(pArgList->addArg<Progress>(Executable::ProgressArg(), NULL, Executable::ProgressArgDescription()));
+   VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL, "Raster element on which IARR will "
+      "be performed."));
 
    // Batch arguments
    if (isBatch() == true)
    {
-      VERIFY(pArgList->addArg<Filename>("Input Filename"));
-      VERIFY(pArgList->addArg<AoiElement>("AOI Element"));
-      VERIFY(pArgList->addArg<unsigned int>("Row Step Factor", mRowStepFactor));
-      VERIFY(pArgList->addArg<unsigned int>("Column Step Factor", mColumnStepFactor));
+      VERIFY(pArgList->addArg<Filename>("Input Filename", NULL, "Name of the file containing previously calculated "
+         "IARR data for this chosen raster element."));
+      VERIFY(pArgList->addArg<AoiElement>("AOI Element", NULL, "AOI over which IARR will be performed. If not "
+         "specified, the entire cube is used in processing."));
+      VERIFY(pArgList->addArg<unsigned int>("Row Step Factor", mRowStepFactor, "Factor by which the rows of the cube or "
+         " AOI will be iterated over."));
+      VERIFY(pArgList->addArg<unsigned int>("Column Step Factor", mColumnStepFactor, "Factor by which the columns of the"
+         "cube or AOI will be iterated over."));
 
-      VERIFY(pArgList->addArg<EncodingType>("Output Data Type", mOutputDataType));
-      VERIFY(pArgList->addArg<bool>("In Memory", mInMemory));
+      VERIFY(pArgList->addArg<EncodingType>("Output Data Type", mOutputDataType, "The data type for the output of IARR."));
+      VERIFY(pArgList->addArg<bool>("In Memory", mInMemory, "Flag for whether the cube should be loaded entirely into "
+         "memory for IARR."));
 
-      VERIFY(pArgList->addArg<bool>("Display Results", mDisplayResults));
-      VERIFY(pArgList->addArg<Filename>("Output Filename"));
+      VERIFY(pArgList->addArg<bool>("Display Results", mDisplayResults, "Flag for whether the results of IARR should "
+         "be displayed."));
+      VERIFY(pArgList->addArg<Filename>("Output Filename", NULL, "File location where calculated IARR data for the specified "
+         "raster element can be stored to be re-used later."));
    }
 
    return true;
@@ -336,8 +344,8 @@ bool Iarr::getOutputSpecification(PlugInArgList*& pArgList)
    // Output arguments
    pArgList = Service<PlugInManagerServices>()->getPlugInArgList();
    VERIFY(pArgList != NULL);
-   VERIFY(pArgList->addArg<SpatialDataView>(Executable::ViewArg()));
-   VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg()));
+   VERIFY(pArgList->addArg<SpatialDataView>(Executable::ViewArg(), NULL, "View in which the IARR results will be displayed."));
+   VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL, "Raster element resulting from the IARR operation."));
 
    return true;
 }

@@ -70,13 +70,16 @@ bool MnfInverse::getInputSpecification(PlugInArgList*& pArgList)
    // Set up list
    pArgList = Service<PlugInManagerServices>()->getPlugInArgList();
    VERIFY(pArgList != NULL);
-   VERIFY(pArgList->addArg<Progress>(Executable::ProgressArg(), NULL));
-   VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL));
+   VERIFY(pArgList->addArg<Progress>(Executable::ProgressArg(), NULL, Executable::ProgressArgDescription()));
+   VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL, "Raster element over which the MNF "
+      "inverse transform will be performed."));
 
    if (isBatch()) // need additional info in batch mode
    {
-      VERIFY(pArgList->addArg<Filename>("Transform Filename", NULL));
-      VERIFY(pArgList->addArg<bool>("Display Results", false));
+      VERIFY(pArgList->addArg<Filename>("Transform Filename", NULL, "Location of the results from a previously "
+         "performed MNF transform."));
+      VERIFY(pArgList->addArg<bool>("Display Results", false, "Flag for whether the results of the MNF inverse "
+         "transform should be displayed."));
    }
 
    return true;
@@ -87,7 +90,8 @@ bool MnfInverse::getOutputSpecification(PlugInArgList*& pArgList)
    // Set up list
    pArgList = Service<PlugInManagerServices>()->getPlugInArgList();
    VERIFY(pArgList != NULL);
-   VERIFY(pArgList->addArg<RasterElement>("Inverse MNF Data Cube", NULL));
+   VERIFY(pArgList->addArg<RasterElement>("Inverse MNF Data Cube", NULL, "Raster element resulting from the MNF "
+      "inverse transform operation."));
    return true;
 }
 

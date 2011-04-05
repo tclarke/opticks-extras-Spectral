@@ -150,8 +150,8 @@ vector<ImportDescriptor*> SignatureImporter::getImportDescriptors(const string& 
 bool SignatureImporter::getInputSpecification(PlugInArgList*& pInArgList)
 {
    VERIFY((pInArgList = Service<PlugInManagerServices>()->getPlugInArgList()) != NULL);
-   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg(), NULL));
-   VERIFY(pInArgList->addArg<Signature>(Importer::ImportElementArg()));
+   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg(), NULL, Executable::ProgressArgDescription()));
+   VERIFY(pInArgList->addArg<Signature>(Importer::ImportElementArg(), NULL, "Signature to be imported."));
    return true;
 }
 

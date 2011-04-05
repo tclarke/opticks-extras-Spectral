@@ -67,8 +67,8 @@ bool ElmCore::getInputSpecification(PlugInArgList*& pArgList)
 {
    pArgList = Service<PlugInManagerServices>()->getPlugInArgList();
    VERIFY(pArgList != NULL);
-   VERIFY(pArgList->addArg<Progress>(Executable::ProgressArg()));
-   VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg()));
+   VERIFY(pArgList->addArg<Progress>(Executable::ProgressArg(), NULL, Executable::ProgressArgDescription()));
+   VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL, "Raster element on which ELM will be performed."));
 
    return true;
 }

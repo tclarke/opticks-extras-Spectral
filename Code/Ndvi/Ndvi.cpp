@@ -55,15 +55,16 @@ Ndvi::~Ndvi()
 bool Ndvi::getInputSpecification(PlugInArgList*& pInArgList)
 {
    VERIFY(pInArgList = Service<PlugInManagerServices>()->getPlugInArgList());
-   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg()));
-   VERIFY(pInArgList->addArg<RasterElement>(Executable::DataElementArg()));
+   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg(), NULL, Executable::ProgressArgDescription()));
+   VERIFY(pInArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL, "Raster element on which NDVI will be "
+      "performed."));
    return true;
 }
 
 bool Ndvi::getOutputSpecification(PlugInArgList*& pOutArgList)
 {
    VERIFY(pOutArgList = Service<PlugInManagerServices>()->getPlugInArgList());
-   VERIFY(pOutArgList->addArg<RasterElement>("NDVI Result"));
+   VERIFY(pOutArgList->addArg<RasterElement>("NDVI Result", NULL, "Raster element resulting from the NDVI operation."));
    return true;
 }
 

@@ -86,13 +86,17 @@ BandResamplePager::~BandResamplePager()
 bool BandResamplePager::getInputSpecification(PlugInArgList*& pArgList)
 {
    VERIFY((pArgList = Service<PlugInManagerServices>()->getPlugInArgList()) != NULL);
-   VERIFY(pArgList->addArg<RasterElement>("Raster Element"));
-   VERIFY(pArgList->addArg<Filename>("Filename"));
-   VERIFY(pArgList->addArg<bool>("isWritable"));
-   VERIFY(pArgList->addArg<bool>("Use Data Descriptor"));
-   VERIFY(pArgList->addArg<unsigned int>("Band", "Original band number which needs resampling."));
-   VERIFY(pArgList->addArg<unsigned int>("Rows", "Number of rows in the band to resample."));
-   VERIFY(pArgList->addArg<unsigned int>("Columns", "Number of columns in the band to resample."));
+   VERIFY(pArgList->addArg<RasterElement>("Raster Element", NULL, "Raster element to be paged."));
+   VERIFY(pArgList->addArg<Filename>("Filename", NULL, "Location of file on-disk for the pager to access."));
+   VERIFY(pArgList->addArg<bool>("isWritable", false, "Flag for whether the file is writable."));
+   VERIFY(pArgList->addArg<bool>("Use Data Descriptor", false, "Flag for whether the data descriptor belonging to the "
+      "raster element should be used by the pager."));
+   VERIFY(pArgList->addArg<unsigned int>("Band", "Original band number which needs resampling. The plug-in "
+      "will fail to execute if the user does not pass a value in for this argument."));
+   VERIFY(pArgList->addArg<unsigned int>("Rows", "Number of rows in the band to resample. The plug-in "
+      "will fail to execute if the user does not pass a value in for this argument."));
+   VERIFY(pArgList->addArg<unsigned int>("Columns", "Number of columns in the band to resample. The plug-in "
+      "will fail to execute if the user does not pass a value in for this argument."));
    return true;
 }
 

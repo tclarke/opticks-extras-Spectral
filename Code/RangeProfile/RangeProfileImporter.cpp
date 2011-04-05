@@ -116,8 +116,9 @@ unsigned char RangeProfileImporter::getFileAffinity(const std::string& filename)
 bool RangeProfileImporter::getInputSpecification(PlugInArgList*& pInArgList)
 {
    VERIFY(pInArgList = Service<PlugInManagerServices>()->getPlugInArgList());
-   VERIFY(pInArgList->addArg<Progress>(ProgressArg(), NULL));
-   VERIFY(pInArgList->addArg<Signature>(ImportElementArg()));
+   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg(), NULL, Executable::ProgressArgDescription()));
+   VERIFY(pInArgList->addArg<Signature>(Importer::ImportElementArg(), NULL, "Signature into which range profiles will "
+      "be loaded."));
    return true;
 }
 

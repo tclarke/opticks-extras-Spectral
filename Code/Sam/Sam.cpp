@@ -62,27 +62,32 @@ Sam::~Sam()
 bool Sam::populateBatchInputArgList(PlugInArgList* pInArgList)
 {
    VERIFY(pInArgList != NULL);
-   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg(), NULL));
-   VERIFY(pInArgList->addArg<RasterElement>(Executable::DataElementArg()));
-   VERIFY(pInArgList->addArg<Signature>("Target Signatures", NULL));
-   VERIFY(pInArgList->addArg<double>("Threshold", mInputs.mThreshold));
-   VERIFY(pInArgList->addArg<AoiElement>("AOI", mInputs.mpAoi));
-   VERIFY(pInArgList->addArg<bool>("Display Results", mInputs.mbDisplayResults));
-   VERIFY(pInArgList->addArg<string>("Results Name", mInputs.mResultsName));
+   populateInteractiveInputArgList(pInArgList);
+   VERIFY(pInArgList->addArg<Signature>("Target Signatures", NULL, "Target signatures to be used by SAM."));
+   VERIFY(pInArgList->addArg<double>("Threshold", mInputs.mThreshold, "Threshold for pixels that will be "
+      "automatically flagged in the resulting threshold layer."));
+   VERIFY(pInArgList->addArg<AoiElement>("AOI", mInputs.mpAoi, "AOI over which SAM will be performed. If not "
+      "specified, the entire cube is used in processing."));
+   VERIFY(pInArgList->addArg<bool>("Display Results", mInputs.mbDisplayResults, "Flag for whether the results of the "
+      "SAM operation should be displayed."));
+   VERIFY(pInArgList->addArg<string>("Results Name", mInputs.mResultsName, "Name of the raster element resulting from "
+      "SAM."));
    return true;
 }
 
 bool Sam::populateInteractiveInputArgList(PlugInArgList* pInArgList)
 {
    VERIFY(pInArgList != NULL);
-   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg(), NULL));
-   VERIFY(pInArgList->addArg<RasterElement>(Executable::DataElementArg()));
+   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg(), NULL, Executable::ProgressArgDescription()));
+   VERIFY(pInArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL, "Raster element on which SAM will "
+      "be performed."));
    return true;
 }
 
 bool Sam::populateDefaultOutputArgList(PlugInArgList* pOutArgList)
 {
-   VERIFY(pOutArgList->addArg<RasterElement>("Sam Results"));
+   VERIFY(pOutArgList->addArg<RasterElement>("Sam Results", NULL, "Raster element resulting from the "
+      "SAM operation."));
    return true;
 }
 

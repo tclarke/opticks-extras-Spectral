@@ -118,25 +118,29 @@ bool Cem::populateBatchInputArgList(PlugInArgList* pInArgList)
    {
       return false;
    }
-   VERIFY(pInArgList->addArg<Signature>("Target Signatures", NULL));
-   VERIFY(pInArgList->addArg<double>("Threshold", 0.5));
-   VERIFY(pInArgList->addArg<AoiElement>("AOI", NULL));
-   VERIFY(pInArgList->addArg<bool>("Display Results", false));
-   VERIFY(pInArgList->addArg<string>("Results Name", string("CEM Results")));
+   VERIFY(pInArgList->addArg<Signature>("Target Signatures", NULL, "Signatures that will be used by CEM."));
+   VERIFY(pInArgList->addArg<double>("Threshold", 0.5, "Value of pixels to be flagged by default in the threshold layer "
+      "resulting from the CEM operation."));
+   VERIFY(pInArgList->addArg<AoiElement>("AOI", NULL, "Area of interest over which CEM will be performed. If not "
+      "specified, the entire cube is used in processing."));
+   VERIFY(pInArgList->addArg<bool>("Display Results", false, "Flag representing whether to display the results of the "
+      "CEM operation."));
+   VERIFY(pInArgList->addArg<string>("Results Name", "CEM Results", "Name of the raster element resulting from the "
+      "CEM operation."));
    return true;
 }
 
 bool Cem::populateInteractiveInputArgList(PlugInArgList* pInArgList)
 {
    VERIFY(pInArgList != NULL);
-   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg(), NULL));
-   VERIFY(pInArgList->addArg<RasterElement>(Executable::DataElementArg()));
+   VERIFY(pInArgList->addArg<Progress>(Executable::ProgressArg(), NULL, Executable::ProgressArgDescription()));
+   VERIFY(pInArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL, "Raster element on which CEM will be performed."));
    return true;
 }
 
 bool Cem::populateDefaultOutputArgList(PlugInArgList* pOutArgList)
 {
-   VERIFY(pOutArgList->addArg<RasterElement>("CEM Results"));
+   VERIFY(pOutArgList->addArg<RasterElement>("CEM Results", NULL, "Raster element resulting from the CEM operation."));
    return true;
 }
 

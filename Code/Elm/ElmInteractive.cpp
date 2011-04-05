@@ -60,7 +60,8 @@ bool ElmInteractive::getInputSpecification(PlugInArgList*& pArgList)
    }
 
    // Interactive mode: View
-   VERIFY(pArgList->addArg<SpatialDataView>(Executable::ViewArg()));
+   VERIFY(pArgList->addArg<SpatialDataView>(Executable::ViewArg(), NULL, "View containing the primary raster element "
+      "on which ELM will be performed."));
    return true;
 }
 

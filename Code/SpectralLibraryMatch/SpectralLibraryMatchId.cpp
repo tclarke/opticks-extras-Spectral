@@ -87,13 +87,16 @@ bool SpectralLibraryMatchId::getInputSpecification(PlugInArgList*& pArgList)
    // Set up list
    pArgList = pPlugInMgr->getPlugInArgList();
    VERIFY(pArgList != NULL);
-   VERIFY(pArgList->addArg<Progress>(Executable::ProgressArg(), NULL));
-   VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL));
+   VERIFY(pArgList->addArg<Progress>(Executable::ProgressArg(), NULL, Executable::ProgressArgDescription()));
+   VERIFY(pArgList->addArg<RasterElement>(Executable::DataElementArg(), NULL, "Raster element on which spectral "
+      "signature matching will be performed against a spectral library."));
 
    if (isBatch()) // need additional info in batch mode
    {
-      VERIFY(pArgList->addArg<AoiElement>("AOI Element", NULL));
-      VERIFY(pArgList->addArg<bool>("Match each Pixel", false));
+      VERIFY(pArgList->addArg<AoiElement>("AOI Element", NULL, "AOI over which spectral signature matching "
+         "will be performed."));
+      VERIFY(pArgList->addArg<bool>("Match each Pixel", false, "Flag for whether each pixel in the AOI "
+         "should be matched. If false, the average pixel signature for the AOI is used."));
 
       // build list of valid match algorithm names for arg description
       std::string matchAlgDesc = "Valid algorithm names are:";
@@ -105,10 +108,12 @@ bool SpectralLibraryMatchId::getInputSpecification(PlugInArgList*& pArgList)
          matchAlgDesc += *it;
       }
       VERIFY(pArgList->addArg<std::string>("Match Algorithm Name", "", matchAlgDesc));
-      VERIFY(pArgList->addArg<bool>("Limit max number of matches", true));
-      VERIFY(pArgList->addArg<unsigned int>("Max number of matches", 5));
-      VERIFY(pArgList->addArg<bool>("Limit matches by threshold", true));
-      VERIFY(pArgList->addArg<double>("Threshold cutoff for match", 5.0));
+      VERIFY(pArgList->addArg<bool>("Limit max number of matches", true, "Flag for whether the number of matches "
+         "should be limited."));
+      VERIFY(pArgList->addArg<unsigned int>("Max number of matches", 5, "Maximum number of matches."));
+      VERIFY(pArgList->addArg<bool>("Limit matches by threshold", true, "Flag for whether matches should be limited "
+         "to those meeting a threshold value."));
+      VERIFY(pArgList->addArg<double>("Threshold cutoff for match", 5.0, "Threshold cutoff for matches."));
    }
 
    return true;
