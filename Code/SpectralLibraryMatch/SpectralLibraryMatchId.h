@@ -18,9 +18,15 @@
 #include <string>
 
 class AoiElement;
+class DataElement;
 class PlugInArgList;
 class Progress;
+class RasterDataDescriptor;
 class Signature;
+class SignatureSet;
+class SpectralLibraryManager;
+class SpectralLibraryMatchResults;
+class Step;
 
 class SpectralLibraryMatchId : public AlgorithmShell
 {
@@ -34,14 +40,25 @@ public:
 
 protected:
    void updateProgress(const std::string& msg, int percent, ReportingLevel level);
+   bool loadLibraryFromDataElement(SpectralLibraryManager* pLibMgr, const DataElement* pSignatureData);
    bool generatePseudocolorLayer(std::vector<std::pair<Signature*, float> >& bestMatches,
       std::map<Signature*, ColorType>& colorMap, std::vector<std::string>& pixelNames,
       const std::string& layerName);
-   Opticks::PixelLocation getLocationFromPixelName(const std::string& pixelName) const;
+   Opticks::PixelLocation getLocationFromPixelName(const std::string& pixelName,
+      const RasterDataDescriptor* pDesc) const;
    EncodingType getSmallestType(unsigned int numClasses) const;
+   bool outputResults(std::vector<SpectralLibraryMatch::MatchResults>& theResults,
+      SpectralLibraryMatch::MatchLimits& limits, const std::map<Signature*, ColorType>& colorMap);
+   bool writeResultsToFile(std::vector<SpectralLibraryMatch::MatchResults>& theResults,
+      SpectralLibraryMatch::MatchLimits& limits, const std::string& filename);
+   bool sendResultsToWindow(std::vector<SpectralLibraryMatch::MatchResults>& theResults,
+      const std::map<Signature*, ColorType>& colorMap);
 
 private:
    Progress* mpProgress;
+   Step* mpStep;
+   SpectralLibraryMatchResults* mpResultsWindow;
+   std::string mMatchResultsFilename;
 };
 
 #endif

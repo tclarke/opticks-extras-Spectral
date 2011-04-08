@@ -151,7 +151,13 @@ Signature* SpectralUtilities::getPixelSignature(RasterElement* pDataset, const O
    Service<ModelServices> pModel;
 
    char spectrumName[32];
-   sprintf(spectrumName, "Pixel (%d, %d)", static_cast<int>(pixel.mX) + 1, static_cast<int>(pixel.mY) + 1);
+
+   // use original row and column numbers instead of the active numbers (data may be a subset)
+   Opticks::PixelLocation display;
+   display.mX = static_cast<int>(pDescriptor->getActiveColumn(pixel.mX).getOriginalNumber());
+   display.mY = static_cast<int>(pDescriptor->getActiveRow(pixel.mY).getOriginalNumber());
+
+   sprintf(spectrumName, "Pixel (%d, %d)", display.mX + 1, display.mY + 1);
 
    Signature* pSignature = static_cast<Signature*>(pModel->getElement(std::string(spectrumName), "Signature", pDataset));
    if (pSignature == NULL)

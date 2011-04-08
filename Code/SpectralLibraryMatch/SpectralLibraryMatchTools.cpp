@@ -373,7 +373,7 @@ bool SpectralLibraryMatchTools::eventFilter(QObject* pObject, QEvent* pEvent)
                                     "by clicking on the Edit Spectral Library toolbar button.", 0, ERRORS);
                                  return false;
                               }
-                              const RasterElement* pLib = mpLibMgr->getLibraryData(pRaster);
+                              const RasterElement* pLib = mpLibMgr->getResampledLibraryData(pRaster);
                               if (pLib == NULL)
                               {
                                  updateProgress("Unable to obtain library data.", 0, ERRORS);
@@ -391,8 +391,10 @@ bool SpectralLibraryMatchTools::eventFilter(QObject* pObject, QEvent* pEvent)
                                  SpectralLibraryMatchOptions::getSettingMatchAlgorithm());
 
                               // get library signatures and generate results
-                              const std::vector<Signature*> libSignatures = mpLibMgr->getLibrarySignatures();
-                              if (SpectralLibraryMatch::findSignatureMatches(pLib, libSignatures, theResults))
+                              const std::vector<Signature*>* pLibSignatures =
+                                 mpLibMgr->getResampledLibrarySignatures(pLib);
+                              VERIFY(pLibSignatures != NULL && pLibSignatures->empty() == false);
+                              if (SpectralLibraryMatch::findSignatureMatches(pLib, *pLibSignatures, theResults))
                               {
                                  // display results in results window
                                  VERIFY(mpResults != NULL);
@@ -613,13 +615,14 @@ void SpectralLibraryMatchTools::matchAoiPixels()
       SpectralLibraryMatchOptions::getSettingMatchAlgorithm());
 
    // get library data
-   const RasterElement* pLib = mpLibMgr->getLibraryData(pRaster);
-   std::vector<Signature*> libSignatures = mpLibMgr->getLibrarySignatures();
-   if (pLib == NULL || libSignatures.empty())
+   const RasterElement* pLib = mpLibMgr->getResampledLibraryData(pRaster);
+   if (pLib == NULL)
    {
       updateProgress("Unable to obtain library data.", 0, ERRORS);
       return;
    }
+   const std::vector<Signature*>* pLibSignatures = mpLibMgr->getResampledLibrarySignatures(pLib);
+   VERIFYNRV(pLibSignatures != NULL && pLibSignatures->empty() == false);
 
    // loop through the aoi spectra and generate sorted results
    int numProcessed(0);
@@ -652,13 +655,18 @@ void SpectralLibraryMatchTools::matchAoiPixels()
    while (bit != bit.end())
    {
       Opticks::PixelLocation pixel(bit.getPixelColumnLocation(), bit.getPixelRowLocation());
-      theResults.mTargetName = "Pixel (" + StringUtilities::toDisplayString<int>(pixel.mX + 1) + ", " +
-         StringUtilities::toDisplayString<int>(pixel.mY + 1) + ")";
+
+      // convert to original pixel values for display
+      Opticks::PixelLocation display;
+      display.mX = static_cast<int>(pDesc->getActiveColumn(pixel.mX).getOriginalNumber());
+      display.mY = static_cast<int>(pDesc->getActiveRow(pixel.mY).getOriginalNumber());
+      theResults.mTargetName = "Pixel (" + StringUtilities::toDisplayString<int>(display.mX + 1) + ", " +
+         StringUtilities::toDisplayString<int>(display.mY + 1) + ")";
       acc->toPixel(pixel.mY, pixel.mX);
       VERIFYNRV(acc.isValid());
       switchOnEncoding(eType, SpectralLibraryMatch::getScaledPixelValues, acc->getColumn(),
          theResults.mTargetValues, numBands, scaleFactor);
-      if (SpectralLibraryMatch::findSignatureMatches(pLib, libSignatures, theResults))
+      if (SpectralLibraryMatch::findSignatureMatches(pLib, *pLibSignatures, theResults))
       {
          if (isAborted())
          {
@@ -740,14 +748,15 @@ void SpectralLibraryMatchTools::matchAoiAverageSpectrum()
    VERIFYNRV(SpectralLibraryMatch::getScaledValuesFromSignature(theResults.mTargetValues, pSignature));
 
    // get library signatures and generate sorted results
-   std::vector<Signature*> libSignatures = mpLibMgr->getLibrarySignatures();
-   const RasterElement* pLib = mpLibMgr->getLibraryData(pRaster);
-   if (pLib == NULL || libSignatures.empty())
+   const RasterElement* pLib = mpLibMgr->getResampledLibraryData(pRaster);
+   if (pLib == NULL)
    {
       updateProgress("Unable to obtain library data.", 0, ERRORS);
       return;
    }
-   if (SpectralLibraryMatch::findSignatureMatches(pLib, libSignatures, theResults))
+   const std::vector<Signature*>* pLibSignatures = mpLibMgr->getResampledLibrarySignatures(pLib);
+   VERIFYNRV(pLibSignatures != NULL && pLibSignatures->empty() == false);
+   if (SpectralLibraryMatch::findSignatureMatches(pLib, *pLibSignatures, theResults))
    {
       VERIFYNRV(mpResults != NULL);
       mpResults->addResults(theResults, mpProgress);

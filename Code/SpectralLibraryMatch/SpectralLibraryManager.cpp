@@ -13,6 +13,7 @@
 #include "DesktopServices.h"
 #include "DynamicObject.h"
 #include "LibraryEditDlg.h"
+#include "MessageLogResource.h"
 #include "ModelServices.h"
 #include "ObjectResource.h"
 #include "PlugInArgList.h"
@@ -154,11 +155,9 @@ bool SpectralLibraryManager::execute(PlugInArgList* pInArgList, PlugInArgList* p
          pToolBar->addSeparator();
          pToolBar->addButton(mpEditSpectralLibraryAction);
       }
-
-      return true;
    }
 
-   return false;
+   return true;
 }
 
 bool SpectralLibraryManager::addSignatures(const std::vector<Signature*>& signatures)
@@ -244,7 +243,7 @@ bool SpectralLibraryManager::removeSignatures(const std::vector<Signature*>& sig
    return true;
 }
 
-const RasterElement* SpectralLibraryManager::getLibraryData(const RasterElement* pRaster)
+const RasterElement* SpectralLibraryManager::getResampledLibraryData(const RasterElement* pRaster)
 {
    if (mSignatures.empty())
    {
@@ -272,53 +271,6 @@ bool SpectralLibraryManager::generateResampledLibrary(const RasterElement* pRast
 {
    VERIFY(pRaster != NULL);
 
-   Service<ModelServices> pModel;
-   std::string libName = "SpectralLibrary";
-   RasterElement* pLib =
-      dynamic_cast<RasterElement*>(pModel->getElement(libName, TypeConverter::toString<RasterElement>(), pRaster));
-   if (pLib != NULL)
-   {
-      pLib->detach(SIGNAL_NAME(Subject, Deleted), Slot(this, &SpectralLibraryManager::resampledElementDeleted));
-      pModel->destroyElement(pLib);
-      pLib = NULL;
-   }
-
-   // create new raster element for resampled signatures:
-   // num rows = num Signatures, num cols = 1, num bands = pRaster num bands
-   const RasterDataDescriptor* pDesc = dynamic_cast<const RasterDataDescriptor*>(pRaster->getDataDescriptor());
-   VERIFY(pDesc != NULL);
-   pLib = RasterUtilities::createRasterElement(libName, static_cast<unsigned int>(mSignatures.size()), 1,
-      pDesc->getBandCount(), FLT8BYTES, BIP, true, const_cast<RasterElement*>(pRaster));
-   VERIFY(pLib != NULL);
-   pLib->attach(SIGNAL_NAME(Subject, Deleted), Slot(this, &SpectralLibraryManager::resampledElementDeleted));
-
-   bool libValid = resampleSigsToLib(pLib, pRaster);   
-   std::map<const RasterElement*, RasterElement*>::iterator rit = mLibraries.find(pRaster);
-   if (rit != mLibraries.end())
-   {
-      if (libValid)
-      {
-         rit->second = pLib;
-      }
-      else
-      {
-         mLibraries.erase(rit);
-      }
-   }
-   else if (libValid)
-   {
-      mLibraries.insert(std::pair<const RasterElement*, RasterElement*>(pRaster, pLib));
-   }
-
-   const_cast<RasterElement*>(pRaster)->attach(SIGNAL_NAME(Subject, Deleted),
-      Slot(this, &SpectralLibraryManager::elementDeleted));
-   return true;
-}
-
-bool SpectralLibraryManager::resampleSigsToLib(RasterElement* pLib, const RasterElement* pRaster)
-{
-   VERIFY(pLib != NULL && pRaster != NULL);
-
    // check that lib sigs are in same units as the raster element
    const RasterDataDescriptor* pDesc = dynamic_cast<const RasterDataDescriptor*>(pRaster->getDataDescriptor());
    VERIFY(pDesc != NULL);
@@ -339,15 +291,14 @@ bool SpectralLibraryManager::resampleSigsToLib(RasterElement* pLib, const Raster
    PlugInResource pPlugIn("Resampler");
    Resampler* pResampler = dynamic_cast<Resampler*>(pPlugIn.get());
    VERIFY(pResampler != NULL);
-   RasterDataDescriptor* pLibDesc = dynamic_cast<RasterDataDescriptor*>(pLib->getDataDescriptor());
-   VERIFY(pLibDesc != NULL);
-   VERIFY(pWavelengths->getNumWavelengths() == pLibDesc->getBandCount());
-   VERIFY(pLibDesc->getRowCount() == static_cast<unsigned int>(mSignatures.size()));
-   FactoryResource<DataRequest> pRequest;
-   pRequest->setWritable(true);
-   pRequest->setRows(pLibDesc->getActiveRow(0), pLibDesc->getActiveRow(pLibDesc->getRowCount()-1), 1);
-   DataAccessor acc = pLib->getDataAccessor(pRequest.release());
+   VERIFY(pWavelengths->getNumWavelengths() == pDesc->getBandCount());
 
+   // get resample suitable signatures - leave out signatures that don't cover the spectral range of the data
+   std::vector<std::vector<double> > resampledData;
+   resampledData.reserve(mSignatures.size());
+   std::vector<Signature*> resampledSignatures;
+   resampledSignatures.reserve(mSignatures.size());
+   std::vector<std::string> unsuitableSignatures;
    std::vector<double> sigValues;
    std::vector<double> sigWaves;
    std::vector<double> rasterWaves = pWavelengths->getCenterValues();
@@ -357,6 +308,9 @@ bool SpectralLibraryManager::resampleSigsToLib(RasterElement* pLib, const Raster
    DataVariant data;
    for (std::vector<Signature*>::const_iterator it = mSignatures.begin(); it != mSignatures.end(); ++it)
    {
+      data = (*it)->getData(SpectralLibraryMatch::getNameSignatureWavelengthData());
+      VERIFY(data.isValid());
+      VERIFY(data.getValue(sigWaves));
       resampledValues.clear();
       data = (*it)->getData(SpectralLibraryMatch::getNameSignatureAmplitudeData());
       VERIFY(data.isValid());
@@ -368,23 +322,63 @@ bool SpectralLibraryManager::resampleSigsToLib(RasterElement* pLib, const Raster
          *sit *= scaleFactor;
       }
 
-      data = (*it)->getData("Wavelength");
-      VERIFY(data.isValid());
-      VERIFY(data.getValue(sigWaves));
-      VERIFY(acc.isValid());
       std::string msg;
-      if (pResampler->execute(sigValues, resampledValues, sigWaves, rasterWaves,
-         rasterFwhm, bandIndex, msg) == false)
+      if (pResampler->execute(sigValues, resampledValues, sigWaves, rasterWaves, rasterFwhm, bandIndex, msg) == false
+         || resampledValues.size() != rasterWaves.size())
       {
-         if (mpProgress != NULL)
-         {
-            mpProgress->updateProgress(msg, 0, ERRORS);
-            return false;
-         }
+         unsuitableSignatures.push_back((*it)->getName());
+         continue;
       }
-      void* pData = acc->getColumn();
-      memcpy(acc->getColumn(), &resampledValues[0], pLibDesc->getBandCount() * sizeof(double));
 
+      resampledData.push_back(resampledValues);
+      resampledSignatures.push_back(*it);
+   }
+
+   if (resampledSignatures.empty())
+   {
+      std::string errMsg = "None of the signatures in the library cover the spectral range of the data.";
+      if (mpProgress != NULL)
+      {
+         mpProgress->updateProgress(errMsg, 0, ERRORS);
+         return false;
+      }
+   }
+   if (unsuitableSignatures.empty() == false)
+   {
+      std::string warningMsg = "The following library signatures do not cover the spectral range of the data:\n";
+      for (std::vector<std::string>::iterator it = unsuitableSignatures.begin();
+         it != unsuitableSignatures.end(); ++it)
+      {
+         warningMsg += *it + "\n";
+      }
+      warningMsg += "These signatures will not be searched for in the data.";
+      Service<DesktopServices>()->showMessageBox("SpectralLibraryManager", warningMsg);
+      
+      StepResource pStep("Spectral LibraryManager", "spectral", "64B6C87A-A6C3-4378-9B6E-221D89D8707B");
+      pStep->finalize(Message::Unresolved, warningMsg);
+   }
+
+   std::string libName = "Resampled Spectral Library";
+   
+   // create new raster element for resampled signatures:
+   // num rows = num valid signatures, num cols = 1, num bands = pRaster num bands
+   RasterElement* pLib = RasterUtilities::createRasterElement(libName,
+      static_cast<unsigned int>(resampledData.size()), 1, pDesc->getBandCount(), FLT8BYTES, BIP,
+      true, const_cast<RasterElement*>(pRaster));
+   VERIFY(pLib != NULL);
+
+   // copy resampled data into new element
+   RasterDataDescriptor* pLibDesc = dynamic_cast<RasterDataDescriptor*>(pLib->getDataDescriptor());
+   VERIFY(pLibDesc != NULL);
+   FactoryResource<DataRequest> pRequest;
+   pRequest->setWritable(true);
+   pRequest->setRows(pLibDesc->getActiveRow(0), pLibDesc->getActiveRow(pLibDesc->getRowCount()-1), 1);
+   DataAccessor acc = pLib->getDataAccessor(pRequest.release());
+   for (std::vector<std::vector<double> >::iterator sit = resampledData.begin(); sit != resampledData.end(); ++sit)
+   {
+      VERIFY(acc->isValid());
+      void* pData = acc->getColumn();
+      memcpy(acc->getColumn(), &(sit->begin()[0]), pLibDesc->getBandCount() * sizeof(double));
       acc->nextRow();
    }
 
@@ -394,8 +388,18 @@ bool SpectralLibraryManager::resampleSigsToLib(RasterElement* pLib, const Raster
    libUnits->setUnitType(mLibraryUnitType);
    libUnits->setUnitName(StringUtilities::toDisplayString<UnitType>(mLibraryUnitType));
    pLibDesc->setUnits(libUnits.get());
+
+   pLib->attach(SIGNAL_NAME(Subject, Deleted), Slot(this, &SpectralLibraryManager::resampledElementDeleted));
+
+   mLibraries[pRaster] = pLib;
+   mResampledSignatures[pLib] = resampledSignatures;
+
+   const_cast<RasterElement*>(pRaster)->attach(SIGNAL_NAME(Subject, Deleted),
+      Slot(this, &SpectralLibraryManager::elementDeleted));
+
    return true;
 }
+
 
 void SpectralLibraryManager::elementDeleted(Subject& subject, const std::string& signal, const boost::any& value)
 {
@@ -405,6 +409,12 @@ void SpectralLibraryManager::elementDeleted(Subject& subject, const std::string&
       std::map<const RasterElement*, RasterElement*>::iterator rit = mLibraries.find(pRaster);
       if (rit != mLibraries.end())
       {
+         std::map<const RasterElement*, std::vector<Signature*> >::iterator sit =
+            mResampledSignatures.find(rit->second);
+         if (sit != mResampledSignatures.end())
+         {
+            mResampledSignatures.erase(sit);
+         }
          mLibraries.erase(rit);
       }
    }
@@ -421,6 +431,12 @@ void SpectralLibraryManager::resampledElementDeleted(Subject& subject, const std
       {
          if (it->second == pLib)
          {
+            std::map<const RasterElement*, std::vector<Signature*> >::iterator sit =
+               mResampledSignatures.find(pLib);
+            if (sit != mResampledSignatures.end())
+            {
+               mResampledSignatures.erase(sit);
+            }
             mLibraries.erase(it);
             return;
          }
@@ -463,6 +479,7 @@ void SpectralLibraryManager::invalidateLibraries()
       pModel->destroyElement(it->second);
    }
    mLibraries.clear();
+   mResampledSignatures.clear();
 }
 
 void SpectralLibraryManager::clearLibrary()
@@ -586,7 +603,7 @@ bool SpectralLibraryManager::deserialize(SessionItemDeserializer& deserializer)
 bool SpectralLibraryManager::setBatch()
 {
    ExecutableShell::setBatch();
-   return false;
+   return true;
 }
 
 int SpectralLibraryManager::getSignatureIndex(const Signature* pSignature) const
@@ -613,7 +630,7 @@ bool SpectralLibraryManager::getResampledSignatureValues(const RasterElement* pR
       return false;
    }
 
-   const RasterElement* pLibData = getLibraryData(pRaster);
+   const RasterElement* pLibData = getResampledLibraryData(pRaster);
    if (pLibData == NULL)
    {
       return false;
@@ -642,4 +659,17 @@ bool SpectralLibraryManager::getResampledSignatureValues(const RasterElement* pR
    }
 
    return true;
+}
+
+const std::vector<Signature*>* SpectralLibraryManager::getResampledLibrarySignatures(
+   const RasterElement* pResampledLib) const
+{
+   std::map<const RasterElement*, std::vector<Signature*> >::const_iterator it =
+      mResampledSignatures.find(pResampledLib);
+   if (it != mResampledSignatures.end())
+   {
+      return &(it->second);
+   }
+
+   return NULL;
 }

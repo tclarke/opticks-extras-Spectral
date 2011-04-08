@@ -9,6 +9,7 @@
 
 #include "AppVerify.h"
 #include "LibraryEditDlg.h"
+#include "MessageLog.h"
 #include "Signature.h"
 #include "SignatureSelector.h"
 

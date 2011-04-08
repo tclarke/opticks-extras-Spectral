@@ -46,7 +46,8 @@ public:
    bool addSignatures(const std::vector<Signature*>& signatures);
    bool removeSignatures(const std::vector<Signature*>& signatures);
    void clearLibrary();
-   const RasterElement* getLibraryData(const RasterElement* pRaster);
+   const RasterElement* getResampledLibraryData(const RasterElement* pRaster);
+   const std::vector<Signature*>* getResampledLibrarySignatures(const RasterElement* pResampledLib) const;
    Signature* getLibrarySignature(unsigned int index);
    int getSignatureIndex(const Signature* pSignature) const;
    bool getResampledSignatureValues(const RasterElement* pRaster, const Signature* pSignature,
@@ -61,7 +62,6 @@ public slots:
 
 protected:
    bool generateResampledLibrary(const RasterElement* pRaster);
-   bool resampleSigsToLib(RasterElement* pLib, const RasterElement* pRaster);
    void elementDeleted(Subject& subject, const std::string& signal, const boost::any& value);
    void resampledElementDeleted(Subject& subject, const std::string& signal, const boost::any& value);
    void signatureDeleted(Subject& subject, const std::string& signal, const boost::any& value);
@@ -71,6 +71,7 @@ private:
    std::vector<Signature*> mSignatures;
    UnitType mLibraryUnitType;
    std::map<const RasterElement*, RasterElement*> mLibraries;
+   std::map<const RasterElement*, std::vector<Signature*> > mResampledSignatures;
    Progress* mpProgress;
    QAction* mpEditSpectralLibraryAction;
 };

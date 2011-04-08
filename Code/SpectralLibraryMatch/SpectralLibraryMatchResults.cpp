@@ -268,6 +268,11 @@ void SpectralLibraryMatchResults::deletePage(const RasterElement* pRaster)
       ResultsPage* pPage = pit->second;
       mPageMap.erase(pit);
       delete pPage;
+
+      VERIFYNR(const_cast<RasterElement*>(pRaster)->detach(SIGNAL_NAME(Subject, Deleted),
+         Slot(this, &SpectralLibraryMatchResults::elementDeleted)));
+      VERIFYNR(const_cast<RasterElement*>(pRaster)->detach(SIGNAL_NAME(Subject, Modified),
+         Slot(this, &SpectralLibraryMatchResults::elementModified)));
    }
 }
 
@@ -392,10 +397,6 @@ void SpectralLibraryMatchResults::elementDeleted(Subject& subject, const std::st
       ResultsPage* pPage = getPage(pRaster);
       if (pPage != NULL)
       {
-         VERIFYNR(pRaster->detach(SIGNAL_NAME(Subject, Deleted),
-            Slot(this, &SpectralLibraryMatchResults::elementDeleted)));
-         VERIFYNR(pRaster->detach(SIGNAL_NAME(Subject, Modified),
-            Slot(this, &SpectralLibraryMatchResults::elementModified)));
          deletePage(pRaster);
       }
    }
