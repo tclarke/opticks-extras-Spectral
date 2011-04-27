@@ -30,6 +30,7 @@
 #include "Rx.h"
 #include "RxDialog.h"
 #include "SpatialDataView.h"
+#include "SpectralVersion.h"
 #include "ThresholdLayer.h"
 #include <QtCore/QtConcurrentMap>
 
@@ -205,6 +206,9 @@ Rx::Rx()
    setSubtype("Anomaly Detection");
    setMenuLocation("[Spectral]/Anomaly Detection/RX");
    setAbortSupported(true);
+   setCopyright(SPECTRAL_COPYRIGHT);
+   setVersion(SPECTRAL_VERSION_NUMBER);
+   setProductionStatus(SPECTRAL_IS_PRODUCTION_RELEASE);
    addDependencyCopyright("OpenCV",
 "IMPORTANT: READ BEFORE DOWNLOADING, COPYING, INSTALLING OR USING. \n"
 "\n"
