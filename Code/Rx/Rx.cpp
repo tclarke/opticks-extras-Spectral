@@ -38,6 +38,88 @@ REGISTER_PLUGIN_BASIC(RxModule, Rx);
 
 namespace
 {
+   template<typename T>
+   void readBandData(T* pPtr, std::vector<double>& output)
+   {
+      for (std::vector<double>::size_type band = 0; band < output.size(); ++band)
+      {
+         output[band] = static_cast<double>(pPtr[band]);
+      }
+   }
+ 
+   struct PcaMap
+   {
+      typedef unsigned int input_type;
+      typedef QPair<LocationType, QPair<DataAccessor*, cv::Mat > > result_type;
+      DataAccessor* mpResAcc;
+      cv::Mat* mpInputMat;
+      cv::PCA* mpPcaAlgorithm;
+      int mCols;
+      std::vector<LocationType>& mLocations;
+
+      PcaMap(cv::Mat* inputMat, cv::PCA* pPcaAlgorithm, DataAccessor* pResAcc, std::vector<LocationType>& locations) :
+               mpInputMat(inputMat),
+               mpPcaAlgorithm(pPcaAlgorithm),
+               mpResAcc(pResAcc),
+               mLocations(locations)
+      {
+      }
+
+      //Perform the transform into PCA space and back in parallel
+      result_type operator()(const input_type& loc)
+      {
+         //initialize the variables
+         LocationType location(0, 0);
+         cv::Mat reconstructed;
+         if (loc < mLocations.size())
+         {
+            //retrieve the location of the data relative to the output
+            location.mY = mLocations[loc].mY;
+            location.mX = mLocations[loc].mX;
+            if (mpInputMat != NULL)
+            {
+               //retrieve the set of bands for the specified pixels
+               cv::Mat vec = mpInputMat->row(loc);
+               if (mpPcaAlgorithm != NULL)
+               {
+                  //project into PCA space
+                  cv::Mat coeffs = mpPcaAlgorithm->project(vec);
+
+                  //project back into the original space, the first eigen vectors were
+                  //zeroed at an earlier step to make projecting back create a less noisy image
+                  reconstructed = mpPcaAlgorithm->backProject(coeffs);
+               }
+            }
+         }
+         return QPair<LocationType, QPair<DataAccessor*, cv::Mat> >(location, QPair<DataAccessor*, cv::Mat>(
+            mpResAcc, reconstructed));
+      }
+
+   };
+
+   //write the results to the data accessor after each transform
+   void pcaReduce(QPair<LocationType, QPair<DataAccessor*, cv::Mat> >& final, 
+      const QPair<LocationType, QPair<DataAccessor*, cv::Mat> >& intermediate)
+   {
+      int row = intermediate.first.mY;
+      int col = intermediate.first.mX;
+      if (intermediate.second.first != NULL)
+      {
+         DataAccessor acc = *intermediate.second.first;
+         if (acc.isValid())
+         {
+            acc->toPixel(row, col);
+            if (intermediate.second.second.empty() == false)
+            {
+               //the data is assumed to be retrieved with a BIP accessor
+               int size = intermediate.second.second.cols;
+               memcpy(acc->getColumn(), intermediate.second.second.data, size * sizeof(double));
+            }
+         }
+      }
+   }
+
+
    struct GlobalMeansMap
    {
       typedef QPair<int, QList<int> > input_type;
@@ -263,12 +345,15 @@ bool Rx::getInputSpecification(PlugInArgList*& pArgList)
       "which AOI layers can be selected. Additionally, the result of RX will be attached to this view as a new layer."));
    VERIFY(pArgList->addArg<AoiElement>("AOI", NULL, "Execute over this AOI only."));
    VERIFY(pArgList->addArg<double>("Threshold", 2.0, "Default result threshold in stddev."));
-   VERIFY(pArgList->addArg<unsigned int>("Local Width", "Width of the local neighborhood used to calculate statistics. "
-                                                        "If this or \"Local Height\" is not set or is set to 0, use global statistics."));
-   VERIFY(pArgList->addArg<unsigned int>("Local Height", "Height of the local neighborhood used to calculate statistics. "
-                                                         "If this or \"Local Width\" is not set or is set to 0, use global statistics."));
-   VERIFY(pArgList->addArg<unsigned int>("Subspace Components", "Number of components to strip for subspace RX. "
-                                                                "If this is not set or is set to 0, use standard RX."));
+   VERIFY(pArgList->addArg<unsigned int>("Local Width", 
+                                    "Width of the local neighborhood used to calculate statistics. "
+                                    "If this or \"Local Height\" is not set or is set to 0, use global statistics."));
+   VERIFY(pArgList->addArg<unsigned int>("Local Height", 
+                                    "Height of the local neighborhood used to calculate statistics. "
+                                    "If this or \"Local Width\" is not set or is set to 0, use global statistics."));
+   VERIFY(pArgList->addArg<unsigned int>("Subspace Components", 
+                                    "Number of components to strip for subspace RX. "
+                                    "If this is not set or is set to 0, use standard RX."));
    return true;
 }
 
@@ -329,7 +414,7 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
       dlg.setSubspaceComponents(components);
       if (dlg.exec() == QDialog::Rejected)
       {
-         progress.report("Cancelled by user", 100, ABORT, true);
+         progress.report("Canceled by user", 100, ABORT, true);
          return false;
       }
       threshold = dlg.getThreshold();
@@ -345,13 +430,383 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
 
    if (useLocal && (localWidth < 3 || localHeight < 3 || localWidth % 2 == 0 || localHeight % 2 == 0))
    {
-      progress.report("Invalid local neighborhood size. Width and height must be at least 3 and odd.", 0, ERRORS, true);
+      progress.report("Invalid local neighborhood size. Width and height must be at least 3 and odd.", 
+         0, ERRORS, true);
       return false;
    }
    if (useSubspace && (components <= 0 || components >= pDesc->getBandCount()))
    {
-      progress.report("Invalid number of subspace components. Must be 1 or more and less than the number of bands.", 0, ERRORS, true);
+      progress.report("Invalid number of subspace components. Must be 1 or more and less than the number of bands.", 
+         0, ERRORS, true);
       return false;
+   }
+
+   //set up extents
+   int selectedPixels = 0;
+   unsigned int startCol = 0;
+   unsigned int startRow = 0;
+   ModelResource<RasterElement> pRaster(static_cast<RasterElement*>(NULL));
+   AoiElement* pLocalAoi = NULL;
+
+   //clear out any filtered input when rerunning the tool
+   string filterInputName = "RX Filtered Input";
+   string resultsName = "RX Results";
+
+   // Calculate PCA, remove "components" and invert the PCA...the result will be pRaster
+   if (useSubspace)
+   {
+      try
+      {
+         //retrieve the input bitmask iterator, a separate one is created because
+         //we'll have to output a new AOI relative to the selected area
+         const BitMask* pBitmaskSS = (pAoi == NULL) ? NULL : pAoi->getSelectedPoints();
+         BitMaskIterator iterSS(pBitmaskSS, pElement);
+         if (!*iterSS)
+         {
+            progress.report("No pixels selected for processing.", 0, ERRORS, true);
+            return false;
+         }
+         selectedPixels = iterSS.getCount();
+         unsigned int bands = pDesc->getBandCount();
+         cv::Mat muMat = cv::Mat(1, bands, CV_64F, 0.0);
+
+         // generate location index map from the bitmask iterator
+         QMap<int, QList<int> > locationMap;
+         for (; iterSS != iterSS.end(); ++iterSS)
+         {
+            LocationType loc;
+            iterSS.getPixelLocation(loc);
+            locationMap[loc.mY].push_back(loc.mX);
+         }
+
+         // arrange the location index map by row with a list of columns
+         QList<QPair<int, QList<int> > > locations;
+         foreach(int key, locationMap.keys())
+         {
+            locations.push_back(qMakePair(key, locationMap[key]));
+         }
+
+         if (calculateMeans(pElement, locations, muMat, selectedPixels, progress) == false)
+         {
+            //user canceled
+            return false;
+         }
+         muMat.rows = 1;
+         muMat.cols = bands;
+         unsigned int numCols = iterSS.getNumSelectedColumns();
+         unsigned int numRows = iterSS.getNumSelectedRows();
+         startRow = iterSS.getRowOffset();
+         startCol = iterSS.getColumnOffset();
+
+         //create the output dataset
+         pRaster = ModelResource<RasterElement>(createResults(numRows, numCols, bands, filterInputName, 
+            FLT8BYTES, pElement));
+         if (pRaster.get() == NULL)
+         {
+            progress.report("Unable to create results.", 0, ERRORS, true);
+            return false;
+         }
+         const RasterDataDescriptor* pResDesc = static_cast<const RasterDataDescriptor*>(pRaster->getDataDescriptor());
+         VERIFY(pResDesc);
+         bool bCancel = false;
+         std::vector<double> pixelValues(bands);
+         unsigned int blockSize = 50;
+         unsigned int numRowBlocks = numRows / blockSize;
+         if (numRows%blockSize > 0)
+         {
+            numRowBlocks++;
+         }
+
+         //perform the operation on blocks of rows
+         for (unsigned int rowBlocks = 0; rowBlocks < numRowBlocks; rowBlocks++)
+         {
+            unsigned int localStartRow = rowBlocks * blockSize;
+            unsigned int endRow = localStartRow + blockSize;
+            if (endRow > numRows)
+            {
+               endRow = numRows;
+            }
+
+            //set up the result data accessor
+            DimensionDescriptor rowDesc = pResDesc->getActiveRow(localStartRow);
+            DimensionDescriptor rowDesc2 = pResDesc->getActiveRow(endRow - 1);
+            FactoryResource<DataRequest> pReq;
+            pReq->setInterleaveFormat(BIP);
+            pReq->setRows(rowDesc, rowDesc2);
+            DataAccessor resacc(pRaster->getDataAccessor(pReq.release()));
+            VERIFY(resacc.isValid());
+
+            //set up the input data accessor
+            DimensionDescriptor inputRowDesc = pDesc->getActiveRow(localStartRow + startRow);
+            DimensionDescriptor inputRowDesc2 = pDesc->getActiveRow(startRow+endRow - 1);
+            FactoryResource<DataRequest> pInputReq;
+            pInputReq->setInterleaveFormat(BIP);
+            pInputReq->setRows(inputRowDesc, inputRowDesc2);
+            DataAccessor acc(pElement->getDataAccessor(pInputReq.release()));
+            VERIFY(acc.isValid());
+
+            resacc->toPixel(localStartRow, 0);
+            acc->toPixel(localStartRow+startRow, startCol);
+            for (unsigned int row = localStartRow; row < endRow; row++)
+            {
+               for (unsigned int col = 0; col < numCols; col++)
+               {
+                  acc->toPixel(startRow+row, startCol + col);
+                  resacc->toPixel(row, col);
+
+                  //get the value from the raster element
+                  switchOnEncoding(pDesc->getDataType(), readBandData, acc->getColumn(), pixelValues);
+
+                  //subtract the average
+                  cv::Mat subtracted(1, bands, CV_64F, &pixelValues[0]);
+                  subtracted -= muMat;
+                  memcpy(resacc->getColumn(), subtracted.data, bands * sizeof(double));
+               }
+               if (bCancel)
+               {
+                  progress.report("User canceled operation.", 100, ABORT, true);
+                  return false;
+               }
+               else
+               {
+                  progress.report("Initializing PCA Variables",
+                        (row - startRow) * 45 /
+                              (numRows - startRow), NORMAL);
+                  if (isAborted())
+                  {
+                     bCancel = true;
+                     setAbortSupported(false);
+                  }
+               }
+            }
+         }
+
+         //calculate the covariance
+         bool success = true;
+         ExecutableResource covar("Covariance", std::string(), progress.getCurrentProgress(), true);
+         success &= covar->getInArgList().setPlugInArgValue(DataElementArg(), pRaster.get());
+         bool bInverse = false;
+         success &= covar->getInArgList().setPlugInArgValue("ComputeInverse", &bInverse);
+         success &= covar->execute();
+         RasterElement* pCov = static_cast<RasterElement*>(
+            Service<ModelServices>()->getElement("Covariance Matrix", 
+                                                  TypeConverter::toString<RasterElement>(), pRaster.get()));
+         success &= pCov != NULL;
+         if (!success)
+         {
+            progress.report("Unable to calculate covariance.", 0, ERRORS, true);
+            return false;
+         }
+
+         cv::Mat covMat = cv::Mat(bands, bands, CV_64F, pCov->getRawData());
+
+         //calculate the Eigens
+         cv::Mat unsortedEigenVectors;
+         cv::Mat unsortedEigenValues;
+         if (eigen(covMat, unsortedEigenValues, unsortedEigenVectors) == false)
+         {
+            progress.report("Unable to calculate eigen vectors.", 0, ERRORS, true);
+            return false;
+         }
+
+         //delete the covariance matrix so it doesn't accidentally get used at the later step
+         Service<ModelServices>()->destroyElement(pCov);
+
+         //sort the eigens
+         cv::Mat sortedIndices;
+         cv::sortIdx(unsortedEigenValues, sortedIndices, CV_SORT_DESCENDING | CV_SORT_EVERY_COLUMN);
+         cv::Mat eigenValues(bands, 1, CV_64F);
+         cv::Mat eigenVectors(bands, bands, CV_64F);
+         for (unsigned int i = 0; i < bands; i++)
+         {
+            eigenValues.at<double>(i) = static_cast<double>(unsortedEigenValues.at<double>(sortedIndices.at<int>(i)));
+            for (unsigned int j = 0; j < bands; j++)
+            {
+               eigenVectors.at<double>(i, j) = static_cast<double>(unsortedEigenVectors.at<double>(
+                  sortedIndices.at<int>(i), j));
+            }
+         }
+         bCancel = false;
+         int pixelCount = 0;
+
+         auto_ptr<cv::PCA> pPcaAlgorithm(new cv::PCA());
+         pPcaAlgorithm->eigenvectors = eigenVectors;
+         pPcaAlgorithm->eigenvalues = eigenValues;
+         pPcaAlgorithm->mean = muMat;
+
+         //knock off the first components of the eigen vectors and values
+         double zero = 0.0;
+         for (unsigned int i = 0; i < components; i++)
+         {
+            pPcaAlgorithm->eigenvalues.at<double>(i) = zero;
+            for (unsigned int j = 0; j < bands; j++)
+            {
+               double val = pPcaAlgorithm->eigenvectors.at<double>(i,j);
+               pPcaAlgorithm->eigenvectors.at<double>(i,j) = zero;
+            }
+         }
+
+         //make an AOI relative to the subset we are running SSRX on
+         if (pAoi != NULL)  
+         {
+            Service<ModelServices> pModel;
+            pLocalAoi = dynamic_cast<AoiElement*>(pModel->createElement("SSRX AOI", "AoiElement", pRaster.get()));
+         }
+
+         // setup write data accessor
+         FactoryResource<DataRequest> pResReq;
+         pResReq->setWritable(true);
+         DataAccessor resacc(pRaster->getDataAccessor(pResReq.release()));
+         if (!resacc.isValid())
+         {
+            progress.report("Unable to access data.", 0, ERRORS, true);
+            return false;
+         }
+
+         //restart the iterator so we can put the values back in the same spot
+         iterSS.begin();
+
+         for (unsigned int rowBlocks = 0; rowBlocks < numRowBlocks; rowBlocks++)
+         {
+            std::vector<LocationType> aoiLocations;
+            unsigned int localStartRow = rowBlocks * blockSize;
+            unsigned int endRow = localStartRow + blockSize;
+            if (endRow > numRows)
+            {
+               endRow = numRows;
+            }
+
+            //set up the result data accessor
+            DimensionDescriptor rowDesc = pResDesc->getActiveRow(localStartRow);
+            DimensionDescriptor rowDesc2 = pResDesc->getActiveRow(endRow - 1);
+            FactoryResource<DataRequest> pReq;
+            pReq->setInterleaveFormat(BIP);
+            pReq->setRows(rowDesc, rowDesc2);
+            DataAccessor resacc(pRaster->getDataAccessor(pReq.release()));
+            VERIFY(resacc.isValid());
+
+            //set up the input data accessor
+            DimensionDescriptor inputRowDesc = pDesc->getActiveRow(localStartRow + startRow);
+            DimensionDescriptor inputRowDesc2 = pDesc->getActiveRow(startRow+endRow - 1);
+            FactoryResource<DataRequest> pInputReq;
+            pInputReq->setInterleaveFormat(BIP);
+            pInputReq->setRows(inputRowDesc, inputRowDesc2);
+            DataAccessor acc(pElement->getDataAccessor(pInputReq.release()));
+            VERIFY(acc.isValid());
+
+            resacc->toPixel(localStartRow, 0);
+            acc->toPixel(localStartRow + startRow, startCol);
+            QList<int> indices;
+            std::vector<double> pixelValues(bands);
+            cv::Mat inputMat(numCols * (endRow - localStartRow), pDesc->getBandCount(), CV_64F);
+            inputMat = 0;
+            pixelCount = 0;
+            for (unsigned int row = localStartRow; row < endRow; row++)
+            {
+               for (unsigned int col = 0; col < numCols; col++)
+               {
+                  acc->toPixel(startRow + row, startCol + col);
+
+                  //record which indices to put into the multithreaded processing function
+                  if (iterSS.getPixel(startCol + col, startRow + row))
+                  {
+                     switchOnEncoding(pDesc->getDataType(), readBandData, acc->getColumn(), pixelValues);
+
+                     //store the data in the input matrix with information per band stored as a column to
+                     //each pixels row
+                     for (unsigned int band = 0; band < bands; ++band)
+                     {
+                        inputMat.at<double>((row - localStartRow) * numCols + col, band) = pixelValues[band];
+                     }
+                     indices.push_back(pixelCount);
+                     aoiLocations.push_back(LocationType(col, row));
+                     pixelCount++;
+                  }
+                  else
+                  {
+                     //if not within the AOI, then set the RasterElement band set to average
+                     resacc->toPixel(row, col);
+                     memcpy(resacc->getColumn(), pPcaAlgorithm->mean.data, bands * sizeof(double));
+                  }
+               }
+               if (bCancel)
+               {
+                  progress.report("User canceled operation.", 100, ABORT, true);
+                  return false;
+               }
+               else
+               {
+                  if (isAborted())
+                  {
+                     bCancel = true;
+                     setAbortSupported(false);
+                  }
+               }
+            }
+
+            //project bands to PCA space and back
+            PcaMap pcaMap(&inputMat, pPcaAlgorithm.get(), &resacc, aoiLocations);
+            QFuture<QPair<LocationType, QPair<DataAccessor*, cv::Mat> > > pcaResults;
+            pcaResults = QtConcurrent::mappedReduced(
+               indices.begin(), indices.end(), pcaMap, pcaReduce, QtConcurrent::UnorderedReduce);
+            bool isCancelling = false;
+            float rowBlocksPercent = 100 / numRowBlocks;
+            while (pcaResults.isRunning())
+            {
+               if (isCancelling)
+               {
+                  progress.report("Cleaning up processing threads. Please wait.", 99, NORMAL);
+               }
+               else
+               {
+                  progress.report("Applying PCs",
+                        rowBlocksPercent*rowBlocks + 
+                        (pcaResults.progressValue() - pcaResults.progressMinimum()) * (rowBlocksPercent) /
+                        (pcaResults.progressMaximum() - pcaResults.progressMinimum()), NORMAL);
+                  if (isAborted())
+                  {
+                     pcaResults.cancel();
+                     isCancelling = true;
+                     setAbortSupported(false);
+                  }
+               }
+               QThread::yieldCurrentThread();
+            }
+            if (pcaResults.isCanceled())
+            {
+               progress.report("User canceled operation.", 100, ABORT, true);
+               return false;
+            }
+
+            //add all of the pixel locations to the AOI
+            if (pLocalAoi != NULL)
+            {
+               pLocalAoi->addPoints(aoiLocations);
+            }
+         }
+      }
+      catch (const cv::Exception& exc)
+      {
+         progress.report("OpenCV error: " + std::string(exc.what()), 0, ERRORS, true);
+         return false;
+      }
+   }
+   else
+   {
+      //clear any previous run of the subspace Rx
+      clearPreviousResults(filterInputName, pElement);
+   }
+
+   if (pRaster.get() != NULL)
+   {
+      //clear any previous run of the Rx
+      clearPreviousResults(resultsName, pElement);
+
+      //set the inputs to the rest of the Rx algorithm to the outputs of the 
+      //subspace function
+      pElement = pRaster.get();
+      pAoi = pLocalAoi;
+      pDesc = static_cast<const RasterDataDescriptor*>(pElement->getDataDescriptor());
    }
 
    // calculate global covariance matrix
@@ -361,13 +816,15 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
       bool success = true;
       ExecutableResource covar("Covariance", std::string(), progress.getCurrentProgress(), isBatch());
       success &= covar->getInArgList().setPlugInArgValue(DataElementArg(), pElement);
+
       if (isBatch())
       {
          success &= covar->getInArgList().setPlugInArgValue("AOI", pAoi);
       }
       success &= covar->execute();
       pCov = static_cast<RasterElement*>(
-         Service<ModelServices>()->getElement("Inverse Covariance Matrix", TypeConverter::toString<RasterElement>(), pElement));
+         Service<ModelServices>()->getElement("Inverse Covariance Matrix", 
+         TypeConverter::toString<RasterElement>(), pElement));
       success &= pCov != NULL;
       if (!success)
       {
@@ -384,24 +841,17 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
       progress.report("No pixels selected for processing.", 0, ERRORS, true);
       return false;
    }
+
    FactoryResource<DataRequest> pReq;
    pReq->setInterleaveFormat(BIP);
    pReq->setRows(pDesc->getActiveRow(iter.getBoundingBoxStartRow()), pDesc->getActiveRow(iter.getBoundingBoxEndRow()));
-   pReq->setColumns(pDesc->getActiveColumn(iter.getBoundingBoxStartColumn()), pDesc->getActiveColumn(iter.getBoundingBoxEndColumn()));
+   pReq->setColumns(pDesc->getActiveColumn(iter.getBoundingBoxStartColumn()), 
+                    pDesc->getActiveColumn(iter.getBoundingBoxEndColumn()));
    DataAccessor acc(pElement->getDataAccessor(pReq.release()));
 
    // create results element
-   ModelResource<RasterElement> pResult(static_cast<RasterElement*>(
-      Service<ModelServices>()->getElement("RX Results", TypeConverter::toString<RasterElement>(), pElement)));
-   if (pResult.get() != NULL && !isBatch())
-   {
-      Service<DesktopServices>()->showSuppressibleMsgDlg("RX Results Exists",
-         "The results data element already exists and will be replaced.",
-         MESSAGE_WARNING, "Rx/ReplaceResults");
-      Service<ModelServices>()->destroyElement(pResult.release());
-   }
-   pResult = ModelResource<RasterElement>(
-      RasterUtilities::createRasterElement("RX Results", iter.getNumSelectedRows(), iter.getNumSelectedColumns(), FLT8BYTES, true, pElement));
+   ModelResource<RasterElement> pResult(createResults(iter.getNumSelectedRows(), iter.getNumSelectedColumns(), 1, 
+      resultsName, FLT8BYTES, pElement));
    if (pResult.get() == NULL)
    {
       progress.report("Unable to create results.", 0, ERRORS, true);
@@ -418,7 +868,7 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
       return false;
    }
 
-   // execure Rx
+   // execute Rx
    { // scope temp matrices
       int bands = pDesc->getBandCount();
       EncodingType encoding = pDesc->getDataType();
@@ -448,40 +898,17 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
 
       if (!useLocal)
       {
-         // setup the map-reduce and execute with progress reporting
-         GlobalMeansMap meansMap(pElement);
-         QFuture<cv::Mat> means;
-         means = QtConcurrent::mappedReduced(locations.begin(), locations.end(), meansMap, meansReduce, QtConcurrent::UnorderedReduce);
-         bool isCancelling = false;
-         while (means.isRunning())
+         if (selectedPixels == 0)
          {
-            if (isCancelling)
-            {
-               progress.report("Cleaning up processing threads. Please wait.", 99, NORMAL);
-            }
-            else
-            {
-               progress.report("Calculating means",
-                     (means.progressValue() - means.progressMinimum()) * 50 /
-                           (means.progressMaximum() - means.progressMinimum()), NORMAL);
-               if (isAborted())
-               {
-                  means.cancel();
-                  isCancelling = true;
-                  setAbortSupported(false);
-               }
-            }
-            QThread::yieldCurrentThread();
+            selectedPixels = iter.getCount();
          }
 
-         if (means.isCanceled())
+         // setup the map-reduce and execute with progress reporting
+         if (calculateMeans(pElement, locations, muMat, selectedPixels, progress) == false)
          {
-            progress.report("User cancelled operation.", 100, ABORT, true);
+            //user canceled
             return false;
          }
-
-         // complete the mean calculation
-         muMat = means.result() / iter.getCount();
       }
 
       // setup and run the Rx map-reduce
@@ -525,7 +952,7 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
 
       if (rx.isCanceled())
       {
-         progress.report("User cancelled operation.", 100, ABORT, true);
+         progress.report("User canceled operation.", 100, ABORT, true);
          return false;
       }
    }
@@ -534,8 +961,8 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
    if (!isBatch())
    {
       ThresholdLayer* pLayer = static_cast<ThresholdLayer*>(pView->createLayer(THRESHOLD, pResult.get()));
-      pLayer->setXOffset(iter.getBoundingBoxStartColumn());
-      pLayer->setYOffset(iter.getBoundingBoxStartRow());
+      pLayer->setXOffset(iter.getBoundingBoxStartColumn() + startCol);
+      pLayer->setYOffset(iter.getBoundingBoxStartRow() + startRow);
       pLayer->setPassArea(UPPER);
       pLayer->setRegionUnits(STD_DEV);
       pLayer->setFirstThreshold(pLayer->convertThreshold(STD_DEV, threshold, RAW_VALUE));
@@ -544,9 +971,85 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
    {
       pOutArgList->setPlugInArgValue<RasterElement>("Results", pResult.get());
    }
+   pRaster.release();
    pResult.release();
 
    progress.report("Complete", 100, NORMAL);
    progress.upALevel();
+   return true;
+}
+
+RasterElement* Rx::createResults(int numRows, int numColumns, int numBands, const string& sigName, 
+   EncodingType eType, RasterElement* pElement)
+{
+   clearPreviousResults(sigName, pElement);
+
+   // create results element
+   ModelResource<RasterElement> pResult(
+      RasterUtilities::createRasterElement(sigName, numRows, numColumns, numBands, eType, BIP, true, pElement));
+
+   if (pResult.get() == NULL)
+   {
+      //create the dataset on disk
+      pResult = ModelResource<RasterElement>(
+         RasterUtilities::createRasterElement(sigName, numRows, numColumns, numBands, eType, BIP, false, pElement));
+   }
+   return pResult.release();
+}
+
+void Rx::clearPreviousResults(const string& sigName, RasterElement* pElement)
+{
+   ModelResource<RasterElement> pResult(static_cast<RasterElement*>(
+      Service<ModelServices>()->getElement(sigName, TypeConverter::toString<RasterElement>(), pElement)));
+   if (pResult.get() != NULL && !isBatch())
+   {
+      Service<DesktopServices>()->showSuppressibleMsgDlg(sigName + " Exists",
+         "The results data element already exists and will be replaced.",
+         MESSAGE_WARNING, "Rx/ReplaceResults");
+      Service<ModelServices>()->destroyElement(pResult.release());
+   }
+}
+
+bool Rx::calculateMeans(RasterElement* pElement, QList<QPair<int, QList<int> > >& locations, cv::Mat& muMat, 
+   unsigned int count, ProgressTracker &progress)
+{
+   VERIFY(pElement != NULL);
+
+   // setup the map-reduce and execute with progress reporting
+   GlobalMeansMap meansMap(pElement);
+   QFuture<cv::Mat> means;
+   means = QtConcurrent::mappedReduced(locations.begin(), locations.end(), meansMap, meansReduce, 
+      QtConcurrent::UnorderedReduce);
+   bool isCancelling = false;
+   while (means.isRunning())
+   {
+      if (isCancelling)
+      {
+         progress.report("Cleaning up processing threads. Please wait.", 99, NORMAL);
+      }
+      else
+      {
+         progress.report("Calculating means",
+               (means.progressValue() - means.progressMinimum()) * 50 /
+                     (means.progressMaximum() - means.progressMinimum()), NORMAL);
+         if (isAborted())
+         {
+            means.cancel();
+            isCancelling = true;
+            setAbortSupported(false);
+         }
+      }
+      QThread::yieldCurrentThread();
+   }
+
+   if (means.isCanceled())
+   {
+      progress.report("User canceled operation.", 100, ABORT, true);
+      return false;
+   }
+
+   // complete the mean calculation
+   muMat = means.result() / count;
+
    return true;
 }

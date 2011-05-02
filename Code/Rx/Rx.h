@@ -10,7 +10,18 @@
 #ifndef RX_H__
 #define RX_H__
 
+#include <string.h>
+
 #include "AlgorithmShell.h"
+#include "TypesFile.h"
+
+#include <opencv/cv.h>
+#include <QtCore/QList>
+#include <QtCore/QPair>
+
+class RasterElement;
+class ProgressTracker;
+
 
 class Rx : public AlgorithmShell
 {
@@ -21,6 +32,13 @@ public:
    virtual bool getInputSpecification(PlugInArgList*& pArgList);
    virtual bool getOutputSpecification(PlugInArgList*& pArgList);
    virtual bool execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList);
+
+private:
+   RasterElement* createResults(int numRows, int numColumns, int numBands, const std::string& sigName, 
+      EncodingType eType, RasterElement* pElement);
+   void clearPreviousResults(const std::string& sigName, RasterElement* pElement);
+   bool calculateMeans(RasterElement* pElement, QList<QPair<int, QList<int> > >& locations, cv::Mat& muMat, 
+      unsigned int count, ProgressTracker& progress);
 };
 
 #endif
