@@ -32,6 +32,7 @@
 #include "SpatialDataView.h"
 #include "SpectralVersion.h"
 #include "ThresholdLayer.h"
+#include <memory>
 #include <QtCore/QtConcurrentMap>
 
 REGISTER_PLUGIN_BASIC(RxModule, Rx);
@@ -629,7 +630,7 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
          bCancel = false;
          int pixelCount = 0;
 
-         auto_ptr<cv::PCA> pPcaAlgorithm(new cv::PCA());
+         std::auto_ptr<cv::PCA> pPcaAlgorithm(new cv::PCA());
          pPcaAlgorithm->eigenvectors = eigenVectors;
          pPcaAlgorithm->eigenvalues = eigenValues;
          pPcaAlgorithm->mean = muMat;
@@ -699,7 +700,7 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
             QList<int> indices;
             std::vector<double> pixelValues(bands);
             cv::Mat inputMat(numCols * (endRow - localStartRow), pDesc->getBandCount(), CV_64F);
-            inputMat = 0;
+            inputMat = cv::Scalar(0);
             pixelCount = 0;
             for (unsigned int row = localStartRow; row < endRow; row++)
             {
