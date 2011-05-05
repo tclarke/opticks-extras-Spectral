@@ -13,7 +13,7 @@
 #define SPECTRAL_NAME "Spectral processing algorithms"
 #define SPECTRAL_NAME_LONG "Algorithms to perform hyper and multi-spectral analysis"
 #define SPECTRAL_COPYRIGHT "Copyright © 2010, Ball Aerospace & Technologies Corp."
-#define SPECTRAL_VERSION_NUMBER "1.4.0rc1"
+#define SPECTRAL_VERSION_NUMBER "1.4.1Unofficial"
 #define SPECTRAL_IS_PRODUCTION_RELEASE false
 
 #endif
