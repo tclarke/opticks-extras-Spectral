@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>TadDialog</class>
+ <widget class="QDialog" name="TadDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>338</width>
+    <height>267</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>TAD Detector</string>
+  </property>
+  <layout class="QFormLayout" name="formLayout">
+   <property name="fieldGrowthPolicy">
+    <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+   </property>
+   <property name="horizontalSpacing">
+    <number>10</number>
+   </property>
+   <property name="verticalSpacing">
+    <number>10</number>
+   </property>
+   <property name="margin">
+    <number>10</number>
+   </property>
+   <item row="0" column="0">
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>Area of Interest</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QComboBox" name="mpAoi">
+     <item>
+      <property name="text">
+       <string>&lt;Entire Image&gt;</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+    <item row="1" column="0">
+      <widget class="QLabel" name="label_2">
+        <property name="text">
+          <string>% Edges In Background</string>
+        </property>
+      </widget>
+    </item>
+    <item row="1" column="1">
+      <widget class="QDoubleSpinBox" name="mpEdgesInBackground">
+        <property name="suffix">
+          <string> %</string>
+        </property>
+        <property name="singleStep">
+          <double>1.000000000000000</double>
+        </property>
+        <property name="value">
+          <double>10.000000000000000</double>
+        </property>
+      </widget>
+    </item>
+    <item row="2" column="0">
+      <widget class="QLabel" name="label_3">
+        <property name="text">
+          <string>% Component Size</string>
+        </property>
+      </widget>
+    </item>
+    <item row="2" column="1">
+      <widget class="QDoubleSpinBox" name="mpComponentSize">
+        <property name="suffix">
+          <string> %</string>
+        </property>
+        <property name="singleStep">
+          <double>1.000000000000000</double>
+        </property>
+        <property name="value">
+          <double>2.000000000000000</double>
+        </property>
+      </widget>
+    </item>
+    <item row="3" column="0">
+      <widget class="QLabel" name="label_4">
+        <property name="text">
+          <string>Sample Size</string>
+        </property>
+      </widget>
+    </item>
+    <item row="3" column="1">
+      <widget class="QSpinBox" name="mpSampleSize">
+        <property name="suffix">
+          <string> pixels</string>
+        </property>
+        <property name="value">
+          <number>10000</number>
+        </property>
+        <property name="minimum">
+          <number>3</number>
+        </property>
+        <property name="maximum">
+          <number>300000</number>
+        </property>
+        <property name="singleStep">
+          <number>2</number>
+        </property>
+      </widget>
+    </item>
+    <item row="4" column="1">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>TadDialog</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>210</x>
+     <y>223</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>168</x>
+     <y>122</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>TadDialog</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>210</x>
+     <y>223</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>168</x>
+     <y>122</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

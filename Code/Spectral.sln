@@ -41,6 +41,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Rx", "Rx\Rx.vcxproj", "{A95
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Plotting", "Plotting\Plotting.vcxproj", "{9691082C-2E6E-4CF2-9885-E111924FEA5B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Tad", "Tad\Tad.vcxproj", "{81193FCB-9E00-4A79-8570-B59131972FFA}"
+	ProjectSection(ProjectDependencies) = postProject
+		{A695B0C1-CFF7-41AB-91A6-922A5306462C} = {A695B0C1-CFF7-41AB-91A6-922A5306462C}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -193,6 +198,14 @@ Global
 		{9691082C-2E6E-4CF2-9885-E111924FEA5B}.Release|Win32.Build.0 = Release|Win32
 		{9691082C-2E6E-4CF2-9885-E111924FEA5B}.Release|x64.ActiveCfg = Release|x64
 		{9691082C-2E6E-4CF2-9885-E111924FEA5B}.Release|x64.Build.0 = Release|x64
+		{81193FCB-9E00-4A79-8570-B59131972FFA}.Debug|Win32.ActiveCfg = Debug|Win32
+		{81193FCB-9E00-4A79-8570-B59131972FFA}.Debug|Win32.Build.0 = Debug|Win32
+		{81193FCB-9E00-4A79-8570-B59131972FFA}.Debug|x64.ActiveCfg = Debug|x64
+		{81193FCB-9E00-4A79-8570-B59131972FFA}.Debug|x64.Build.0 = Debug|x64
+		{81193FCB-9E00-4A79-8570-B59131972FFA}.Release|Win32.ActiveCfg = Release|Win32
+		{81193FCB-9E00-4A79-8570-B59131972FFA}.Release|Win32.Build.0 = Release|Win32
+		{81193FCB-9E00-4A79-8570-B59131972FFA}.Release|x64.ActiveCfg = Release|x64
+		{81193FCB-9E00-4A79-8570-B59131972FFA}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
