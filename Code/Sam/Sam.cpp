@@ -218,7 +218,6 @@ bool SamAlgorithm::processAll()
    BitMaskIterator iter(getPixelsToProcess(), pElement);
    unsigned int numRows = iter.getNumSelectedRows();
    unsigned int numColumns = iter.getNumSelectedColumns();
-   unsigned int numBands = pDescriptor->getBandCount();
    Opticks::PixelOffset layerOffset(iter.getColumnOffset(), iter.getRowOffset());
 
    // get cube wavelengths
@@ -248,16 +247,16 @@ bool SamAlgorithm::processAll()
    vector<string> sigNames;
 
    // Create a pseudocolor results matrix if necessary
-   RasterElement* pPseudocolorMatrix = NULL;
-   RasterElement* pLowestSAMValueMatrix = NULL;
+   ModelResource<RasterElement> pPseudocolorMatrix(reinterpret_cast<RasterElement*>(NULL));
+   ModelResource<RasterElement> pLowestSAMValueMatrix(reinterpret_cast<RasterElement*>(NULL));
    // Check for multiple Signatures and if the user has selected
    // to combined multiple results in one pseudocolor output layer
    if (iSignatureCount > 1 && mInputs.mbCreatePseudocolor)
    {
-      pPseudocolorMatrix = createResults(numRows, numColumns, mInputs.mResultsName);
-      pLowestSAMValueMatrix = createResults(numRows, numColumns, "LowestSAMValue");
+      pPseudocolorMatrix = ModelResource<RasterElement>(createResults(numRows, numColumns, mInputs.mResultsName));
+      pLowestSAMValueMatrix = ModelResource<RasterElement>(createResults(numRows, numColumns, "LowestSAMValue"));
 
-      if (pPseudocolorMatrix == NULL || pLowestSAMValueMatrix == NULL )
+      if (pPseudocolorMatrix.get() == NULL || pLowestSAMValueMatrix.get() == NULL )
       {
          progress.report(SAMERR007, 0, ERRORS, true);
          return false;
@@ -266,7 +265,7 @@ bool SamAlgorithm::processAll()
       FactoryResource<DataRequest> pseudoRequest;
       pseudoRequest->setWritable(true);
       string failedDataRequestErrorMessage =
-         SpectralUtilities::getFailedDataRequestErrorMessage(pseudoRequest.get(), pPseudocolorMatrix);
+         SpectralUtilities::getFailedDataRequestErrorMessage(pseudoRequest.get(), pPseudocolorMatrix.get());
       DataAccessor pseudoAccessor = pPseudocolorMatrix->getDataAccessor(pseudoRequest.release());
       if (!pseudoAccessor.isValid())
       {
@@ -283,7 +282,7 @@ bool SamAlgorithm::processAll()
       FactoryResource<DataRequest> lsvRequest;
       lsvRequest->setWritable(true);
       failedDataRequestErrorMessage =
-         SpectralUtilities::getFailedDataRequestErrorMessage(lsvRequest.get(), pLowestSAMValueMatrix);
+         SpectralUtilities::getFailedDataRequestErrorMessage(lsvRequest.get(), pLowestSAMValueMatrix.get());
       DataAccessor lowestSamValueAccessor = pLowestSAMValueMatrix->getDataAccessor(lsvRequest.release());
       if (!lowestSamValueAccessor.isValid())
       {
@@ -325,9 +324,7 @@ bool SamAlgorithm::processAll()
          lowestSamValueAccessor->nextRow();
       }
    }
-
-   RasterElement* pResults = NULL;
-   bool resultsIsTemp = false;
+   ModelResource<RasterElement> pResults(reinterpret_cast<RasterElement*>(NULL));
 
    // Processes each selected signature one at a time and
    // accumulates results
@@ -346,10 +343,13 @@ bool SamAlgorithm::processAll()
       else if (iSignatureCount > 1)
       {
          rname += "SamTemp";
-         resultsIsTemp = true;
       }
-      pResults = createResults(numRows, numColumns, rname);
-      if (pResults == NULL)
+
+      if (mInputs.mbCreatePseudocolor == false || pResults.get() == NULL)
+      {
+         pResults = ModelResource<RasterElement>(createResults(numRows, numColumns, rname));
+      }
+      if (pResults.get() == NULL)
       {
          bSuccess = false;
          break;
@@ -377,7 +377,7 @@ bool SamAlgorithm::processAll()
       {
          BitMaskIterator iterChecker(getPixelsToProcess(), pElement);
 
-         SamAlgInput samInput(pElement, pResults, spectrumValues, &mAbortFlag, iterChecker, resampledBands);
+         SamAlgInput samInput(pElement, pResults.get(), spectrumValues, &mAbortFlag, iterChecker, resampledBands);
 
          //Output Structure
          SamAlgOutput samOutput;
@@ -394,12 +394,16 @@ bool SamAlgorithm::processAll()
 
          // Calculates spectral angle for current signature
          mtaSam.run();
+         if (mAbortFlag)
+         {
+            progress.report("User aborted the operation.", 0, ABORT, true);
+            mAbortFlag = false;
+            return false;
+         }
 
          if (samInput.mpResultsMatrix == NULL)
          {
-            Service<ModelServices>()->destroyElement(pResults);
             progress.report(SAMERR006, 0, ERRORS, true);
-            mAbortFlag = false;
             return false;
          }
 
@@ -412,7 +416,7 @@ bool SamAlgorithm::processAll()
                FactoryResource<DataRequest> pseudoRequest, currentRequest, lowestRequest;
                pseudoRequest->setWritable(true);
                string failedDataRequestErrorMessage =
-                  SpectralUtilities::getFailedDataRequestErrorMessage(pseudoRequest.get(), pPseudocolorMatrix);
+                  SpectralUtilities::getFailedDataRequestErrorMessage(pseudoRequest.get(), pPseudocolorMatrix.get());
                DataAccessor daPseudoAccessor = pPseudocolorMatrix->getDataAccessor(pseudoRequest.release());
                if (!daPseudoAccessor.isValid())
                {
@@ -430,7 +434,7 @@ bool SamAlgorithm::processAll()
 
                lowestRequest->setWritable(true);
                failedDataRequestErrorMessage =
-                  SpectralUtilities::getFailedDataRequestErrorMessage(lowestRequest.get(), pLowestSAMValueMatrix);
+                  SpectralUtilities::getFailedDataRequestErrorMessage(lowestRequest.get(), pLowestSAMValueMatrix.get());
                DataAccessor daLowestSAMValue = pLowestSAMValueMatrix->getDataAccessor(lowestRequest.release());
                if (!daLowestSAMValue.isValid())
                {
@@ -454,7 +458,6 @@ bool SamAlgorithm::processAll()
                   {
                      if (!daPseudoAccessor.isValid() || !daCurrentAccessor.isValid())
                      {
-                        Service<ModelServices>()->destroyElement(pResults);
                         progress.report("Unable to access data.", 0, ERRORS, true);
                         return false;
                      }
@@ -489,34 +492,18 @@ bool SamAlgorithm::processAll()
                double dMaxValue = pResults->getStatistics()->getMax();
 
                // Displays results for current signature
-               displayThresholdResults(pResults, color, LOWER, mInputs.mThreshold, dMaxValue, layerOffset);
-            }
-         }
-
-         //If we are on the last signature then destroy the lowest value Matrix
-         if (sig_index == iSignatureCount-1)
-         {
-            if (pLowestSAMValueMatrix != NULL)
-            {
-               Service<ModelServices>()->destroyElement(pLowestSAMValueMatrix);
-               pLowestSAMValueMatrix = NULL;
+               displayThresholdResults(pResults.release(), color, LOWER, mInputs.mThreshold, dMaxValue, layerOffset);
             }
          }
       }
    } //End of Signature Loop Counter
 
-   if (resultsIsTemp || !bSuccess)
-   {
-      Service<ModelServices>()->destroyElement(pResults);
-      pResults = NULL;
-   }
-
-   if (bSuccess)
+   if (bSuccess && !mAbortFlag)
    {
       // Displays final Pseudocolor output layer results
       if ((isInteractive() || mInputs.mbDisplayResults) && iSignatureCount > 1 && mInputs.mbCreatePseudocolor)
       {
-         displayPseudocolorResults(pPseudocolorMatrix, sigNames, layerOffset);
+         displayPseudocolorResults(pPseudocolorMatrix.release(), sigNames, layerOffset);
       }
    }
 
@@ -530,14 +517,14 @@ bool SamAlgorithm::processAll()
 
    if (bSuccess)
    {
-      if (pPseudocolorMatrix != NULL)
+      if (pPseudocolorMatrix.get() != NULL)
       {
-         mpResults = pPseudocolorMatrix;
+         mpResults = pPseudocolorMatrix.get();
          mpResults->updateData();
       }
-      else if (pResults != NULL)
+      else if (pResults.get() != NULL)
       {
-         mpResults = pResults;
+         mpResults = pResults.get();
          mpResults->updateData();
       }
       else
