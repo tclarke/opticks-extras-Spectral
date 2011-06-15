@@ -324,16 +324,16 @@ bool CemAlgorithm::processAll()
    pWavelengths->initializeFromDynamicObject(pElement->getMetadata(), false);
 
    // Create a pseudocolor results matrix if necessary
-   ModelResource<RasterElement> pPseudocolorMatrix(reinterpret_cast<RasterElement*>(NULL));
-   ModelResource<RasterElement> pHighestCEMValueMatrix(reinterpret_cast<RasterElement*>(NULL));
+   RasterElement* pPseudocolorMatrix = NULL;
+   RasterElement* pHighestCEMValueMatrix = NULL;
    // Check for multiple Signatures and if the user has selected
    // to combined multiple results in one pseudocolor output layer
    if (iSignatureCount > 1 && mInputs.mbCreatePseudocolor)
    {
-      pPseudocolorMatrix = ModelResource<RasterElement>(createResults(numRows, numColumns, mInputs.mResultsName));
-      pHighestCEMValueMatrix = ModelResource<RasterElement>(createResults(numRows, numColumns, "HighestCEMValue"));
+      pPseudocolorMatrix = createResults(numRows, numColumns, mInputs.mResultsName);
+      pHighestCEMValueMatrix = createResults(numRows, numColumns, "HighestCEMValue");
 
-      if (pPseudocolorMatrix.get() == NULL || pHighestCEMValueMatrix.get() == NULL )
+      if (pPseudocolorMatrix == NULL || pHighestCEMValueMatrix == NULL )
       {
          progress.report("Unable to create pseudocolor results matrix.", 0, ERRORS, true);
          return false;
@@ -341,7 +341,7 @@ bool CemAlgorithm::processAll()
       FactoryResource<DataRequest> pseudoRequest;
       pseudoRequest->setWritable(true);
       string failedDataRequestErrorMessage =
-         SpectralUtilities::getFailedDataRequestErrorMessage(pseudoRequest.get(), pPseudocolorMatrix.get());
+         SpectralUtilities::getFailedDataRequestErrorMessage(pseudoRequest.get(), pPseudocolorMatrix);
       DataAccessor pseudoAccessor = pPseudocolorMatrix->getDataAccessor(pseudoRequest.release());
       if (!pseudoAccessor.isValid())
       {
@@ -358,7 +358,7 @@ bool CemAlgorithm::processAll()
       FactoryResource<DataRequest> hcvRequest;
       hcvRequest->setWritable(true);
       failedDataRequestErrorMessage =
-         SpectralUtilities::getFailedDataRequestErrorMessage(hcvRequest.get(), pHighestCEMValueMatrix.get());
+         SpectralUtilities::getFailedDataRequestErrorMessage(hcvRequest.get(), pHighestCEMValueMatrix);
       DataAccessor highestCemValueAccessor = pHighestCEMValueMatrix->getDataAccessor(hcvRequest.release());
       if (!highestCemValueAccessor.isValid())
       {
@@ -403,7 +403,8 @@ bool CemAlgorithm::processAll()
 
    const Units* pUnits = pDescriptor->getUnits();
    vector<string> sigNames;
-   ModelResource<RasterElement> pResults(reinterpret_cast<RasterElement*>(NULL));
+   RasterElement* pResults = NULL;
+   bool resultsIsTemp = false;
 
    // else create a result for each signature..with a unique name...INCLUDE offset!
    bool success = true;
@@ -419,13 +420,11 @@ bool CemAlgorithm::processAll()
       else if (iSignatureCount > 1)
       {
          rname += "CemTemp";
+         resultsIsTemp = true;
       }
 
-      if (mInputs.mbCreatePseudocolor == false || pResults.get() == NULL)
-      {
-         pResults = ModelResource<RasterElement>(createResults(numRows, numColumns, rname));
-      }
-      if (pResults.get() == NULL)
+      pResults = createResults(numRows, numColumns, rname);
+      if (pResults == NULL)
       {
          success = false;
          break;
@@ -490,22 +489,18 @@ bool CemAlgorithm::processAll()
 
          BitMaskIterator iterChecker(getPixelsToProcess(), 0, 0, pDescriptor->getColumnCount() - 1,
                                      pDescriptor->getRowCount() - 1);
-         CemAlgInput cemInput(pElement, pResults.get(), woper, &mAbortFlag, iterChecker, resampledBands);
+         CemAlgInput cemInput(pElement, pResults, woper, &mAbortFlag, iterChecker, resampledBands);
 
          CemAlgOutput cemOutput;
          mta::ProgressObjectReporter reporter(message, progress.getCurrentProgress());
          mta::MultiThreadedAlgorithm<CemAlgInput, CemAlgOutput, CemThread>
             mtaCem(mta::getNumRequiredThreads(numRows), cemInput, cemOutput, &reporter);
          mtaCem.run();
-         if (mAbortFlag)
-         {
-            progress.report("User aborted the operation.", 0, ABORT, true);
-            mAbortFlag = false;
-            return false;
-         }
          if (cemInput.mpResultsMatrix == NULL)
          {
+            Service<ModelServices>()->destroyElement(pResults);
             progress.report("Error calculating CEM", 0, ERRORS, true);
+            mAbortFlag = false;
             return false;
          }
          if (isInteractive() || mInputs.mbDisplayResults)
@@ -517,7 +512,7 @@ bool CemAlgorithm::processAll()
                FactoryResource<DataRequest> pseudoRequest;
                pseudoRequest->setWritable(true);
                string failedDataRequestErrorMessage =
-                  SpectralUtilities::getFailedDataRequestErrorMessage(pseudoRequest.get(), pPseudocolorMatrix.get());
+                  SpectralUtilities::getFailedDataRequestErrorMessage(pseudoRequest.get(), pPseudocolorMatrix);
                DataAccessor daPseudoAccessor = pPseudocolorMatrix->getDataAccessor(pseudoRequest.release());
                if (!daPseudoAccessor.isValid())
                {
@@ -536,7 +531,7 @@ bool CemAlgorithm::processAll()
                FactoryResource<DataRequest> highestRequest;
                highestRequest->setWritable(true);
                failedDataRequestErrorMessage =
-                  SpectralUtilities::getFailedDataRequestErrorMessage(highestRequest.get(), pHighestCEMValueMatrix.get());
+                  SpectralUtilities::getFailedDataRequestErrorMessage(highestRequest.get(), pHighestCEMValueMatrix);
                DataAccessor daHighestCEMValue = pHighestCEMValueMatrix->getDataAccessor(highestRequest.release());
                if (!daHighestCEMValue.isValid())
                {
@@ -560,6 +555,7 @@ bool CemAlgorithm::processAll()
                   {
                      if (!daPseudoAccessor.isValid() || !daCurrentAccessor.isValid())
                      {
+                        Service<ModelServices>()->destroyElement(pResults);
                         progress.report("Unable to access data.", 0, ERRORS, true);
                         return false;
                      }
@@ -594,18 +590,34 @@ bool CemAlgorithm::processAll()
                double dMaxValue = pResults->getStatistics()->getMax();
 
                // Displays results for current signature
-               displayThresholdResults(pResults.release(), color, UPPER, mInputs.mThreshold, dMaxValue, layerOffset);
+               displayThresholdResults(pResults, color, UPPER, mInputs.mThreshold, dMaxValue, layerOffset);
+            }
+         }
+
+         //If we are on the last signature then destroy the highest value Matrix
+         if (sig_index == iSignatureCount-1)
+         {
+            if (pHighestCEMValueMatrix != NULL)
+            {
+               Service<ModelServices>()->destroyElement(pHighestCEMValueMatrix);
+               pHighestCEMValueMatrix = NULL;
             }
          }
       }
    }
 
-   if (success && !mAbortFlag)
+   if (resultsIsTemp || !success)
+   {
+      Service<ModelServices>()->destroyElement(pResults);
+      pResults = NULL;
+   }
+
+   if (success)
    {
       // Displays final Pseudocolor output layer results
       if ((isInteractive() || mInputs.mbDisplayResults) && iSignatureCount > 1 && mInputs.mbCreatePseudocolor)
       {
-         displayPseudocolorResults(pPseudocolorMatrix.release(), sigNames, layerOffset);
+         displayPseudocolorResults(pPseudocolorMatrix, sigNames, layerOffset);
       }
    }
 
@@ -619,14 +631,14 @@ bool CemAlgorithm::processAll()
 
    if (success)
    {
-      if (pPseudocolorMatrix.get() != NULL)
+      if (pPseudocolorMatrix != NULL)
       {
-         mpResults = pPseudocolorMatrix.get();
+         mpResults = pPseudocolorMatrix;
          mpResults->updateData();
       }
-      else if (pResults.get() != NULL)
+      else if (pResults != NULL)
       {
-         mpResults = pResults.get();
+         mpResults = pResults;
          mpResults->updateData();
       }
       else
