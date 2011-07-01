@@ -9,6 +9,7 @@
 
 #include <QtGui/QBitmap>
 #include <QtGui/QColorDialog>
+#include <QtGui/QInputDialog>
 #include <QtGui/QMenu>
 #include <QtGui/QMessageBox>
 #include <QtGui/QMouseEvent>
@@ -49,6 +50,7 @@
 #include "SpecialMetadata.h"
 #include "SpectralContextMenuActions.h"
 #include "SpectralUtilities.h"
+#include "TypeConverter.h"
 #include "Units.h"
 #include "Wavelengths.h"
 
@@ -2246,25 +2248,23 @@ void SignaturePlotObject::saveSignatureLibrary()
    }
 
    // Create a signature set
-   int libraryNumber = 1;
-
    SignatureSet* pSignatureSet = NULL;
+
+   bool accepted;
    while (pSignatureSet == NULL)
    {
-      QString strName = "Signature Library " + QString::number(libraryNumber++);
-      Service<ModelServices> pModel;
-
-      DataDescriptor* pDescriptor = pModel->createDataDescriptor(strName.toStdString(), "SignatureSet", NULL);
-      if (pDescriptor != NULL)
+      QString text = QInputDialog::getText(pWidget, "Create New Spectral Library", "Please enter a valid name for the "
+         "new library:", QLineEdit::Normal, "", &accepted);
+      if (accepted && !text.isEmpty())
       {
-         pSignatureSet = static_cast<SignatureSet*>(pModel->createElement(pDescriptor));
+         Service<ModelServices> pModel;
+         pSignatureSet = dynamic_cast<SignatureSet*>(pModel->createElement(text.toStdString(),
+            TypeConverter::toString<SignatureSet>(), NULL));
       }
-   }
-
-   if (pSignatureSet == NULL)
-   {
-      QMessageBox::critical(pWidget, getPlotName(), "Could not create a new signature library!");
-      return;
+      else if (!accepted)
+      {
+         return;
+      }
    }
 
    // Add the signatures to the signature set

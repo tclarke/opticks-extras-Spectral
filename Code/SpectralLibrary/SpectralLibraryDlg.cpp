@@ -14,6 +14,7 @@
 #include <QtGui/QDialogButtonBox>
 #include <QtGui/QFrame>
 #include <QtGui/QHeaderView>
+#include <QtGui/QInputDialog>
 #include <QtGui/QLabel>
 #include <QtGui/QLayout>
 #include <QtGui/QMessageBox>
@@ -715,23 +716,24 @@ void SpectralLibraryDlg::reject()
 void SpectralLibraryDlg::createLibrary()
 {
    SignatureSet* pSignatureSet = NULL;
-   Service<ModelServices> pModel;
 
-   int libraryNumber = 1;
+   bool accepted;
    while (pSignatureSet == NULL)
    {
-      QString strName = "Spectral Library " + QString::number(libraryNumber++);
-      pSignatureSet = static_cast<SignatureSet*>(pModel->createElement(strName.toStdString(), "SignatureSet", NULL));
+      QString text = QInputDialog::getText(this, "Create New Spectral Library", "Please enter a valid name for the "
+         "new library:", QLineEdit::Normal, "", &accepted);
+      if (accepted && !text.isEmpty())
+      {
+         Service<ModelServices> pModel;
+         pSignatureSet = dynamic_cast<SignatureSet*>(pModel->createElement(text.toStdString(),
+            TypeConverter::toString<SignatureSet>(), NULL));
+      }
+      else if (!accepted)
+      {
+         return;
+      }
    }
-
-   if (pSignatureSet == NULL)
-   {
-      QMessageBox::critical(this, windowTitle(), "Could not create a new spectral library!");
-   }
-   else
-   {
-      addLibrary(pSignatureSet);
-   }
+   addLibrary(pSignatureSet);
 }
 
 void SpectralLibraryDlg::deleteLibrary()
