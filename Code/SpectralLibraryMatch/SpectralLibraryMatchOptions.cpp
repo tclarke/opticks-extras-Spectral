@@ -41,6 +41,9 @@ SpectralLibraryMatchOptions::SpectralLibraryMatchOptions()
    mpMatchThreshold->setSingleStep(0.1);
    mpMatchThreshold->setToolTip("Limit the displayed matches to signatures\n"
       "with match values less than this threshold");
+   mpAutoclear = new QCheckBox("Autoclear Results", pMatchWidget);
+   mpAutoclear->setToolTip("Check to clear existing results before adding new results.\nIf not checked, new results "
+      "will be added to existing results.");
    pMatchLayout->setMargin(0);
    pMatchLayout->setSpacing(5);
    pMatchLayout->addWidget(pMatchAlgLabel, 0, 0, Qt::AlignRight);
@@ -51,6 +54,7 @@ SpectralLibraryMatchOptions::SpectralLibraryMatchOptions()
    pMatchLayout->addWidget(mpMaxDisplayed, 2, 1);
    pMatchLayout->addWidget(mpLimitByThreshold, 3, 0);
    pMatchLayout->addWidget(mpMatchThreshold, 3, 1);
+   pMatchLayout->addWidget(mpAutoclear, 4, 0);
    LabeledSection* pMatchSection = new LabeledSection(pMatchWidget, "Spectral Library Match Options", this);
 
    // locate options section
@@ -143,6 +147,8 @@ SpectralLibraryMatchOptions::SpectralLibraryMatchOptions()
    mpLimitByThreshold->setChecked(limit);
    mpMatchThreshold->setValue(SpectralLibraryMatchOptions::getSettingMatchThreshold());
    mpMatchThreshold->setEnabled(limit);
+   bool autoClear = SpectralLibraryMatchOptions::getSettingAutoclear();
+   mpAutoclear->setChecked(autoClear);
    SpectralLibraryMatch::LocateAlgorithm locType =
       StringUtilities::fromXmlString<SpectralLibraryMatch::LocateAlgorithm>(
       SpectralLibraryMatchOptions::getSettingLocateAlgorithm());
@@ -162,6 +168,7 @@ void SpectralLibraryMatchOptions::applyChanges()
    SpectralLibraryMatchOptions::setSettingMaxDisplayed(mpMaxDisplayed->value());
    SpectralLibraryMatchOptions::setSettingLimitByThreshold(mpLimitByThreshold->isChecked());
    SpectralLibraryMatchOptions::setSettingMatchThreshold(mpMatchThreshold->value());
+   SpectralLibraryMatchOptions::setSettingAutoclear(mpAutoclear->isChecked());
    SpectralLibraryMatch::MatchAlgorithm matType =
       StringUtilities::fromDisplayString<SpectralLibraryMatch::MatchAlgorithm>(
       mpMatchAlgCombo->currentText().toStdString());

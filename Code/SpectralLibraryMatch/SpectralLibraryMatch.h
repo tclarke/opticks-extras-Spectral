@@ -10,8 +10,14 @@
 #ifndef SPECTRALLIBRAYMATCH_H
 #define SPECTRALLIBRAYMATCH_H
 
+#include "AppConfig.h"
 #include "EnumWrapper.h"
 #include "StringUtilities.h"
+
+// The Intel Threading Building Blocks Library (tbb) is not supported on the Solaris Sparc platform
+#ifndef SOLARIS
+#include <tbb/tbb.h>
+#endif
 
 #include <string>
 #include <vector>
@@ -90,6 +96,24 @@ namespace SpectralLibraryMatch
       bool mLimitByThreshold;
       double mThresholdLimit;
    };
+
+#ifndef SOLARIS
+   class MatchMetrics
+   {
+   public:
+      MatchMetrics(double* pLibData, unsigned int numSignatures,
+         MatchResults* pMatchInfo, double* pResultsData);
+      ~MatchMetrics();
+
+      void operator() (tbb::blocked_range<unsigned int>& range) const;
+
+      double* mpLibData;
+      unsigned int mNumSignatures;
+      MatchResults* mpMatchInfo;
+      double* mpResultsData;
+      unsigned int mNumBands;
+   };
+#endif
 
    static const std::string& getNameLibraryManagerPlugIn()
    {

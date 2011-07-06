@@ -18,6 +18,7 @@
 #include <boost/any.hpp>
 #include <map>
 #include <string>
+#include <vector>
 
 class ColorType;
 class Progress;
@@ -37,9 +38,9 @@ public:
    SpectralLibraryMatchResults();
    virtual ~SpectralLibraryMatchResults();
 
-   void addResults(SpectralLibraryMatch::MatchResults& theResults, Progress* pProgress = 0);
-   void addResults(SpectralLibraryMatch::MatchResults& theResults, const std::map<Signature*, ColorType>& colorMap,
-      Progress* pProgress = 0);
+   void addResults(const SpectralLibraryMatch::MatchResults& theResults, Progress* pProgress = 0);
+   void addResults(const std::vector<SpectralLibraryMatch::MatchResults>& theResults,
+      const std::map<Signature*, ColorType>& colorMap, Progress* pProgress = 0, bool* pAbort = 0);
 
 protected:
    virtual QWidget* createWidget();

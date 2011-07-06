@@ -41,6 +41,7 @@
 #include "SpectralVersion.h"
 #include "switchOnEncoding.h"
 #include "ToolBar.h"
+#include "Wavelengths.h"
 #include "WorkspaceWindow.h"
 #include "XercesIncludes.h"
 #include "xmlreader.h"
@@ -343,6 +344,14 @@ bool SpectralLibraryMatchTools::eventFilter(QObject* pObject, QEvent* pEvent)
                         RasterElement* pRaster = pLayerList->getPrimaryRasterElement();
                         VERIFY(pRaster != NULL);
 
+                        // check that raster has wavelength info
+                        if (Wavelengths::getNumWavelengths(pRaster->getMetadata()) < 2)
+                        {
+                           updateProgress("Raster element does not contain sufficient wavelength "
+                              "information", 0, ERRORS);
+                           return false;
+                        }
+
                         Layer* pLayer = pLayerList->getLayer(RASTER, pRaster);
                         if (pLayer != NULL)
                         {
@@ -398,7 +407,7 @@ bool SpectralLibraryMatchTools::eventFilter(QObject* pObject, QEvent* pEvent)
                               {
                                  // display results in results window
                                  VERIFY(mpResults != NULL);
-                                 mpResults->addResults(theResults, mpProgress);
+                                 mpResults->addResults(theResults);
 
                                  // plot results in signature window
                                  plotResults(pRaster, pSignature, theResults.mResults);
@@ -609,6 +618,13 @@ void SpectralLibraryMatchTools::matchAoiPixels()
       return;
    }
 
+   // check that raster has wavelength info
+   if (Wavelengths::getNumWavelengths(pRaster->getMetadata()) < 2)
+   {
+      updateProgress("Raster element does not contain sufficient wavelength information", 0, ERRORS);
+      return;
+   }
+
    SpectralLibraryMatch::MatchResults theResults;
    theResults.mpRaster = pRaster;
    theResults.mAlgorithmUsed = StringUtilities::fromXmlString<SpectralLibraryMatch::MatchAlgorithm>(
@@ -625,8 +641,6 @@ void SpectralLibraryMatchTools::matchAoiPixels()
    VERIFYNRV(pLibSignatures != NULL && pLibSignatures->empty() == false);
 
    // loop through the aoi spectra and generate sorted results
-   int numProcessed(0);
-   int numToProcess = pAoi->getPixelCount();
    updateProgress("Matching AOI pixels...", 0, NORMAL);
    const RasterDataDescriptor* pDesc = dynamic_cast<RasterDataDescriptor*>(pRaster->getDataDescriptor());
    VERIFYNRV(pDesc != NULL);
@@ -652,6 +666,10 @@ void SpectralLibraryMatchTools::matchAoiPixels()
       return;
    }
    theResults.mTargetValues.resize(numBands);
+   std::vector<SpectralLibraryMatch::MatchResults> pixelResults;
+   std::map<Signature*, ColorType> colorMap;
+   int numProcessed(0);
+   int numToProcess = bit.getCount();
    while (bit != bit.end())
    {
       Opticks::PixelLocation pixel(bit.getPixelColumnLocation(), bit.getPixelRowLocation());
@@ -673,12 +691,18 @@ void SpectralLibraryMatchTools::matchAoiPixels()
             updateProgress("Spectral Library Match aborted by user.", 0, ABORT);
             return;
          }
-         VERIFYNRV(mpResults != NULL);
-         mpResults->addResults(theResults, mpProgress);
+         pixelResults.push_back(theResults);
       }
       ++numProcessed;
       bit.nextPixel();
       updateProgress("Matching AOI pixels...", 100 * numProcessed / numToProcess, NORMAL);
+   }
+   VERIFYNRV(mpResults != NULL);
+   mpResults->addResults(pixelResults, colorMap, mpProgress, &mAborted);
+   if (isAborted())
+   {
+      updateProgress("User canceled adding the results from matching AOI pixels to the Results Window.", 0, ABORT);
+      return;
    }
    updateProgress("Finished matching AOI pixels.", 100, NORMAL);
 }
@@ -720,6 +744,13 @@ void SpectralLibraryMatchTools::matchAoiAverageSpectrum()
    if (pRaster == NULL)
    {
       updateProgress("Unable to access the current raster element.", 0, ERRORS);
+      return;
+   }
+
+   // check that raster has wavelength info
+   if (Wavelengths::getNumWavelengths(pRaster->getMetadata()) < 2)
+   {
+      updateProgress("Raster element does not contain sufficient wavelength information", 0, ERRORS);
       return;
    }
 
