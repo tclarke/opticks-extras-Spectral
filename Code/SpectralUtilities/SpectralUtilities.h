@@ -11,11 +11,13 @@
 #define SPECTRALUTILITIES_H
 
 #include "Location.h"
+#include "ProgressTracker.h"
 
 #include <string>
 #include <vector>
 
 class AoiElement;
+class BitMaskIterator;
 class DataRequest;
 class Progress;
 class RasterElement;
@@ -137,6 +139,25 @@ namespace SpectralUtilities
     *           This string will be empty if no common errors were detected.
     */
    std::string getFailedDataRequestErrorMessage(const DataRequest* pRequest, const RasterElement* pElement);
+
+   /**
+    *  Calculates the band means of a RasterElement using QtConcurrent.
+    *
+    *  @param   pElement
+    *           The RasterElement on which the band means calculations will be performed.
+    *  @param   iter
+    *           A BitMaskIterator to note which pixels should be included in the mean calculation.
+    *  @param   progress
+    *           The ProgressTracker object to update.
+    *  @param   pAbort
+    *           This method will query the state of this flag during computations and will abort if the 
+    *           flag is \c true. If \em pAbort is \c NULL, the method will run to completion.
+    *
+    *  @return  The output vector of doubles, one value per band holding the average
+    *           of all pixels selected with the \em iter parameter.
+    */
+   std::vector<double> calculateMeans(const RasterElement* pElement, 
+      BitMaskIterator& iter, ProgressTracker& progress, bool* pAbort = NULL);
 }
 
 #endif

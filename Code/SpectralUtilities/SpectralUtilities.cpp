@@ -26,6 +26,7 @@
 #include "switchOnEncoding.h"
 #include "TypesFile.h"
 #include "Wavelengths.h"
+#include <QtCore/QtConcurrentMap>
 
 #include <vector>
 #include <string>
@@ -38,6 +39,73 @@ namespace
       for (std::vector<double>::size_type band = 0; band < accum.size(); ++band)
       {
          accum[band] += pPtr[band];
+      }
+   }
+
+   struct GlobalMeansMap
+   {
+      typedef unsigned int input_type;
+      typedef std::vector<double> result_type;
+
+      const RasterElement* mpElement;
+      const RasterDataDescriptor* mpDesc;
+      int mBands;
+      EncodingType mEncoding;
+      BitMaskIterator& mIter;
+      unsigned int mStartCol;
+      unsigned int mEndCol;
+
+      GlobalMeansMap(const RasterElement* pElement, BitMaskIterator& iter) : mpElement(pElement),
+         mIter(iter), mBands(0), mEncoding(INT1SBYTE), mStartCol(0), mEndCol(0)
+      {
+         mpDesc = dynamic_cast<const RasterDataDescriptor*>(mpElement->getDataDescriptor());
+         VERIFYNRV(mpDesc != NULL);
+         mBands = mpDesc->getBandCount();
+         mEncoding = mpDesc->getDataType();
+         mStartCol = mIter.getBoundingBoxStartColumn();
+         mEndCol = mIter.getBoundingBoxEndColumn();
+      }
+
+      result_type operator()(const input_type& row)
+      {
+         std::vector<double> pixelVec(mBands, 0.0);
+         VERIFYRV(mpDesc != NULL, pixelVec);
+         DimensionDescriptor rowDesc = mpDesc->getActiveRow(row);
+         FactoryResource<DataRequest> pReq;
+         pReq->setInterleaveFormat(BIP);
+         pReq->setRows(rowDesc, rowDesc);
+         DataAccessor acc(mpElement->getDataAccessor(pReq.release()));
+         ENSURE(acc.isValid());
+         Service<ModelServices> pModel;
+
+         for (unsigned int col = mStartCol; col <= mEndCol; col++)
+         {
+            if (mIter.getPixel(col, row))
+            {
+               acc->toPixel(row, col);
+               for (int band = 0; band < mBands; ++band)
+               {
+                  double val = pModel->getDataValue(mEncoding, acc->getColumn(), band);
+                  pixelVec.at(band) += val;
+               }
+            }
+         }
+         return pixelVec;
+      }
+   };
+
+   void meansReduce(std::vector<double>& final, const std::vector<double>& intermediate)
+   {
+      if (final.empty())
+      {
+         final = intermediate;
+      }
+      else
+      {
+         for (unsigned int i = 0; i < final.size(); i++)
+         {
+            final[i] += intermediate[i];
+         }
       }
    }
 }
@@ -430,4 +498,65 @@ std::vector<Signature*> SpectralUtilities::getAoiSignatures(const AoiElement* pA
    }
 
    return signatures;
+}
+
+std::vector<double> SpectralUtilities::calculateMeans(const RasterElement* pElement,
+   BitMaskIterator& iter, ProgressTracker& progress, bool* pAbort)
+{
+   std::vector<double> muMat;
+   VERIFYRV(pElement != NULL, muMat);
+
+   unsigned int count = iter.getCount();
+   if (count == 0)
+   {
+      progress.report("Need to calculate means on at least one pixel.", 100, ERRORS, true);
+      return muMat;
+   }
+   QList<int> rows;
+   unsigned int startRow = iter.getBoundingBoxStartRow();
+   unsigned int endRow = iter.getBoundingBoxEndRow();
+   for (unsigned int row = startRow; row <= endRow; row++)
+   {
+      rows.push_back(row);
+   }
+   // setup the map-reduce and execute with progress reporting
+   GlobalMeansMap meansMap(pElement, iter);
+   QFuture<std::vector<double> > means;
+   means = QtConcurrent::mappedReduced(rows.begin(), rows.end(), meansMap, meansReduce, 
+      QtConcurrent::UnorderedReduce);
+   bool isCancelling = false;
+   while (means.isRunning())
+   {
+      if (isCancelling)
+      {
+         progress.report("Cleaning up processing threads. Please wait.", 99, NORMAL);
+      }
+      else
+      {
+         progress.report("Calculating means",
+               (means.progressValue() - means.progressMinimum()) * 50 /
+               (means.progressMaximum() - means.progressMinimum()), NORMAL);
+         if (pAbort != NULL && *pAbort)
+         {
+            means.cancel();
+            isCancelling = true;
+         }
+      }
+      QThread::yieldCurrentThread();
+   }
+
+   if (means.isCanceled())
+   {
+      progress.report("User canceled operation.", 100, ABORT, true);
+      muMat.clear();
+      return muMat;
+   }
+
+   // complete the mean calculation
+   for (unsigned int i = 0; i < means.result().size(); i++)
+   {
+      muMat.push_back(means.result().at(i) / count);
+   }
+   iter.firstPixel();
+   return muMat;
 }

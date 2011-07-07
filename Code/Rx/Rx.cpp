@@ -30,6 +30,7 @@
 #include "Rx.h"
 #include "RxDialog.h"
 #include "SpatialDataView.h"
+#include "SpectralUtilities.h"
 #include "SpectralVersion.h"
 #include "ThresholdLayer.h"
 #include <memory>
@@ -117,59 +118,6 @@ namespace
                memcpy(acc->getColumn(), intermediate.second.second.data, size * sizeof(double));
             }
          }
-      }
-   }
-
-
-   struct GlobalMeansMap
-   {
-      typedef QPair<int, QList<int> > input_type;
-      typedef cv::Mat result_type;
-
-      RasterElement* mpElement;
-      const RasterDataDescriptor* mpDesc;
-      int mBands;
-      EncodingType mEncoding;
-
-      GlobalMeansMap(RasterElement* pElement) : mpElement(pElement)
-      {
-         mpDesc = static_cast<const RasterDataDescriptor*>(mpElement->getDataDescriptor());
-         mBands = mpDesc->getBandCount();
-         mEncoding = mpDesc->getDataType();
-      }
-
-      result_type operator()(const input_type& locList)
-      {
-         int row = locList.first;
-         DimensionDescriptor rowDesc = mpDesc->getActiveRow(row);
-         FactoryResource<DataRequest> pReq;
-         pReq->setInterleaveFormat(BIP);
-         pReq->setRows(rowDesc, rowDesc);
-         DataAccessor acc(mpElement->getDataAccessor(pReq.release()));
-         ENSURE(acc.isValid());
-         cv::Mat pixelMat(mBands, 1, CV_64F, 0.0);
-         foreach(int col, locList.second)
-         {
-            acc->toPixel(row, col);
-            for (int band = 0; band < mBands; ++band)
-            {
-               double val = Service<ModelServices>()->getDataValue(mEncoding, acc->getColumn(), band);
-               pixelMat.at<double>(band, 0) += val;
-            }
-         }
-         return pixelMat;
-      }
-   };
-
-   void meansReduce(cv::Mat& final, const cv::Mat& intermediate)
-   {
-      if (final.empty())
-      {
-         final = intermediate;
-      }
-      else
-      {
-         final += intermediate;
       }
    }
 
@@ -270,6 +218,7 @@ namespace
                double val = Service<ModelServices>()->getDataValue(mEncoding, acc->getColumn(), band);
                pixelMat.at<double>(band, 0) = val;
             }
+
             pixelMat -= mLocal ? localMuMat : mMuMat;
             cv::Mat tempMat(1, mBands, CV_64F);
             cv::Mat resMat(1, 1, CV_64F);
@@ -443,7 +392,6 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
    }
 
    //set up extents
-   int selectedPixels = 0;
    unsigned int startCol = 0;
    unsigned int startRow = 0;
    ModelResource<RasterElement> pRaster(static_cast<RasterElement*>(NULL));
@@ -467,37 +415,26 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
             progress.report("No pixels selected for processing.", 0, ERRORS, true);
             return false;
          }
-         selectedPixels = iterSS.getCount();
          unsigned int bands = pDesc->getBandCount();
          cv::Mat muMat = cv::Mat(1, bands, CV_64F, 0.0);
-
-         // generate location index map from the bitmask iterator
-         QMap<int, QList<int> > locationMap;
-         for (; iterSS != iterSS.end(); ++iterSS)
-         {
-            LocationType loc;
-            iterSS.getPixelLocation(loc);
-            locationMap[loc.mY].push_back(loc.mX);
-         }
-
-         // arrange the location index map by row with a list of columns
-         QList<QPair<int, QList<int> > > locations;
-         foreach(int key, locationMap.keys())
-         {
-            locations.push_back(qMakePair(key, locationMap[key]));
-         }
-
-         if (calculateMeans(pElement, locations, muMat, selectedPixels, progress) == false)
-         {
-            //user canceled
-            return false;
-         }
-         muMat.rows = 1;
-         muMat.cols = bands;
          unsigned int numCols = iterSS.getNumSelectedColumns();
          unsigned int numRows = iterSS.getNumSelectedRows();
          startRow = iterSS.getRowOffset();
          startCol = iterSS.getColumnOffset();
+
+         // generate location index map from the bitmask iterator
+         std::vector<double> meansVector = SpectralUtilities::calculateMeans(pElement,
+            iterSS, progress, &mAborted);
+
+         if (mAborted == true)
+         {
+            //user canceled
+            return false;
+         }
+         //store the mean of the dataset we processing
+         muMat = cv::Mat(1, bands, CV_64F, &meansVector[0]);
+         muMat.rows = 1;
+         muMat.cols = bands;
 
          //create the output dataset
          pRaster = ModelResource<RasterElement>(createResults(numRows, numCols, bands, filterInputName, 
@@ -717,7 +654,7 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
                      //each pixels row
                      for (unsigned int band = 0; band < bands; ++band)
                      {
-                        inputMat.at<double>((row - localStartRow) * numCols + col, band) = pixelValues[band];
+                        inputMat.at<double>(pixelCount, band) = pixelValues[band];
                      }
                      indices.push_back(pixelCount);
                      aoiLocations.push_back(LocationType(col, row));
@@ -881,6 +818,19 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
          muMat = cv::Mat(bands, 1, CV_64F, 0.0);
       }
 
+      if (!useLocal)
+      {
+         std::vector<double> meansVector = SpectralUtilities::calculateMeans(pElement, iter,
+            progress, &mAborted);
+         // setup the map-reduce and execute with progress reporting
+         if (mAborted == true)
+         {
+            //user canceled
+            return false;
+         }
+         muMat = cv::Mat(bands, 1, CV_64F, &meansVector[0]);
+      }
+
       // generate location index map from the bitmask iterator
       QMap<int, QList<int> > locationMap;
       for (; iter != iter.end(); ++iter)
@@ -896,22 +846,6 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
       {
          locations.push_back(qMakePair(key, locationMap[key]));
       }
-
-      if (!useLocal)
-      {
-         if (selectedPixels == 0)
-         {
-            selectedPixels = iter.getCount();
-         }
-
-         // setup the map-reduce and execute with progress reporting
-         if (calculateMeans(pElement, locations, muMat, selectedPixels, progress) == false)
-         {
-            //user canceled
-            return false;
-         }
-      }
-
       // setup and run the Rx map-reduce
       int localWidthOffset = useLocal ? ((localWidth - 1) / 2) : 0;
       int localHeightOffset = useLocal ? ((localHeight - 1) / 2) : 0;
@@ -1009,48 +943,4 @@ void Rx::clearPreviousResults(const string& sigName, RasterElement* pElement)
          MESSAGE_WARNING, "Rx/ReplaceResults");
       Service<ModelServices>()->destroyElement(pResult.release());
    }
-}
-
-bool Rx::calculateMeans(RasterElement* pElement, QList<QPair<int, QList<int> > >& locations, cv::Mat& muMat, 
-   unsigned int count, ProgressTracker &progress)
-{
-   VERIFY(pElement != NULL);
-
-   // setup the map-reduce and execute with progress reporting
-   GlobalMeansMap meansMap(pElement);
-   QFuture<cv::Mat> means;
-   means = QtConcurrent::mappedReduced(locations.begin(), locations.end(), meansMap, meansReduce, 
-      QtConcurrent::UnorderedReduce);
-   bool isCancelling = false;
-   while (means.isRunning())
-   {
-      if (isCancelling)
-      {
-         progress.report("Cleaning up processing threads. Please wait.", 99, NORMAL);
-      }
-      else
-      {
-         progress.report("Calculating means",
-               (means.progressValue() - means.progressMinimum()) * 50 /
-                     (means.progressMaximum() - means.progressMinimum()), NORMAL);
-         if (isAborted())
-         {
-            means.cancel();
-            isCancelling = true;
-            setAbortSupported(false);
-         }
-      }
-      QThread::yieldCurrentThread();
-   }
-
-   if (means.isCanceled())
-   {
-      progress.report("User canceled operation.", 100, ABORT, true);
-      return false;
-   }
-
-   // complete the mean calculation
-   muMat = means.result() / count;
-
-   return true;
 }

@@ -612,6 +612,7 @@ def build_installer(aeb_platforms=[], aeb_output=None,
             target_plugin_path = join("platform", plat, "PlugIns")
 
             #PlugIns folder
+            copy_file_to_zip(plugin_path, target_plugin_path, "Ace.dll", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Aster.dll", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Cem.dll", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Elm.dll", zfile)
@@ -642,6 +643,8 @@ def build_installer(aeb_platforms=[], aeb_output=None,
             target_plugin_path = join("platform", plat, "PlugIns")
 
             #PlugIns folder
+            if plat_parts[0] != "solaris":
+                copy_file_to_zip(plugin_path, target_plugin_path, "Ace.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Aster.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Cem.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Elm.so", zfile)
