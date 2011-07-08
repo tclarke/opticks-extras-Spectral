@@ -106,16 +106,6 @@ namespace Landsat
    bool getTemperatureConstants(const DynamicObject* pMetadata, LandsatImageType imageType,
       double& K1, double& K2);
 
-   //KIP - move to SpectralUtilities
-   double determineReflectanceConversionFactor(double solarElevationAngleInDegrees,
-      double solarIrradiance, const DateTime* pDate);
-
-   //KIP - move to SpectralUtilities
-   double determineJulianDay(const DateTime* pDate);
-
-   //KIP - move to SpectralUtilities
-   double determineEarthSunDistance(const DateTime* pDate);
-
    template<typename T>
    std::vector<T> getSensorBandValues(const DynamicObject* pMetadata,
       std::vector<std::string> sensorBandNames, std::string bandKey, std::string bandKeySuffix)

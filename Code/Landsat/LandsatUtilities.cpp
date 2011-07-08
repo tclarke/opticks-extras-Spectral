@@ -19,6 +19,7 @@
 #include "RasterFileDescriptor.h"
 #include "RasterUtilities.h"
 #include "SpecialMetadata.h"
+#include "SpectralUtilities.h"
 #include "Wavelengths.h"
 
 #include <QtCore/QDate>
@@ -829,12 +830,12 @@ double Landsat::determineL5ReflectanceConversionFactor(double solarElevationAngl
 {
    bool error = false;
    double solarIrradiance = getL5SolarIrradiance(band, error);
-   if (error)
+   if (error || pDate == NULL)
    {
       return 1.0;
    }
-   return determineReflectanceConversionFactor(solarElevationAngleInDegrees, solarIrradiance,
-      pDate);
+   return SpectralUtilities::determineReflectanceConversionFactor(solarElevationAngleInDegrees, solarIrradiance,
+      *pDate);
 }
 
 double Landsat::getL7SolarIrradiance(L7BandsType band, bool& error)
@@ -873,75 +874,12 @@ double Landsat::determineL7ReflectanceConversionFactor(double solarElevationAngl
 {
    bool error = false;
    double solarIrradiance = getL7SolarIrradiance(band, error);
-   if (error)
+   if (error || pDate == NULL)
    {
       return 1.0;
    }
-   return determineReflectanceConversionFactor(solarElevationAngleInDegrees, solarIrradiance,
-      pDate);
-}
-
-//should be moved to SpectralUtilities
-double Landsat::determineReflectanceConversionFactor(double solarElevationAngleInDegrees,
-   double solarIrradiance, const DateTime* pDate)
-{
-   double earthSunDistance = determineEarthSunDistance(pDate);
-   double solarZenithAngleInDegrees = 90.0 - solarElevationAngleInDegrees;
-   double numerator = (earthSunDistance * earthSunDistance) * PI;
-   double denominator = solarIrradiance * cos(solarZenithAngleInDegrees * PI / 180.0);
-   if (fabs(denominator) == 0.0)
-   {
-      return 1.0;
-   }
-   return numerator / denominator;
-}
-
-//should be moved to SpectralUtilities
-double Landsat::determineJulianDay(const DateTime* pDate)
-{
-   std::string dateStr = pDate->getFormattedUtc("%Y-%m-%d");
-   QDate date = QDate::fromString(QString::fromStdString(dateStr), Qt::ISODate);
-   double julianDay = date.toJulianDay(); //QtDate only handles date portion
-   if (!pDate->isTimeValid())
-   {
-      return julianDay;
-   }
-   std::string hourStr = pDate->getFormattedUtc("%H");
-   std::string minuteStr = pDate->getFormattedUtc("%M");
-   std::string secondStr = pDate->getFormattedUtc("%S");
-   if (hourStr.empty() || minuteStr.empty() || secondStr.empty())
-   {
-      return julianDay;
-   }
-   double hour = StringUtilities::fromXmlString<unsigned int>(hourStr);
-   double minute = StringUtilities::fromXmlString<unsigned int>(minuteStr);
-   double second = StringUtilities::fromXmlString<unsigned int>(secondStr);
-   double timeAdjustment = ((hour - 12.0)/24.0) + minute/1440.0 + second/86400.0;
-   julianDay += timeAdjustment;
-   return julianDay;
-   /*
-   Test Code
-   FactoryResource<DateTime> pTempDate;
-   pTempDate->set(2009, 10, 8); 
-   double jul1 = determineJulianDay(pTempDate.get()); //== 2455113
-   pTempDate->set(2009, 10, 8, 2, 10, 55); 
-   double jul2 = determineJulianDay(pTempDate.get()); //== 2455112.5909143519
-   pTempDate->set(2009, 10, 8, 12, 0, 0); 
-   double jul3 = determineJulianDay(pTempDate.get()); //== 2455113
-   pTempDate->set(2009, 10, 8, 22, 50, 7); 
-   double jul4 = determineJulianDay(pTempDate.get()); //== 2455113.4514699075
-   */
-}
-
-//should be moved to SpectralUtilities
-double Landsat::determineEarthSunDistance(const DateTime* pDate)
-{
-   //from http://www.digitalglobe.com/downloads/spacecraft/Radiometric_Use_of_WorldView-2_Imagery.pdf
-   double julianDay = determineJulianDay(pDate);
-   double d = julianDay - 2451545.0;
-   double gInRadians = (357.529 + 0.98560028 * d) * (PI / 180.0);
-   double earthSunDistance = 1.00014 - 0.01671 * cos(gInRadians) - 0.00014 * cos(2 * gInRadians);
-   return earthSunDistance; //in AU - Astronomical Units, expect between 0.983 and 1.017
+   return SpectralUtilities::determineReflectanceConversionFactor(solarElevationAngleInDegrees, solarIrradiance,
+      *pDate);
 }
 
 void Landsat::getL5TemperatureConstants(double& K1, double& K2)

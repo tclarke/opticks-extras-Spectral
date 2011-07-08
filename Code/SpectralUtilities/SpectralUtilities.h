@@ -158,6 +158,49 @@ namespace SpectralUtilities
     */
    std::vector<double> calculateMeans(const RasterElement* pElement, 
       BitMaskIterator& iter, ProgressTracker& progress, bool* pAbort = NULL);
+
+   /**
+    * Calculates the reflectance factor using the following equation:
+    *   earthSunDistance = calculated using SpectralUtilities::determineEarthSunDistance
+    *   solarZenithAngleInDegrees = 90 - solarElevationAngleInDegrees
+    *   reflectance factor =                  (earthSunDistance)^2 * PI
+    *                        -------------------------------------------------------------
+    *                        solarIrradiance * cos(solarZenithAngleInDegrees * PI / 180.0)
+    *
+    * @param solarElevationAngleInDegrees
+    *        The solar elevation angle in degrees, not radians
+    * @param solarIrradiance
+    *        The solar irradiance value, generally in W/m^2*um.  Must be the
+    *        irradiance values for a Earth-Sun distance of 1 Astronomical Unit (AU).
+    * @param date
+    *        The date and time, in order to remove differences in solar illumination
+    *        based upon the distance from the sun.
+    *
+    * @return The reflectance factor.  A value of 1.0 will be returned in the case that
+    *         a divide-by-zero would otherwise occur.
+    */
+   double determineReflectanceConversionFactor(double solarElevationAngleInDegrees,
+      double solarIrradiance, const DateTime& date);
+
+   /**
+    * Calculates the julian day using both the date and time information in pDate.
+    *
+    * @param dateTime
+    *        The date and time.
+    *
+    * @return The resulting julian day.
+    */
+   double determineJulianDay(const DateTime& dateTime);
+
+   /**
+    * Calculates the earth-sun distance for the given date and time.
+    *
+    * @param date
+    *        The date and time.
+    *
+    * @return The earth-sun distance in Astronomical Units (AU).
+    */
+   double determineEarthSunDistance(const DateTime& date);
 }
 
 #endif

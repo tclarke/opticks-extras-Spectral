@@ -26,7 +26,9 @@
 #include "switchOnEncoding.h"
 #include "TypesFile.h"
 #include "Wavelengths.h"
+
 #include <QtCore/QtConcurrentMap>
+#include <QtCore/QDate>
 
 #include <vector>
 #include <string>
@@ -559,4 +561,64 @@ std::vector<double> SpectralUtilities::calculateMeans(const RasterElement* pElem
    }
    iter.firstPixel();
    return muMat;
+}
+
+double SpectralUtilities::determineReflectanceConversionFactor(double solarElevationAngleInDegrees,
+   double solarIrradiance, const DateTime& date)
+{
+   double earthSunDistance = determineEarthSunDistance(date);
+   double solarZenithAngleInDegrees = 90.0 - solarElevationAngleInDegrees;
+   double numerator = (earthSunDistance * earthSunDistance) * PI;
+   double denominator = solarIrradiance * cos(solarZenithAngleInDegrees * PI / 180.0);
+   if (fabs(denominator) == 0.0)
+   {
+      return 1.0;
+   }
+   return numerator / denominator;
+}
+
+double SpectralUtilities::determineJulianDay(const DateTime& dateTime)
+{
+   std::string dateStr = dateTime.getFormattedUtc("%Y-%m-%d");
+   QDate date = QDate::fromString(QString::fromStdString(dateStr), Qt::ISODate);
+   double julianDay = date.toJulianDay(); //QtDate only handles date portion
+   if (!dateTime.isTimeValid())
+   {
+      return julianDay;
+   }
+   std::string hourStr = dateTime.getFormattedUtc("%H");
+   std::string minuteStr = dateTime.getFormattedUtc("%M");
+   std::string secondStr = dateTime.getFormattedUtc("%S");
+   if (hourStr.empty() || minuteStr.empty() || secondStr.empty())
+   {
+      return julianDay;
+   }
+   double hour = StringUtilities::fromXmlString<unsigned int>(hourStr);
+   double minute = StringUtilities::fromXmlString<unsigned int>(minuteStr);
+   double second = StringUtilities::fromXmlString<unsigned int>(secondStr);
+   double timeAdjustment = ((hour - 12.0)/24.0) + minute/1440.0 + second/86400.0;
+   julianDay += timeAdjustment;
+   return julianDay;
+   /*
+   Test Code
+   FactoryResource<DateTime> pTempDate;
+   pTempDate->set(2009, 10, 8); 
+   double jul1 = determineJulianDay(pTempDate.get()); //== 2455113
+   pTempDate->set(2009, 10, 8, 2, 10, 55); 
+   double jul2 = determineJulianDay(pTempDate.get()); //== 2455112.5909143519
+   pTempDate->set(2009, 10, 8, 12, 0, 0); 
+   double jul3 = determineJulianDay(pTempDate.get()); //== 2455113
+   pTempDate->set(2009, 10, 8, 22, 50, 7); 
+   double jul4 = determineJulianDay(pTempDate.get()); //== 2455113.4514699075
+   */
+}
+
+double SpectralUtilities::determineEarthSunDistance(const DateTime& date)
+{
+   //from http://www.digitalglobe.com/downloads/spacecraft/Radiometric_Use_of_WorldView-2_Imagery.pdf
+   double julianDay = determineJulianDay(date);
+   double d = julianDay - 2451545.0;
+   double gInRadians = (357.529 + 0.98560028 * d) * (PI / 180.0);
+   double earthSunDistance = 1.00014 - 0.01671 * cos(gInRadians) - 0.00014 * cos(2 * gInRadians);
+   return earthSunDistance; //in AU - Astronomical Units, expect between 0.983 and 1.017
 }

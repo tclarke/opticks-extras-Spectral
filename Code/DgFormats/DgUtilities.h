@@ -73,10 +73,6 @@ namespace DgUtilities
 
    double getQb2SolarIrradiance(Qb2BandsType band, bool& error);
 
-   double determineJulianDay(const DateTime* pDate);
-
-   double determineEarthSunDistance(const DateTime* pDate);
-
    double determineWv2RadianceConversionFactor(double absCalBandFactor, double effectiveBandwidth);
 
    double determineWv2ReflectanceConversionFactor(double absCalBandFactor, double effectiveBandwidth,

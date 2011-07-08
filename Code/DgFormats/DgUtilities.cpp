@@ -15,6 +15,7 @@
 #include "RasterFileDescriptor.h"
 #include "RasterUtilities.h"
 #include "SpecialMetadata.h"
+#include "SpectralUtilities.h"
 #include "Wavelengths.h"
 #include "xmlreader.h"
 
@@ -466,52 +467,6 @@ double DgUtilities::getQb2SolarIrradiance(Qb2BandsType band, bool& error)
    };
 }
 
-double DgUtilities::determineJulianDay(const DateTime* pDate)
-{
-   std::string dateStr = pDate->getFormattedUtc("%Y-%m-%d");
-   QDate date = QDate::fromString(QString::fromStdString(dateStr), Qt::ISODate);
-   double julianDay = date.toJulianDay(); //QtDate only handles date portion
-   if (!pDate->isTimeValid())
-   {
-      return julianDay;
-   }
-   std::string hourStr = pDate->getFormattedUtc("%H");
-   std::string minuteStr = pDate->getFormattedUtc("%M");
-   std::string secondStr = pDate->getFormattedUtc("%S");
-   if (hourStr.empty() || minuteStr.empty() || secondStr.empty())
-   {
-      return julianDay;
-   }
-   double hour = StringUtilities::fromXmlString<unsigned int>(hourStr);
-   double minute = StringUtilities::fromXmlString<unsigned int>(minuteStr);
-   double second = StringUtilities::fromXmlString<unsigned int>(secondStr);
-   double timeAdjustment = ((hour - 12.0)/24.0) + minute/1440.0 + second/86400.0;
-   julianDay += timeAdjustment;
-   return julianDay;
-   /*
-   Test Code
-   FactoryResource<DateTime> pTempDate;
-   pTempDate->set(2009, 10, 8); 
-   double jul1 = determineJulianDay(pTempDate.get()); //== 2455113
-   pTempDate->set(2009, 10, 8, 2, 10, 55); 
-   double jul2 = determineJulianDay(pTempDate.get()); //== 2455112.5909143519
-   pTempDate->set(2009, 10, 8, 12, 0, 0); 
-   double jul3 = determineJulianDay(pTempDate.get()); //== 2455113
-   pTempDate->set(2009, 10, 8, 22, 50, 7); 
-   double jul4 = determineJulianDay(pTempDate.get()); //== 2455113.4514699075
-   */
-}
-
-double DgUtilities::determineEarthSunDistance(const DateTime* pDate)
-{
-   //from http://www.digitalglobe.com/downloads/spacecraft/Radiometric_Use_of_WorldView-2_Imagery.pdf
-   double julianDay = determineJulianDay(pDate);
-   double d = julianDay - 2451545.0;
-   double gInRadians = (357.529 + 0.98560028 * d) * (PI / 180.0);
-   double earthSunDistance = 1.00014 - 0.01671 * cos(gInRadians) - 0.00014 * cos(2 * gInRadians);
-   return earthSunDistance; //in AU - Astronomical Units, expect between 0.983 and 1.017
-}
-
 double DgUtilities::determineWv2RadianceConversionFactor(double absCalBandFactor, double effectiveBandwidth)
 {
    if (fabs(effectiveBandwidth) == 0.0)
@@ -526,20 +481,14 @@ double DgUtilities::determineWv2ReflectanceConversionFactor(double absCalBandFac
 {
    bool error = false;
    double solarIrradiance = getWv2SolarIrradiance(band, error);
-   if (error)
+   if (error || pDate == NULL)
    {
       return 1.0;
    }
    double radianceFactor = determineWv2RadianceConversionFactor(absCalBandFactor, effectiveBandwidth);
-   double earthSunDistance = determineEarthSunDistance(pDate);
-   double solarZenithAngleInDegrees = 90.0 - solarElevationAngleInDegrees;
-   double numerator = radianceFactor * (earthSunDistance * earthSunDistance) * PI;
-   double denominator = solarIrradiance * cos(solarZenithAngleInDegrees * PI / 180.0);
-   if (denominator == 0.0)
-   {
-      return 1.0;
-   }
-   return numerator / denominator;
+   double reflectanceFactor = SpectralUtilities::determineReflectanceConversionFactor(solarElevationAngleInDegrees,
+      solarIrradiance, *pDate);
+   return radianceFactor * reflectanceFactor;
 }
 
 double DgUtilities::determineQb2RadianceConversionFactor(double absCalBandFactor, double effectiveBandwidth,
@@ -585,15 +534,9 @@ double DgUtilities::determineQb2ReflectanceConversionFactor(double absCalBandFac
    bool before20030606 = pDate->getSecondsSince(*pDate20030606.get()) < 0.0;
    double radianceFactor = determineQb2RadianceConversionFactor(absCalBandFactor, effectiveBandwidth,
       before20030606, tdiLevel, band, is16bit);
-   double earthSunDistance = determineEarthSunDistance(pDate);
-   double solarZenithAngleInDegrees = 90.0 - solarElevationAngleInDegrees;
-   double numerator = radianceFactor * (earthSunDistance * earthSunDistance) * PI;
-   double denominator = solarIrradiance * cos(solarZenithAngleInDegrees * PI / 180.0);
-   if (denominator == 0.0)
-   {
-      return 1.0;
-   }
-   return numerator / denominator;
+   double reflectanceFactor = SpectralUtilities::determineReflectanceConversionFactor(solarElevationAngleInDegrees,
+      solarIrradiance, *pDate);
+   return radianceFactor * reflectanceFactor; 
 }
 
 std::vector<double> DgUtilities::determineConversionFactors(const DynamicObject* pMetadata, DgDataType type)
