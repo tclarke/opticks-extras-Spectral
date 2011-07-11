@@ -5,9 +5,9 @@ import glob
 ####
 Import('env build_dir TOOLPATH')
 env = env.Clone()
-env.Tool("geotiff",toolpath=[TOOLPATH])
-env.Tool("proj4",toolpath=[TOOLPATH])
-env.Tool("libtiff",toolpath=[TOOLPATH])
+env.Tool("geotiff",toolpath=TOOLPATH)
+env.Tool("proj4",toolpath=TOOLPATH)
+env.Tool("libtiff",toolpath=TOOLPATH)
 
 ####
 # build sources
