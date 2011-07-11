@@ -40,6 +40,8 @@
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
 
+#include <limits>
+
 XERCES_CPP_NAMESPACE_USE 
 
 REGISTER_PLUGIN_BASIC(SpectralLandsat, LandsatGeotiffImporter);

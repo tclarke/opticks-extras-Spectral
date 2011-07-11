@@ -28,6 +28,7 @@
 #include <QtCore/QString>
 #include <QtCore/QStringList>
 
+#include <limits>
 #include <utility>
 #include <vector>
 
