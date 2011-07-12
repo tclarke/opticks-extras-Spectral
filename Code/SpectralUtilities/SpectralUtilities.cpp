@@ -44,6 +44,7 @@ namespace
       }
    }
 
+#ifndef QT_NO_CONCURRENT
    struct GlobalMeansMap
    {
       typedef unsigned int input_type;
@@ -110,6 +111,7 @@ namespace
          }
       }
    }
+#endif
 }
 
 std::vector<Signature*> SpectralUtilities::extractSignatures(const std::vector<Signature*>& signatures)
@@ -502,6 +504,7 @@ std::vector<Signature*> SpectralUtilities::getAoiSignatures(const AoiElement* pA
    return signatures;
 }
 
+#ifndef QT_NO_CONCURRENT
 std::vector<double> SpectralUtilities::calculateMeans(const RasterElement* pElement,
    BitMaskIterator& iter, ProgressTracker& progress, bool* pAbort)
 {
@@ -562,6 +565,7 @@ std::vector<double> SpectralUtilities::calculateMeans(const RasterElement* pElem
    iter.firstPixel();
    return muMat;
 }
+#endif
 
 double SpectralUtilities::determineReflectanceConversionFactor(double solarElevationAngleInDegrees,
    double solarIrradiance, const DateTime& date)

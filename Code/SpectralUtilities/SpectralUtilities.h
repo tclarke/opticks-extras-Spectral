@@ -13,6 +13,7 @@
 #include "Location.h"
 #include "ProgressTracker.h"
 
+#include <QtCore/qglobal.h>
 #include <string>
 #include <vector>
 
@@ -140,6 +141,7 @@ namespace SpectralUtilities
     */
    std::string getFailedDataRequestErrorMessage(const DataRequest* pRequest, const RasterElement* pElement);
 
+#ifndef QT_NO_CONCURRENT
    /**
     *  Calculates the band means of a RasterElement using QtConcurrent.
     *
@@ -158,6 +160,7 @@ namespace SpectralUtilities
     */
    std::vector<double> calculateMeans(const RasterElement* pElement, 
       BitMaskIterator& iter, ProgressTracker& progress, bool* pAbort = NULL);
+#endif
 
    /**
     * Calculates the reflectance factor using the following equation:
