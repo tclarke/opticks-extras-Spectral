@@ -15,6 +15,8 @@
 #include "AlgorithmShell.h"
 #include "TypesFile.h"
 
+#include <QtCore/QtConcurrentMap>
+
 class RasterElement;
 
 class Rx : public AlgorithmShell
@@ -31,6 +33,57 @@ private:
    RasterElement* createResults(int numRows, int numColumns, int numBands, const std::string& sigName, 
       EncodingType eType, RasterElement* pElement);
    void clearPreviousResults(const std::string& sigName, RasterElement* pElement);
+};
+
+// This subclass of QtConcurrent::Exception is required to do proper exception
+// propagation from within threads managed by QtConcurrent
+class CvExceptionWrapper : public QtConcurrent::Exception
+{
+public:
+   CvExceptionWrapper()
+   {
+   }
+
+   CvExceptionWrapper(int errCode)
+   {
+      setExceptionInfo(errCode);
+   }
+
+   CvExceptionWrapper(const CvExceptionWrapper &rhs)
+   {
+      mErrString = rhs.errorString();
+   }
+
+   Exception* clone() const
+   {
+      return new CvExceptionWrapper(*this);
+   }
+
+   void raise() const
+   {
+      throw *this;
+   }
+
+   void setExceptionInfo(int errCode)
+   {
+      switch (errCode)
+      {
+      case -4:
+         mErrString = "Out of memory.";
+         break;
+      default:
+         mErrString = "Unknown error. ";
+         break;
+      }
+   }
+
+   std::string errorString() const
+   {
+      return mErrString;
+   }
+
+private:
+   std::string mErrString;
 };
 
 #endif
