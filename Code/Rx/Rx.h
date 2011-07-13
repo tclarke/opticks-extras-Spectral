@@ -54,6 +54,8 @@ public:
       mErrString = rhs.errorString();
    }
 
+   virtual ~CvExceptionWrapper() throw () {}
+
    Exception* clone() const
    {
       return new CvExceptionWrapper(*this);
