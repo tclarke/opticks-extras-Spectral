@@ -597,6 +597,10 @@ bool CemAlgorithm::processAll()
                displayThresholdResults(pResults.release(), color, UPPER, mInputs.mThreshold, dMaxValue, layerOffset);
             }
          }
+         else
+         {
+            pResults.release();
+         }
       }
    }
 
@@ -605,8 +609,9 @@ bool CemAlgorithm::processAll()
       // Displays final Pseudocolor output layer results
       if ((isInteractive() || mInputs.mbDisplayResults) && iSignatureCount > 1 && mInputs.mbCreatePseudocolor)
       {
-         displayPseudocolorResults(pPseudocolorMatrix.release(), sigNames, layerOffset);
+         displayPseudocolorResults(pPseudocolorMatrix.get(), sigNames, layerOffset);
       }
+      pPseudocolorMatrix.release();
    }
 
    // Aborts gracefully after clean up

@@ -495,6 +495,10 @@ bool SamAlgorithm::processAll()
                displayThresholdResults(pResults.release(), color, LOWER, mInputs.mThreshold, dMaxValue, layerOffset);
             }
          }
+         else
+         {
+            pResults.release();
+         }
       }
    } //End of Signature Loop Counter
 
@@ -503,8 +507,9 @@ bool SamAlgorithm::processAll()
       // Displays final Pseudocolor output layer results
       if ((isInteractive() || mInputs.mbDisplayResults) && iSignatureCount > 1 && mInputs.mbCreatePseudocolor)
       {
-         displayPseudocolorResults(pPseudocolorMatrix.release(), sigNames, layerOffset);
+         displayPseudocolorResults(pPseudocolorMatrix.get(), sigNames, layerOffset);
       }
+      pPseudocolorMatrix.release();
    }
 
    // Aborts gracefully after clean up
