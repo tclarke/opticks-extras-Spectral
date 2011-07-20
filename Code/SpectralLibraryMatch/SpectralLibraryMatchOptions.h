@@ -43,6 +43,7 @@ public:
    SETTING(LocateSamThreshold, SpectralLibraryMatch, float, 5.0f);
    SETTING(LocateCemThreshold, SpectralLibraryMatch, float, 0.5f);
    SETTING(DisplayLocateOptions, SpectralLibraryMatch, bool, false);
+   SETTING(Autoclear, SpectralLibraryMatch, bool, false);
 
    void applyChanges();
 
@@ -110,6 +111,7 @@ private:
    QSpinBox* mpMaxDisplayed;
    QCheckBox* mpLimitByThreshold;
    QDoubleSpinBox* mpMatchThreshold;
+   QCheckBox* mpAutoclear;
    QComboBox* mpLocateAlgCombo;
    QDoubleSpinBox* mpLocateThreshold;
    QCheckBox* mpDisplayLocateOptions;

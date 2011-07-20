@@ -13,18 +13,16 @@
 #include "SpectralLibraryMatch.h"
 
 #include <map>
-#include <string>
+#include <vector>
 
 #include <QtCore/QMetaType>
-#include <QtGui/QTreeWidget>
+#include <QtGui/QTreeView>
 
 class ColorType;
-class QTreeWidgetItem;
+class Progress;
 class Signature;
 
-Q_DECLARE_METATYPE(Signature*)
-
-class ResultsPage : public QTreeWidget
+class ResultsPage : public QTreeView
 {
    Q_OBJECT
 
@@ -32,10 +30,19 @@ public:
    ResultsPage(QWidget* pParent = 0);
    virtual ~ResultsPage();
 
-   void addResults(SpectralLibraryMatch::MatchResults& theResults,
-      const std::map<Signature*, ColorType>& colors);
+   void addResults(const std::vector<SpectralLibraryMatch::MatchResults>& theResults,
+      const std::map<Signature*, ColorType>& colorMap, Progress* pProgress, bool* pAbort);
+   void clear();
+   void getSelectedSignatures(std::vector<Signature*>& signatures);
+   bool getAutoClear() const;
+
+public slots:
+   void setAutoClear(bool enabled);
 
 protected:
-   QTreeWidgetItem* findResults(const std::string& sigName, SpectralLibraryMatch::MatchAlgorithm algType);
+   void expandAddedResults(const std::vector<SpectralLibraryMatch::MatchResults>& added);
+
+private:
+   bool mAutoClear;
 };
 #endif

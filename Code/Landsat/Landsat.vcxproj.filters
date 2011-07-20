@@ -9,6 +9,9 @@
       <UniqueIdentifier>{6112f041-775d-4531-b60b-3a2630e7ec88}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl</Extensions>
     </Filter>
+    <Filter Include="moc">
+      <UniqueIdentifier>{6ad374b0-3f01-4746-9038-e1d511e35eaa}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BandResamplePager.cpp">
@@ -26,6 +29,18 @@
     <ClCompile Include="ModuleManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="LandsatGeotiffImporter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="LandsatGeotiffRasterPager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="OptionsLandsatImport.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_OptionsLandsatImport.cpp">
+      <Filter>moc</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BandResamplePager.h">
@@ -40,6 +55,17 @@
     <ClInclude Include="LandsatUtilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="LandsatGeotiffImporter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LandsatGeotiffRasterPager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="OptionsLandsatImport.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <None Include="Landsat.rationale" />

@@ -684,6 +684,11 @@ bool Mnf::createMnfCube()
       numRows = it.getNumSelectedRows();
    }
 
+   if (isAborted())
+   {
+      return false;
+   }
+
    RasterElement* pMnfRaster = RasterUtilities::createRasterElement(outputName, numRows, numCols,
       mNumComponentsToUse, FLT8BYTES, BIP, true, NULL);
 
@@ -735,6 +740,11 @@ bool Mnf::createMnfCube()
       pUnits->setUnitType(CUSTOM_UNIT);
       pUnits->setUnitName("MNF Value");
       pUnits->setScaleFromStandard(1.0);
+   }
+
+   if (isAborted())
+   {
+      return false;
    }
 
    pStep->finalize(Message::Success);
@@ -1133,6 +1143,10 @@ bool Mnf::calculateEigenValues()
       }
       return false;
    }
+   if (isAborted())
+   {
+      return false;
+   }
 
    // set diagonal terms and zero out upper triangle
    for (unsigned int i = 0; i < mNumBands; ++i)
@@ -1148,6 +1162,10 @@ bool Mnf::calculateEigenValues()
             pSigCovar[i][j] = 0.0;
          }
       }
+   }
+   if (isAborted())
+   {
+      return false;
    }
 
    // compute Li (inverse of lower triangle)
@@ -1191,6 +1209,10 @@ bool Mnf::calculateEigenValues()
             pLiT[i][j] = pLi[j][i];
          }
       }
+      if (isAborted())
+      {
+         return false;
+      }
 
       // compute Li * mpNoiseCovar, reuse pSigCov to store intermediate results
       for (unsigned int row = 0; row < mNumBands; ++row)
@@ -1205,6 +1227,10 @@ bool Mnf::calculateEigenValues()
             pSigCovar[row][col] = sum;
          }
       }
+      if (isAborted())
+      {
+         return false;
+      }
       // and now multiple above result (currently in pSigCover) by transpose of Li
       for (unsigned int row = 0; row < mNumBands; ++row)
       {
@@ -1217,6 +1243,10 @@ bool Mnf::calculateEigenValues()
             }
             pIntermed[row][col] = sum;
          }
+      }
+      if (isAborted())
+      {
+         return false;
       }
 
       // make sure matrix is symmetrical
@@ -1231,6 +1261,10 @@ bool Mnf::calculateEigenValues()
                pIntermed[col][row] = avg;
             }
          }
+      }
+      if (isAborted())
+      {
+         return false;
       }
 
       // Get the eigenvalues and eigenvectors. Store the eigenvectors in mpMnfTransformMatrix for future use.
@@ -1257,6 +1291,10 @@ bool Mnf::calculateEigenValues()
          return false;
       }
    }
+   if (isAborted())
+   {
+      return false;
+   }
 
    // Now a little more manipulation - reuse pSigCovar to hold intermediate results.
    // We also need to use the transpose of the eigen vectors from mpMnfTransformMatrix,
@@ -1273,6 +1311,10 @@ bool Mnf::calculateEigenValues()
          pSigCovar[row][col] = sum;
       }
    }
+   if (isAborted())
+   {
+      return false;
+   }
 
    // a final transpose
    for (unsigned int i = 0; i < mNumBands; ++i)
@@ -1281,6 +1323,10 @@ bool Mnf::calculateEigenValues()
       {
          mpMnfTransformMatrix[i][j] = pSigCovar[j][i];
       }
+   }
+   if (isAborted())
+   {
+      return false;
    }
 
    if (mpProgress != NULL)
@@ -1312,6 +1358,10 @@ bool Mnf::calculateEigenValues()
       }
    }
    pStep->addProperty("Noise cutoff", lNoise_Cutoff);
+   if (isAborted())
+   {
+      return false;
+   }
 
    if (mpProgress != NULL)
    {
@@ -1335,6 +1385,10 @@ bool Mnf::calculateEigenValues()
       }
       mNumComponentsToUse = plotDlg.getNumComponents();
    }
+   if (isAborted())
+   {
+      return false;
+   }
 
    // and finally reverse the order of the components since it currently has most noisy as first component
    double tmpDbl(0.0);
@@ -1346,6 +1400,10 @@ bool Mnf::calculateEigenValues()
          mpMnfTransformMatrix[index][comp] = mpMnfTransformMatrix[index][mNumBands - comp -1];
          mpMnfTransformMatrix[index][mNumBands - comp -1] = tmpDbl;
       }
+   }
+   if (isAborted())
+   {
+      return false;
    }
 
    pStep->finalize(Message::Success);
@@ -1410,6 +1468,7 @@ bool Mnf::generateNoiseStatistics()
          success = computeCovarianceMatrix(mpNoiseRaster.get(), mpNoiseCovarMatrix,
             "Noise Estimation Data", pDiffAoi.get());
 
+         success = success && !isAborted();
          if (success)
          {
             strFilename += ".mnfcvm";
@@ -1448,6 +1507,7 @@ bool Mnf::generateNoiseStatistics()
          success = computeCovarianceMatrix(mpNoiseRaster.get(), mpNoiseCovarMatrix,
             "Dark Current Data", mpNoiseAoi, rowSkip, colSkip);
 
+         success = success && !isAborted();
          if (success)
          {
             strFilename += ".mnfcvm";
@@ -1476,7 +1536,7 @@ bool Mnf::generateNoiseStatistics()
       {
          return false; // error logged in readMatrixFromFile routine
       }
-      success = true;
+      success = !isAborted();
       break;
 
    default:
@@ -1653,7 +1713,7 @@ bool Mnf::readInMnfTransform(const string& filename)
       mpStep->finalize(Message::Failure, mMessage);
       return false;
    }
-   bool success = true;
+   bool success = !isAborted();
    if (lnumComponents < mNumComponentsToUse)
    {
       if (isBatch() == false)
@@ -1685,6 +1745,7 @@ bool Mnf::readInMnfTransform(const string& filename)
                success = false;
                break;
             }
+            success = success && !isAborted();
          }
          if (!success)
          {

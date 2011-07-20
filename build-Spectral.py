@@ -612,8 +612,10 @@ def build_installer(aeb_platforms=[], aeb_output=None,
             target_plugin_path = join("platform", plat, "PlugIns")
 
             #PlugIns folder
+            copy_file_to_zip(plugin_path, target_plugin_path, "Ace.dll", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Aster.dll", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Cem.dll", zfile)
+            copy_file_to_zip(plugin_path, target_plugin_path, "DgFormats.dll", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Elm.dll", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Iarr.dll", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Landsat.dll", zfile)
@@ -628,6 +630,7 @@ def build_installer(aeb_platforms=[], aeb_output=None,
             copy_file_to_zip(plugin_path, target_plugin_path, "SignatureWindow.dll", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "SpectralLibrary.dll", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "SpectralLibraryMatch.dll", zfile)
+            copy_file_to_zip(plugin_path, target_plugin_path, "Tad.dll", zfile)
         elif plat_parts[0] == 'solaris' or plat_parts[0] == 'linux':
             prefix_dir = os.path.abspath(".")
             if is_windows():
@@ -641,8 +644,11 @@ def build_installer(aeb_platforms=[], aeb_output=None,
             target_plugin_path = join("platform", plat, "PlugIns")
 
             #PlugIns folder
+            if plat_parts[0] != "solaris":
+                copy_file_to_zip(plugin_path, target_plugin_path, "Ace.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Aster.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Cem.so", zfile)
+            copy_file_to_zip(plugin_path, target_plugin_path, "DgFormats.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Elm.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Iarr.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Landsat.so", zfile)
@@ -655,6 +661,8 @@ def build_installer(aeb_platforms=[], aeb_output=None,
 # Temporarily remove Rx.so from the Linux installer since it is not loading.
             #if plat_parts[0] != "solaris":
             #    copy_file_to_zip(plugin_path, target_plugin_path, "Rx.so", zfile)
+            if plat_parts[0] != "solaris":
+                copy_file_to_zip(plugin_path, target_plugin_path, "Tad.so", zfile)
 ########################################################
             copy_file_to_zip(plugin_path, target_plugin_path, "Sam.so", zfile)
             copy_file_to_zip(plugin_path, target_plugin_path, "Signature.so", zfile)

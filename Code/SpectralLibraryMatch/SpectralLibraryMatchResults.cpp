@@ -191,25 +191,29 @@ QAction* SpectralLibraryMatchResults::createAction()
    return pShowAction;
 }
 
-void SpectralLibraryMatchResults::addResults(SpectralLibraryMatch::MatchResults& theResults, Progress* pProgress)
+void SpectralLibraryMatchResults::addResults(const SpectralLibraryMatch::MatchResults& theResults, Progress* pProgress)
 {
    std::map<Signature*, ColorType> colorMap;
-
-   addResults(theResults, colorMap, pProgress);
+   std::vector<SpectralLibraryMatch::MatchResults> results;
+   results.push_back(theResults);
+   addResults(results, colorMap, pProgress);
 }
 
-void SpectralLibraryMatchResults::addResults(SpectralLibraryMatch::MatchResults& theResults,
-                                             const std::map<Signature*, ColorType>& colorMap, Progress* pProgress)
+void SpectralLibraryMatchResults::addResults(const std::vector<SpectralLibraryMatch::MatchResults>& theResults,
+                                             const std::map<Signature*, ColorType>& colorMap,
+                                             Progress* pProgress, bool* pAbort)
 {
-   if (theResults.isValid() == false)
+   if (theResults.empty())
    {
       return;
    }
-   
-   ResultsPage* pPage = getPage(theResults.mpRaster);
+
+   // Since all the results in theResults are for the same raster element, we only need to get/create the page for
+   // the first result.
+   ResultsPage* pPage = getPage(theResults.front().mpRaster);
    if (pPage == NULL)
    {
-      pPage = createPage(theResults.mpRaster);
+      pPage = createPage(theResults.front().mpRaster);
       if (pPage == NULL)
       {
          if (pProgress != NULL)
@@ -219,8 +223,9 @@ void SpectralLibraryMatchResults::addResults(SpectralLibraryMatch::MatchResults&
          return;
       }
    }
+   mpTabWidget->setCurrentWidget(pPage);
 
-   pPage->addResults(theResults, colorMap);
+   pPage->addResults(theResults, colorMap, pProgress, pAbort);
 }
 
 ResultsPage* SpectralLibraryMatchResults::createPage(const RasterElement* pRaster)
@@ -279,7 +284,6 @@ void SpectralLibraryMatchResults::deletePage(const RasterElement* pRaster)
 void SpectralLibraryMatchResults::updateContextMenu(Subject& subject, const std::string& signal,
                                                     const boost::any& value)
 {
-
    ContextMenu* pMenu = boost::any_cast<ContextMenu*>(value);
    if (pMenu == NULL)
    {
@@ -318,6 +322,18 @@ void SpectralLibraryMatchResults::updateContextMenu(Subject& subject, const std:
       VERIFYNR(connect(pClearAction, SIGNAL(triggered()), this, SLOT(clearPage())));
       pMenu->addAction(pClearAction, SPECTRAL_LIBRARY_MATCH_RESULTS_CLEAR_RESULTS_ACTION);
 
+      QAction* pAutoClearAction = new QAction("&AutoClear", pParent);
+      pAutoClearAction->setAutoRepeat(false);
+      pAutoClearAction->setCheckable(true);
+      pAutoClearAction->setStatusTip("Enable/disable clearing existing results before adding new results");
+      ResultsPage* pPage = dynamic_cast<ResultsPage*>(mpTabWidget->currentWidget());
+      if (pPage != NULL)
+      {
+         pAutoClearAction->setChecked(pPage->getAutoClear());
+         VERIFYNR(connect(pAutoClearAction, SIGNAL(toggled(bool)), pPage, SLOT(setAutoClear(bool))));
+         pMenu->addAction(pAutoClearAction, SPECTRAL_LIBRARY_MATCH_RESULTS_AUTOCLEAR_ACTION);
+      }
+
       QAction* pExpandAllAction = new QAction("&Expand All", pParent);
       pExpandAllAction->setAutoRepeat(false);
       pExpandAllAction->setStatusTip("Expands all the results nodes on the current page");
@@ -326,13 +342,13 @@ void SpectralLibraryMatchResults::updateContextMenu(Subject& subject, const std:
 
       QAction* pCollapseAllAction = new QAction("&Collapse All", pParent);
       pCollapseAllAction->setAutoRepeat(false);
-      pCollapseAllAction->setStatusTip("Clears the results from the current page");
+      pCollapseAllAction->setStatusTip("Collapses all the results nodes on the current page");
       VERIFYNR(connect(pCollapseAllAction, SIGNAL(triggered()), this, SLOT(collapseAllPage())));
       pMenu->addAction(pCollapseAllAction, SPECTRAL_LIBRARY_MATCH_RESULTS_COLLAPSE_ALL_ACTION);
 
       QAction* pDeleteTabAction = new QAction("&Delete Page", pParent);
       pDeleteTabAction->setAutoRepeat(false);
-      pDeleteTabAction->setStatusTip("Clears the results from the current page");
+      pDeleteTabAction->setStatusTip("Deletes the current page");
       VERIFYNR(connect(pDeleteTabAction, SIGNAL(triggered()), this, SLOT(deletePage())));
       pMenu->addAction(pDeleteTabAction, SPECTRAL_LIBRARY_MATCH_RESULTS_DELETE_PAGE_ACTION);
 
@@ -431,44 +447,7 @@ std::vector<Signature*> SpectralLibraryMatchResults::getSelectedSignatures() con
       return signatures;
    }
 
-   std::vector<Signature*>::iterator sit;
-   Signature* pSignature(NULL);
-   std::list<QTreeWidgetItem*> selectedItems = pPage->selectedItems().toStdList();
-   for (std::list<QTreeWidgetItem*>::iterator it = selectedItems.begin(); it != selectedItems.end(); ++it)
-   {
-      int numChildren = (*it)->childCount();
-      if (numChildren > 0)
-      {
-         for (int child = 0; child < numChildren; ++child)
-         {
-            QTreeWidgetItem* pItem = (*it)->child(child);
-            QVariant variant = pItem->data(0, Qt::UserRole);
-            if (variant.isValid())
-            {
-               pSignature = variant.value<Signature*>();
-               sit = std::find(signatures.begin(), signatures.end(), pSignature);
-               if (sit == signatures.end())
-               {
-                  signatures.push_back(pSignature);
-               }
-            }
-         }
-      }
-      else
-      {
-         QVariant variant = (*it)->data(0, Qt::UserRole);
-         if (variant.isValid())
-         {
-            pSignature = variant.value<Signature*>();
-            sit = std::find(signatures.begin(), signatures.end(), pSignature);
-            if (sit == signatures.end())
-            {
-               signatures.push_back(pSignature);
-            }
-         }
-      }
-   }
-
+   pPage->getSelectedSignatures(signatures);
    return signatures;
 }
 

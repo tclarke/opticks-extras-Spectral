@@ -172,11 +172,8 @@ bool SpectralLibraryMatchId::execute(PlugInArgList* pInArgList, PlugInArgList* p
       updateProgress("The input raster element was null", 0, ERRORS);
       return false;
    }
-
    // check that raster element has wavelength info
-   FactoryResource<Wavelengths> pWavelengths;
-   VERIFY(pWavelengths->initializeFromDynamicObject(pRaster->getMetadata(), false));
-   if (pWavelengths->getNumWavelengths() < 2)  // need more than 1 band
+   if (Wavelengths::getNumWavelengths(pRaster->getMetadata()) < 2)
    {
       updateProgress("Raster element does not contain sufficient wavelength information", 0, ERRORS);
       return false;
@@ -326,8 +323,14 @@ bool SpectralLibraryMatchId::execute(PlugInArgList* pInArgList, PlugInArgList* p
    {
       std::vector<std::pair<Signature*, float> > bestMatches;
       std::vector<std::string> pixelNames;
-      int numSigs = static_cast<int>(pAoi->getPixelCount());
       int numProcessed(0);
+      BitMaskIterator bit(pAoi->getSelectedPoints(), pRaster);
+      if (bit == bit.end())  // empty AOI
+      {
+         updateProgress("There are no selected pixels in the AOI.", 0, ERRORS);
+         return false;
+      }
+      int numSigs = bit.getCount();
       bestMatches.reserve(numSigs);
       pixelResults.reserve(numSigs);
       pixelNames.reserve(numSigs);
@@ -348,8 +351,6 @@ bool SpectralLibraryMatchId::execute(PlugInArgList* pInArgList, PlugInArgList* p
       FactoryResource<DataRequest> pRqt;
       pRqt->setInterleaveFormat(BIP);
       DataAccessor acc = pRaster->getDataAccessor(pRqt.release());
-      BitMaskIterator bit(pAoi->getSelectedPoints(), pRaster);
-      VERIFY(bit != bit.end());
       theResults.mTargetValues.resize(numBands);
       while (bit != bit.end())
       {
@@ -783,17 +784,11 @@ bool SpectralLibraryMatchId::sendResultsToWindow(std::vector<SpectralLibraryMatc
    }
    unsigned int numResults = theResults.size();
    unsigned int numOutput(0);
-   updateProgress("Outputting results for Spectral Library Match on each pixel...", 0, NORMAL);
-   for (std::vector<SpectralLibraryMatch::MatchResults>::iterator it = theResults.begin(); it != theResults.end(); ++it)
+   mpResultsWindow->addResults(theResults, colorMap, mpProgress, &mAborted);
+   if (isAborted())
    {
-      mpResultsWindow->addResults(*it, colorMap);
-      ++numOutput;
-      updateProgress("Outputting results for Spectral Library Match on each pixel...",
-         100 * numOutput / numResults, NORMAL);
-      if (isAborted())
-      {
-         return false;
-      }
+      // execute method will set progress to display user canceled the action
+      return false;
    }
 
    updateProgress("Finished outputting results for Spectral Library Match on each pixel.", 100, NORMAL);

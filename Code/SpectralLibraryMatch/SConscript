@@ -4,6 +4,10 @@ import glob
 # import the environment
 ####
 Import('env build_dir TOOLPATH')
+env = env.Clone()
+if env['OS'] != "solaris":
+   env.Tool("tbb",toolpath=TOOLPATH)
+env.Append(CPPPATH=build_dir)
 
 ####
 # build sources

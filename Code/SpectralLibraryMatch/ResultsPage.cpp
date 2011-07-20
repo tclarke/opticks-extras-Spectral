@@ -8,20 +8,30 @@
  */
 
 #include "ColorType.h"
+#include "ResultsItem.h"
+#include "ResultsItemModel.h"
 #include "ResultsPage.h"
+#include "ResultsSortFilter.h"
 #include "Signature.h"
+#include "SpectralLibraryMatchOptions.h"
+#include "StringUtilities.h"
 
-#include <QtGui/QIcon>
 #include <QtCore/QList>
 #include <QtCore/QListIterator>
+#include <QtCore/QModelIndex>
+#include <QtCore/QModelIndexList>
 #include <QtCore/QString>
 #include <QtCore/QStringList>
 #include <QtGui/QBrush>
 #include <QtGui/QHeaderView>
+#include <QtGui/QIcon>
+#include <QtGui/QItemSelectionModel>
 #include <QtGui/QPainter>
 #include <QtGui/QPen>
 #include <QtGui/QPixmap>
-#include <QtGui/QTreeWidgetItem>
+
+#include <algorithm>
+#include <string>
 
 namespace
 {
@@ -30,16 +40,15 @@ namespace
 }
 
 ResultsPage::ResultsPage(QWidget* pParent) :
-   QTreeWidget(pParent)
+   QTreeView(pParent),
+   mAutoClear(SpectralLibraryMatchOptions::getSettingAutoclear())
 {
-   QStringList columnNames;
-   columnNames << "Signature" << "Algorithm Value";
-   setColumnCount(columnNames.count());
-   setHeaderLabels(columnNames);
-   setSelectionMode(QAbstractItemView::ExtendedSelection);
-   setAllColumnsShowFocus(true);
    setRootIsDecorated(true);
-   setSortingEnabled(false);
+   setSortingEnabled(true);
+   setModel(new ResultsSortFilter(this));
+   setSelectionMode(QAbstractItemView::ExtendedSelection);
+   setSelectionBehavior(QAbstractItemView::SelectRows);
+   setAllColumnsShowFocus(true);
    setToolTip("This list displays the spectral library matches for in-scene spectra.");
 
    QHeaderView* pHeader = header();
@@ -47,93 +56,146 @@ ResultsPage::ResultsPage(QWidget* pParent) :
    {
       pHeader->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
       pHeader->resizeSection(0, 250);
+      pHeader->setMovable(false);
+      pHeader->setSortIndicator(0, Qt::AscendingOrder);
+      pHeader->setSortIndicatorShown(false);
    }
 }
 
 ResultsPage::~ResultsPage()
 {}
 
-void ResultsPage::addResults(SpectralLibraryMatch::MatchResults& theResults,
-                             const std::map<Signature*, ColorType>& colorMap)
+void ResultsPage::addResults(const std::vector<SpectralLibraryMatch::MatchResults>& theResults,
+                             const std::map<Signature*, ColorType>& colorMap, Progress* pProgress, bool* pAbort)
 {
-   if (theResults.isValid() == false)
+   if (getAutoClear())
+   {
+      clear();
+   }
+   ResultsSortFilter* pFilter = dynamic_cast<ResultsSortFilter*>(model());
+   VERIFYNRV(pFilter != NULL);
+   ResultsItemModel* pModel = dynamic_cast<ResultsItemModel*>(pFilter->sourceModel());
+   VERIFYNRV(pModel != NULL);
+   pModel->addResults(theResults, colorMap, pProgress, pAbort);
+   if (pAbort == NULL || *pAbort == false)
+   {
+      expandAddedResults(theResults);
+   }
+}
+
+void ResultsPage::clear()
+{
+   ResultsSortFilter* pFilter = dynamic_cast<ResultsSortFilter*>(model());
+   ResultsItemModel* pModel = dynamic_cast<ResultsItemModel*>(pFilter->sourceModel());
+   VERIFYNRV(pModel != NULL);
+   pModel->clear();
+}
+
+void ResultsPage::getSelectedSignatures(std::vector<Signature*>& signatures)
+{
+   signatures.clear();
+   QItemSelectionModel* pSelectModel = selectionModel();
+   VERIFYNRV(pSelectModel != NULL);
+   QModelIndexList selectedCol0 = pSelectModel->selectedRows();
+   if (selectedCol0.isEmpty())
+   {
+      return;
+   }
+   QModelIndexList selectedCol1 = pSelectModel->selectedRows(1);
+
+   std::vector<std::string> resultKeys;
+   std::vector<Signature*>::iterator sit;
+   ResultsSortFilter* pFilter = dynamic_cast<ResultsSortFilter*>(model());
+   VERIFYNRV(pFilter != NULL);
+   Signature* pSignature(NULL);
+   for (int i = 0; i < selectedCol0.size(); ++i)
+   {
+      QModelIndex index = selectedCol0[i];
+      if (index.isValid() == false)
+      {
+         continue;
+      }
+      QVariant variant = pFilter->data(index, Qt::UserRole);
+      if (variant.isValid())
+      {
+         pSignature = variant.value<Signature*>();
+         if (pSignature != NULL)  // a result of "No Matches found" will return NULL so skip them.
+         {
+            sit = std::find(signatures.begin(), signatures.end(), pSignature);
+            if (sit == signatures.end())
+            {
+               signatures.push_back(pSignature);
+            }
+         }
+      }
+      else   // If item doesn't contain data (a Signature*), it's a pixel name item with children.
+             // It was selected, so we need to get the data from its children to include those Signatures.
+      {
+         QVariant var = pFilter->data(index);
+         std::string keyStr;
+         if (var.isValid())
+         {
+            keyStr = var.toString().toStdString();
+            index = selectedCol1[i];
+            var = pFilter->data(index);
+            if (var.isValid())
+            {
+               keyStr += var.toString().toStdString();
+               resultKeys.push_back(keyStr);
+            }
+         }
+      }
+   }
+
+   if (resultKeys.empty() == false)
+   {
+      ResultsItemModel* pModel = dynamic_cast<ResultsItemModel*>(pFilter->sourceModel());
+      VERIFYNRV(pModel != NULL);
+      for (unsigned int i = 0; i < resultKeys.size(); ++i)
+      {
+         const ResultsItem* pItem = pModel->getResult(resultKeys[i]);
+         if (pItem != NULL)
+         {
+            for (int row = 0; row < pItem->rows(); ++row)
+            {
+               pSignature = pItem->getSignature(row);
+               if (pSignature != NULL)
+               {
+                  sit = std::find(signatures.begin(), signatures.end(), pSignature);
+                  if (sit == signatures.end())
+                  {
+                     signatures.push_back(pSignature);
+                  }
+               }
+            }
+         }
+      }
+   }
+}
+
+void ResultsPage::expandAddedResults(const std::vector<SpectralLibraryMatch::MatchResults>& added)
+{
+   if (added.empty())
    {
       return;
    }
 
-   QTreeWidgetItem* pParentItem = findResults(theResults.mTargetName, theResults.mAlgorithmUsed);
-   if (pParentItem == NULL)
+   QSortFilterProxyModel* pFilterModel = dynamic_cast<QSortFilterProxyModel*>(model());
+   VERIFYNRV(pFilterModel != NULL);
+   ResultsItemModel* pModel = dynamic_cast<ResultsItemModel*>(pFilterModel->sourceModel());
+   for (std::vector<SpectralLibraryMatch::MatchResults>::const_iterator it = added.begin(); it != added.end(); ++it)
    {
-      pParentItem = new QTreeWidgetItem(this);
-      pParentItem->setText(gcSignatureNameColumn, QString::fromStdString(theResults.mTargetName));
-      pParentItem->setText(gcAlgorithmNameColumn, QString::fromStdString(
-         StringUtilities::toDisplayString<SpectralLibraryMatch::MatchAlgorithm>(theResults.mAlgorithmUsed)));
+      QModelIndex index = pModel->getItemIndex(it->mTargetName, it->mAlgorithmUsed);
+      expand(pFilterModel->mapFromSource(index));
    }
-   else
-   {
-      for (int i = pParentItem->childCount() - 1; i >= 0; --i)
-      {
-         delete pParentItem->child(i);
-      }
-   }
-
-   std::map<Signature*, ColorType>::const_iterator mit;
-   if (theResults.mResults.empty())
-   {
-      QTreeWidgetItem* pItem = new QTreeWidgetItem(pParentItem);
-      pItem->setText(gcSignatureNameColumn, "No Matches found");
-   }
-   else
-   {
-      for (std::vector<std::pair<Signature*, float> >::iterator it = theResults.mResults.begin();
-         it != theResults.mResults.end(); ++it)
-      {
-         QTreeWidgetItem* pItem = new QTreeWidgetItem(pParentItem);
-         pItem->setText(gcSignatureNameColumn, QString::fromStdString(it->first->getDisplayName(true)));
-         Signature* pSig = it->first;
-         pItem->setData(0, Qt::UserRole, QVariant::fromValue(pSig));
-         pItem->setToolTip(gcSignatureNameColumn, QString::fromStdString(it->first->getName()));
-         mit = colorMap.find(it->first);
-         if (mit != colorMap.end())
-         {
-            QColor borderColor = QColor(127, 157, 185);
-            QPen pen(borderColor);
-            QPixmap pix = QPixmap(16, 16);
-            QRectF rect(0, 0, 15, 15);
-            QPainter p;
-            QBrush brush(COLORTYPE_TO_QCOLOR(mit->second));
-            p.begin(&pix);
-            p.fillRect(rect, brush);
-            p.setPen(pen);
-            p.drawRect(rect);
-            p.end();
-
-            pItem->setIcon(gcSignatureNameColumn, QIcon(pix));
-         }
-         pItem->setText(gcAlgorithmNameColumn, QString::number(it->second));
-      }
-   }
-   pParentItem->setExpanded(true);
 }
 
-QTreeWidgetItem* ResultsPage::findResults(const std::string& sigName, SpectralLibraryMatch::MatchAlgorithm algType)
+bool ResultsPage::getAutoClear() const
 {
-   if (sigName.empty() || algType.isValid() == false)
-   {
-      return NULL;
-   }
+   return mAutoClear;
+}
 
-   QList<QTreeWidgetItem*> itemList = findItems(QString::fromStdString(sigName), Qt::MatchExactly);
-   QListIterator<QTreeWidgetItem*> it(itemList);
-   while (it.hasNext())
-   {
-      QTreeWidgetItem* pCurrentItem = it.next();
-      if (pCurrentItem->text(gcAlgorithmNameColumn).toStdString() ==
-         StringUtilities::toDisplayString<SpectralLibraryMatch::MatchAlgorithm>(algType))
-      {
-         return pCurrentItem;
-      }
-   }
-
-   return NULL;
+void ResultsPage::setAutoClear(bool enabled)
+{
+   mAutoClear = enabled;
 }

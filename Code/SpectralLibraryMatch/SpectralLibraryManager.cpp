@@ -285,13 +285,18 @@ bool SpectralLibraryManager::generateResampledLibrary(const RasterElement* pRast
    }
 
    FactoryResource<Wavelengths> pWavelengths;
-   VERIFY(pWavelengths->initializeFromDynamicObject(pRaster->getMetadata(), false));
+   pWavelengths->initializeFromDynamicObject(pRaster->getMetadata(), false);
 
    // populate the library with the resampled signatures
    PlugInResource pPlugIn("Resampler");
    Resampler* pResampler = dynamic_cast<Resampler*>(pPlugIn.get());
    VERIFY(pResampler != NULL);
-   VERIFY(pWavelengths->getNumWavelengths() == pDesc->getBandCount());
+   if (pWavelengths->getNumWavelengths() != pDesc->getBandCount())
+   {
+      mpProgress->updateProgress("Wavelength information in metadata does not match the number of bands "
+         "in the raster element", 0, ERRORS);
+      return false;
+   }
 
    // get resample suitable signatures - leave out signatures that don't cover the spectral range of the data
    std::vector<std::vector<double> > resampledData;
@@ -360,37 +365,64 @@ bool SpectralLibraryManager::generateResampledLibrary(const RasterElement* pRast
 
    std::string libName = "Resampled Spectral Library";
    
-   // create new raster element for resampled signatures:
+   // Try to get the resampled lib element in case session was restored. If NULL, create a new raster element with
    // num rows = num valid signatures, num cols = 1, num bands = pRaster num bands
-   RasterElement* pLib = RasterUtilities::createRasterElement(libName,
-      static_cast<unsigned int>(resampledData.size()), 1, pDesc->getBandCount(), FLT8BYTES, BIP,
-      true, const_cast<RasterElement*>(pRaster));
-   VERIFY(pLib != NULL);
-
-   // copy resampled data into new element
-   RasterDataDescriptor* pLibDesc = dynamic_cast<RasterDataDescriptor*>(pLib->getDataDescriptor());
-   VERIFY(pLibDesc != NULL);
-   FactoryResource<DataRequest> pRequest;
-   pRequest->setWritable(true);
-   pRequest->setRows(pLibDesc->getActiveRow(0), pLibDesc->getActiveRow(pLibDesc->getRowCount()-1), 1);
-   DataAccessor acc = pLib->getDataAccessor(pRequest.release());
-   for (std::vector<std::vector<double> >::iterator sit = resampledData.begin(); sit != resampledData.end(); ++sit)
+   RasterElement* pLib = dynamic_cast<RasterElement*>(Service<ModelServices>()->getElement(libName,
+      TypeConverter::toString<RasterElement>(), pRaster));
+   if (pLib != NULL)
    {
-      VERIFY(acc->isValid());
-      void* pData = acc->getColumn();
-      memcpy(acc->getColumn(), &(sit->begin()[0]), pLibDesc->getBandCount() * sizeof(double));
-      acc->nextRow();
+      // check that pLib has same number of sigs as SpectralLibraryManager
+      RasterDataDescriptor* pLibDesc = dynamic_cast<RasterDataDescriptor*>(pLib->getDataDescriptor());
+      VERIFY(pLibDesc != NULL);
+      if (pLibDesc->getRowCount() != mSignatures.size())
+      {
+         mpProgress->updateProgress("An error occurred during session restore and some signatures were not restored."
+            " Check the spectral library before using.", 0, ERRORS);
+         Service<ModelServices>()->destroyElement(pLib);
+         pLib = NULL;
+      }
+   }
+   bool isNewElement(false);
+   if (pLib == NULL)
+   {
+      pLib = RasterUtilities::createRasterElement(libName,
+         static_cast<unsigned int>(resampledData.size()), 1, pDesc->getBandCount(), FLT8BYTES, BIP,
+         true, const_cast<RasterElement*>(pRaster));
+      isNewElement = true;
+   }
+   if (pLib == NULL)
+   {
+      mpProgress->updateProgress("Error occurred while trying to create the resampled spectral library", 0, ERRORS);
+      return false;
    }
 
-   // set wavelength info in resampled library
-   pWavelengths->applyToDynamicObject(pLib->getMetadata());
-   FactoryResource<Units> libUnits;
-   libUnits->setUnitType(mLibraryUnitType);
-   libUnits->setUnitName(StringUtilities::toDisplayString<UnitType>(mLibraryUnitType));
-   pLibDesc->setUnits(libUnits.get());
+   RasterDataDescriptor* pLibDesc = dynamic_cast<RasterDataDescriptor*>(pLib->getDataDescriptor());
+   VERIFY(pLibDesc != NULL);
+
+   // copy resampled data into new element
+   if (isNewElement)
+   {
+      FactoryResource<DataRequest> pRequest;
+      pRequest->setWritable(true);
+      pRequest->setRows(pLibDesc->getActiveRow(0), pLibDesc->getActiveRow(pLibDesc->getRowCount()-1), 1);
+      DataAccessor acc = pLib->getDataAccessor(pRequest.release());
+      for (std::vector<std::vector<double> >::iterator sit = resampledData.begin(); sit != resampledData.end(); ++sit)
+      {
+         VERIFY(acc->isValid());
+         void* pData = acc->getColumn();
+         memcpy(acc->getColumn(), &(sit->begin()[0]), pLibDesc->getBandCount() * sizeof(double));
+         acc->nextRow();
+      }
+
+      // set wavelength info in resampled library
+      pWavelengths->applyToDynamicObject(pLib->getMetadata());
+      FactoryResource<Units> libUnits;
+      libUnits->setUnitType(mLibraryUnitType);
+      libUnits->setUnitName(StringUtilities::toDisplayString<UnitType>(mLibraryUnitType));
+      pLibDesc->setUnits(libUnits.get());
+   }
 
    pLib->attach(SIGNAL_NAME(Subject, Deleted), Slot(this, &SpectralLibraryManager::resampledElementDeleted));
-
    mLibraries[pRaster] = pLib;
    mResampledSignatures[pLib] = resampledSignatures;
 
@@ -399,7 +431,6 @@ bool SpectralLibraryManager::generateResampledLibrary(const RasterElement* pRast
 
    return true;
 }
-
 
 void SpectralLibraryManager::elementDeleted(Subject& subject, const std::string& signal, const boost::any& value)
 {

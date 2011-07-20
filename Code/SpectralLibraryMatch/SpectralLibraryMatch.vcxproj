@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -53,6 +53,7 @@
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\AllCommonSettings-Release-32bit.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\PlugInCommonSettings.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Qt-Release.props" />
+    <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\tbb-Release.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Xerces-Release.props" />
     <Import Project="..\CompileSettings\SpectralCommon.props" />
   </ImportGroup>
@@ -63,6 +64,7 @@
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\AllCommonSettings-Debug-32bit.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\PlugInCommonSettings.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Qt-Debug.props" />
+    <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\tbb-Debug.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Xerces-Debug.props" />
     <Import Project="..\CompileSettings\SpectralCommon.props" />
   </ImportGroup>
@@ -73,6 +75,7 @@
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\AllCommonSettings-Release-64bit.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\PlugInCommonSettings.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Qt-Release.props" />
+    <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\tbb-Release.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Xerces-Release.props" />
     <Import Project="..\CompileSettings\SpectralCommon.props" />
   </ImportGroup>
@@ -83,6 +86,7 @@
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\AllCommonSettings-Debug-64bit.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\PlugInCommonSettings.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Qt-Debug.props" />
+    <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\tbb-Debug.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Xerces-Debug.props" />
     <Import Project="..\CompileSettings\SpectralCommon.props" />
   </ImportGroup>
@@ -159,7 +163,10 @@
     <ClCompile Include="LocateDialog.cpp" />
     <ClCompile Include="MatchIdDlg.cpp" />
     <ClCompile Include="ModuleManager.cpp" />
+    <ClCompile Include="ResultsItem.cpp" />
+    <ClCompile Include="ResultsItemModel.cpp" />
     <ClCompile Include="ResultsPage.cpp" />
+    <ClCompile Include="ResultsSortFilter.cpp" />
     <ClCompile Include="SpectralLibraryManager.cpp" />
     <ClCompile Include="SpectralLibraryMatch.cpp" />
     <ClCompile Include="SpectralLibraryMatchId.cpp" />
@@ -170,6 +177,7 @@
     <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_LocateDialog.cpp" />
     <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_MatchIdDlg.cpp" />
     <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_ResultsPage.cpp" />
+    <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_ResultsSortFilter.cpp" />
     <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_SpectralLibraryManager.cpp" />
     <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_SpectralLibraryMatchOptions.cpp" />
     <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_SpectralLibraryMatchResults.cpp" />
@@ -248,6 +256,24 @@
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp;%(Outputs)</Outputs>
     </CustomBuild>
+    <CustomBuild Include="ResultsSortFilter.h">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing %(Filename).h...</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(QTBIN)\moc.exe" "%(FullPath)" -o "$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Moc%27ing %(Filename).h...</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(QTBIN)\moc.exe" "%(FullPath)" -o "$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Moc%27ing %(Filename).h...</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTBIN)\moc.exe" "%(FullPath)" -o "$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Moc%27ing %(Filename).h...</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(QTBIN)\moc.exe" "%(FullPath)" -o "$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp;%(Outputs)</Outputs>
+    </CustomBuild>
     <CustomBuild Include="SpectralLibraryManager.h">
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing %(Filename).h...</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(QTBIN)\moc.exe" "%(FullPath)" -o "$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp"
@@ -266,6 +292,8 @@
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp;%(Outputs)</Outputs>
     </CustomBuild>
+    <ClInclude Include="ResultsItem.h" />
+    <ClInclude Include="ResultsItemModel.h" />
     <ClInclude Include="SpectralLibraryMatch.h" />
     <ClInclude Include="SpectralLibraryMatchId.h" />
     <CustomBuild Include="SpectralLibraryMatchOptions.h">

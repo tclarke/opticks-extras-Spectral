@@ -11,11 +11,14 @@
 #define SPECTRALUTILITIES_H
 
 #include "Location.h"
+#include "ProgressTracker.h"
 
+#include <QtCore/qglobal.h>
 #include <string>
 #include <vector>
 
 class AoiElement;
+class BitMaskIterator;
 class DataRequest;
 class Progress;
 class RasterElement;
@@ -137,6 +140,70 @@ namespace SpectralUtilities
     *           This string will be empty if no common errors were detected.
     */
    std::string getFailedDataRequestErrorMessage(const DataRequest* pRequest, const RasterElement* pElement);
+
+#ifndef QT_NO_CONCURRENT
+   /**
+    *  Calculates the band means of a RasterElement using QtConcurrent.
+    *
+    *  @param   pElement
+    *           The RasterElement on which the band means calculations will be performed.
+    *  @param   iter
+    *           A BitMaskIterator to note which pixels should be included in the mean calculation.
+    *  @param   progress
+    *           The ProgressTracker object to update.
+    *  @param   pAbort
+    *           This method will query the state of this flag during computations and will abort if the 
+    *           flag is \c true. If \em pAbort is \c NULL, the method will run to completion.
+    *
+    *  @return  The output vector of doubles, one value per band holding the average
+    *           of all pixels selected with the \em iter parameter.
+    */
+   std::vector<double> calculateMeans(const RasterElement* pElement, 
+      BitMaskIterator& iter, ProgressTracker& progress, bool* pAbort = NULL);
+#endif
+
+   /**
+    * Calculates the reflectance factor using the following equation:
+    *   earthSunDistance = calculated using SpectralUtilities::determineEarthSunDistance
+    *   solarZenithAngleInDegrees = 90 - solarElevationAngleInDegrees
+    *   reflectance factor =                  (earthSunDistance)^2 * PI
+    *                        -------------------------------------------------------------
+    *                        solarIrradiance * cos(solarZenithAngleInDegrees * PI / 180.0)
+    *
+    * @param solarElevationAngleInDegrees
+    *        The solar elevation angle in degrees, not radians
+    * @param solarIrradiance
+    *        The solar irradiance value, generally in W/m^2*um.  Must be the
+    *        irradiance values for a Earth-Sun distance of 1 Astronomical Unit (AU).
+    * @param date
+    *        The date and time, in order to remove differences in solar illumination
+    *        based upon the distance from the sun.
+    *
+    * @return The reflectance factor.  A value of 1.0 will be returned in the case that
+    *         a divide-by-zero would otherwise occur.
+    */
+   double determineReflectanceConversionFactor(double solarElevationAngleInDegrees,
+      double solarIrradiance, const DateTime& date);
+
+   /**
+    * Calculates the julian day using both the date and time information in pDate.
+    *
+    * @param dateTime
+    *        The date and time.
+    *
+    * @return The resulting julian day.
+    */
+   double determineJulianDay(const DateTime& dateTime);
+
+   /**
+    * Calculates the earth-sun distance for the given date and time.
+    *
+    * @param date
+    *        The date and time.
+    *
+    * @return The earth-sun distance in Astronomical Units (AU).
+    */
+   double determineEarthSunDistance(const DateTime& date);
 }
 
 #endif

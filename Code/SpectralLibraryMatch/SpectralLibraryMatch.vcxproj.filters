@@ -60,6 +60,9 @@
     <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_ResultsPage.cpp">
       <Filter>moc</Filter>
     </ClCompile>
+    <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_ResultsSortFilter.cpp">
+      <Filter>moc</Filter>
+    </ClCompile>
     <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_SpectralLibraryManager.cpp">
       <Filter>moc</Filter>
     </ClCompile>
@@ -72,12 +75,27 @@
     <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_SpectralLibraryMatchTools.cpp">
       <Filter>moc</Filter>
     </ClCompile>
+    <ClCompile Include="ResultsItemModel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ResultsSortFilter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ResultsItem.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SpectralLibraryMatch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SpectralLibraryMatchId.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ResultsItemModel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ResultsItem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -92,6 +110,9 @@
       <Filter>Header Files</Filter>
     </CustomBuild>
     <CustomBuild Include="ResultsPage.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="ResultsSortFilter.h">
       <Filter>Header Files</Filter>
     </CustomBuild>
     <CustomBuild Include="SpectralLibraryManager.h">

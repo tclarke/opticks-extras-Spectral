@@ -27,6 +27,9 @@
 #include "TypesFile.h"
 #include "Wavelengths.h"
 
+#include <QtCore/QtConcurrentMap>
+#include <QtCore/QDate>
+
 #include <vector>
 #include <string>
 
@@ -40,6 +43,75 @@ namespace
          accum[band] += pPtr[band];
       }
    }
+
+#ifndef QT_NO_CONCURRENT
+   struct GlobalMeansMap
+   {
+      typedef unsigned int input_type;
+      typedef std::vector<double> result_type;
+
+      const RasterElement* mpElement;
+      const RasterDataDescriptor* mpDesc;
+      int mBands;
+      EncodingType mEncoding;
+      BitMaskIterator& mIter;
+      unsigned int mStartCol;
+      unsigned int mEndCol;
+
+      GlobalMeansMap(const RasterElement* pElement, BitMaskIterator& iter) : mpElement(pElement),
+         mIter(iter), mBands(0), mEncoding(INT1SBYTE), mStartCol(0), mEndCol(0)
+      {
+         mpDesc = dynamic_cast<const RasterDataDescriptor*>(mpElement->getDataDescriptor());
+         VERIFYNRV(mpDesc != NULL);
+         mBands = mpDesc->getBandCount();
+         mEncoding = mpDesc->getDataType();
+         mStartCol = mIter.getBoundingBoxStartColumn();
+         mEndCol = mIter.getBoundingBoxEndColumn();
+      }
+
+      result_type operator()(const input_type& row)
+      {
+         std::vector<double> pixelVec(mBands, 0.0);
+         VERIFYRV(mpDesc != NULL, pixelVec);
+         DimensionDescriptor rowDesc = mpDesc->getActiveRow(row);
+         FactoryResource<DataRequest> pReq;
+         pReq->setInterleaveFormat(BIP);
+         pReq->setRows(rowDesc, rowDesc);
+         DataAccessor acc(mpElement->getDataAccessor(pReq.release()));
+         ENSURE(acc.isValid());
+         Service<ModelServices> pModel;
+
+         for (unsigned int col = mStartCol; col <= mEndCol; col++)
+         {
+            if (mIter.getPixel(col, row))
+            {
+               acc->toPixel(row, col);
+               for (int band = 0; band < mBands; ++band)
+               {
+                  double val = pModel->getDataValue(mEncoding, acc->getColumn(), band);
+                  pixelVec.at(band) += val;
+               }
+            }
+         }
+         return pixelVec;
+      }
+   };
+
+   void meansReduce(std::vector<double>& final, const std::vector<double>& intermediate)
+   {
+      if (final.empty())
+      {
+         final = intermediate;
+      }
+      else
+      {
+         for (unsigned int i = 0; i < final.size(); i++)
+         {
+            final[i] += intermediate[i];
+         }
+      }
+   }
+#endif
 }
 
 std::vector<Signature*> SpectralUtilities::extractSignatures(const std::vector<Signature*>& signatures)
@@ -430,4 +502,127 @@ std::vector<Signature*> SpectralUtilities::getAoiSignatures(const AoiElement* pA
    }
 
    return signatures;
+}
+
+#ifndef QT_NO_CONCURRENT
+std::vector<double> SpectralUtilities::calculateMeans(const RasterElement* pElement,
+   BitMaskIterator& iter, ProgressTracker& progress, bool* pAbort)
+{
+   std::vector<double> muMat;
+   VERIFYRV(pElement != NULL, muMat);
+
+   unsigned int count = iter.getCount();
+   if (count == 0)
+   {
+      progress.report("Need to calculate means on at least one pixel.", 100, ERRORS, true);
+      return muMat;
+   }
+   QList<int> rows;
+   unsigned int startRow = iter.getBoundingBoxStartRow();
+   unsigned int endRow = iter.getBoundingBoxEndRow();
+   for (unsigned int row = startRow; row <= endRow; row++)
+   {
+      rows.push_back(row);
+   }
+   // setup the map-reduce and execute with progress reporting
+   GlobalMeansMap meansMap(pElement, iter);
+   QFuture<std::vector<double> > means;
+   means = QtConcurrent::mappedReduced(rows.begin(), rows.end(), meansMap, meansReduce, 
+      QtConcurrent::UnorderedReduce);
+   bool isCancelling = false;
+   while (means.isRunning())
+   {
+      if (isCancelling)
+      {
+         progress.report("Cleaning up processing threads. Please wait.", 99, NORMAL);
+      }
+      else
+      {
+         progress.report("Calculating means",
+               (means.progressValue() - means.progressMinimum()) * 50 /
+               (means.progressMaximum() - means.progressMinimum()), NORMAL);
+         if (pAbort != NULL && *pAbort)
+         {
+            means.cancel();
+            isCancelling = true;
+         }
+      }
+      QThread::yieldCurrentThread();
+   }
+
+   if (means.isCanceled())
+   {
+      progress.report("User canceled operation.", 100, ABORT, true);
+      muMat.clear();
+      return muMat;
+   }
+
+   // complete the mean calculation
+   for (unsigned int i = 0; i < means.result().size(); i++)
+   {
+      muMat.push_back(means.result().at(i) / count);
+   }
+   iter.firstPixel();
+   return muMat;
+}
+#endif
+
+double SpectralUtilities::determineReflectanceConversionFactor(double solarElevationAngleInDegrees,
+   double solarIrradiance, const DateTime& date)
+{
+   double earthSunDistance = determineEarthSunDistance(date);
+   double solarZenithAngleInDegrees = 90.0 - solarElevationAngleInDegrees;
+   double numerator = (earthSunDistance * earthSunDistance) * PI;
+   double denominator = solarIrradiance * cos(solarZenithAngleInDegrees * PI / 180.0);
+   if (fabs(denominator) == 0.0)
+   {
+      return 1.0;
+   }
+   return numerator / denominator;
+}
+
+double SpectralUtilities::determineJulianDay(const DateTime& dateTime)
+{
+   std::string dateStr = dateTime.getFormattedUtc("%Y-%m-%d");
+   QDate date = QDate::fromString(QString::fromStdString(dateStr), Qt::ISODate);
+   double julianDay = date.toJulianDay(); //QtDate only handles date portion
+   if (!dateTime.isTimeValid())
+   {
+      return julianDay;
+   }
+   std::string hourStr = dateTime.getFormattedUtc("%H");
+   std::string minuteStr = dateTime.getFormattedUtc("%M");
+   std::string secondStr = dateTime.getFormattedUtc("%S");
+   if (hourStr.empty() || minuteStr.empty() || secondStr.empty())
+   {
+      return julianDay;
+   }
+   double hour = StringUtilities::fromXmlString<unsigned int>(hourStr);
+   double minute = StringUtilities::fromXmlString<unsigned int>(minuteStr);
+   double second = StringUtilities::fromXmlString<unsigned int>(secondStr);
+   double timeAdjustment = ((hour - 12.0)/24.0) + minute/1440.0 + second/86400.0;
+   julianDay += timeAdjustment;
+   return julianDay;
+   /*
+   Test Code
+   FactoryResource<DateTime> pTempDate;
+   pTempDate->set(2009, 10, 8); 
+   double jul1 = determineJulianDay(pTempDate.get()); //== 2455113
+   pTempDate->set(2009, 10, 8, 2, 10, 55); 
+   double jul2 = determineJulianDay(pTempDate.get()); //== 2455112.5909143519
+   pTempDate->set(2009, 10, 8, 12, 0, 0); 
+   double jul3 = determineJulianDay(pTempDate.get()); //== 2455113
+   pTempDate->set(2009, 10, 8, 22, 50, 7); 
+   double jul4 = determineJulianDay(pTempDate.get()); //== 2455113.4514699075
+   */
+}
+
+double SpectralUtilities::determineEarthSunDistance(const DateTime& date)
+{
+   //from http://www.digitalglobe.com/downloads/spacecraft/Radiometric_Use_of_WorldView-2_Imagery.pdf
+   double julianDay = determineJulianDay(date);
+   double d = julianDay - 2451545.0;
+   double gInRadians = (357.529 + 0.98560028 * d) * (PI / 180.0);
+   double earthSunDistance = 1.00014 - 0.01671 * cos(gInRadians) - 0.00014 * cos(2 * gInRadians);
+   return earthSunDistance; //in AU - Astronomical Units, expect between 0.983 and 1.017
 }

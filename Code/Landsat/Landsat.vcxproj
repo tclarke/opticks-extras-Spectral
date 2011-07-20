@@ -55,6 +55,9 @@
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Qt-Release.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Xerces-Release.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\pthreads.props" />
+    <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\libtiff.props" />
+    <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\geotiff.props" />
+    <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\proj4.props" />
     <Import Project="..\CompileSettings\SpectralCommon.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
@@ -66,6 +69,9 @@
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Qt-Debug.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Xerces-Debug.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\pthreads.props" />
+    <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\libtiff.props" />
+    <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\geotiff.props" />
+    <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\proj4.props" />
     <Import Project="..\CompileSettings\SpectralCommon.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
@@ -77,6 +83,9 @@
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Qt-Release.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Xerces-Release.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\pthreads.props" />
+    <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\libtiff.props" />
+    <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\geotiff.props" />
+    <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\proj4.props" />
     <Import Project="..\CompileSettings\SpectralCommon.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
@@ -88,6 +97,9 @@
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Qt-Debug.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Xerces-Debug.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\pthreads.props" />
+    <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\libtiff.props" />
+    <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\geotiff.props" />
+    <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\proj4.props" />
     <Import Project="..\CompileSettings\SpectralCommon.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
@@ -203,15 +215,39 @@
   <ItemGroup>
     <ClCompile Include="BandResamplePager.cpp" />
     <ClCompile Include="LandsatEtmPlusImporter.cpp" />
+    <ClCompile Include="LandsatGeotiffImporter.cpp" />
+    <ClCompile Include="LandsatGeotiffRasterPager.cpp" />
     <ClCompile Include="LandsatTmImporter.cpp" />
     <ClCompile Include="LandsatUtilities.cpp" />
     <ClCompile Include="ModuleManager.cpp" />
-  </ItemGroup>
+    <ClCompile Include="OptionsLandsatImport.cpp" />
+    <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_OptionsLandsatImport.cpp" />
+</ItemGroup>
   <ItemGroup>
     <ClInclude Include="BandResamplePager.h" />
     <ClInclude Include="LandsatEtmPlusImporter.h" />
+    <ClInclude Include="LandsatGeotiffImporter.h" />
+    <ClInclude Include="LandsatGeotiffRasterPager.h" />
     <ClInclude Include="LandsatTmImporter.h" />
     <ClInclude Include="LandsatUtilities.h" />
+    <CustomBuild Include="OptionsLandsatImport.h">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing %(Filename).h...</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(QTBIN)\moc.exe" "%(FullPath)" -o "$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Moc%27ing %(Filename).h...</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(QTBIN)\moc.exe" "%(FullPath)" -o "$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Moc%27ing %(Filename).h...</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTBIN)\moc.exe" "%(FullPath)" -o "$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Moc%27ing %(Filename).h...</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(QTBIN)\moc.exe" "%(FullPath)" -o "$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp;%(Outputs)</Outputs>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <None Include="Landsat.rationale" />

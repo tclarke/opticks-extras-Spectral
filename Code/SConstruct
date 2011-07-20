@@ -167,6 +167,8 @@ if OS != "windows":
 ignore = Split(env['ignore'])
 if OS == "solaris":
   ignore.append("Rx")
+  ignore.append("Tad")
+  ignore.append("Ace")
 
 plugins = map(lambda x: os.path.basename(x),
               map(lambda x: x[0],
