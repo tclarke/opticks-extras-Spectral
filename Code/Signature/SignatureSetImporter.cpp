@@ -246,7 +246,9 @@ bool SignatureSetImporter::execute(PlugInArgList* pInArgList, PlugInArgList* Out
             }
          }
 
-         ImporterResource importer("Auto Importer", filename, pProgress);
+         // don't pass progress to importer - the individual signature imports are rapid and passing progress will
+         // cause isAborted() to not function properly.
+         ImporterResource importer("Auto Importer", filename, NULL);
          if (importer->getPlugIn() == NULL)
          {
             progress.report("The \"Auto Importer\" is not available and is required to import signature sets.", 0, ERRORS, true);
