@@ -174,7 +174,7 @@ bool RangeProfileImporter::execute(PlugInArgList* pInArgList, PlugInArgList* pOu
       dataLists[name] = std::vector<double>();
    }
    qint64 lastPos = instream.pos();
-   while(!instream.atEnd())
+   while(!instream.atEnd() && lastPos > 0)  // in Solaris: atEnd() doesn't work but pos() returns 0 when at end of file
    {
       foreach(QString name, columnNames)
       {
