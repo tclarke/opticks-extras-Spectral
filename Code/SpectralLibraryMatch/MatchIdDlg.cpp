@@ -155,7 +155,9 @@ MatchIdDlg::MatchIdDlg(const RasterElement* pRaster, QWidget* pParent) :
       Layer* pLayer = pView->getActiveLayer();
       if (pLayer != NULL)
       {
-         DataElement* pElement = pLayer->getDataElement();
+         // set index to first entry just in case the active layer is not an AOI layer
+         mpAoiCombo->setCurrentIndex(0);
+         AoiElement* pElement = dynamic_cast<AoiElement*>(pLayer->getDataElement());
          if (pElement != NULL)
          {
             std::string elementName = pElement->getName();
