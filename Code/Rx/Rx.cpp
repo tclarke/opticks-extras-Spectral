@@ -410,6 +410,27 @@ bool Rx::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
       components = dlg.getSubspaceComponents();
    }
 
+   if (pAoi != NULL)
+   {
+      BitMaskIterator bit(pAoi->getSelectedPoints(), pElement);
+
+      // check for empty AOI
+      if (bit == bit.end())
+      {
+         progress.report("The AOI is empty - no pixels are selected.", 
+            0, ERRORS, true);
+         return false;
+      }
+
+      // check for more than one pixel in the AOI. Don't need expense of calling getCount(), just need to increment bit
+      bit.nextPixel();
+      if (bit == bit.end())
+      {
+         progress.report("The AOI contains only one pixel. There must be at least two pixels in the AOI.", 
+            0, ERRORS, true);
+         return false;
+      }
+   }
    if (useLocal && (localWidth < 3 || localHeight < 3 || localWidth % 2 == 0 || localHeight % 2 == 0))
    {
       progress.report("Invalid local neighborhood size. Width and height must be at least 3 and odd.", 
