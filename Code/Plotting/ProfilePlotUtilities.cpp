@@ -120,6 +120,7 @@ void ProfilePlotUtilities::clearPlot(RasterLayer* pLayer)
       {
          pPlot->deleteObject(*obj);
       }
+      pPlot->refresh();
    }
 }
 
