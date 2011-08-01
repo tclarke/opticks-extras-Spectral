@@ -150,7 +150,15 @@ double SpectralSignatureSelector::getThreshold() const
 
 void SpectralSignatureSelector::setThreshold(double val)
 {
-   mpThreshold->setValue(val);
+   if (mpThreshold != NULL)
+   {
+      mpThreshold->setValue(val);
+   }
+}
+
+bool SpectralSignatureSelector::getModified() const
+{
+   return isApplyButtonEnabled();
 }
 
 AoiElement* SpectralSignatureSelector::getAoi() const
@@ -303,6 +311,11 @@ void SpectralSignatureSelector::apply()
          }
       }
    }
+}
+
+void SpectralSignatureSelector::setModified()
+{
+   enableApplyButton(true);
 }
 
 void SpectralSignatureSelector::refreshAoiList()
