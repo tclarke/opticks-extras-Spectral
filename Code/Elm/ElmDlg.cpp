@@ -222,6 +222,12 @@ ElmDlg::~ElmDlg()
 
 void ElmDlg::viewDeleted(Subject& subject, const std::string& signal, const boost::any& value)
 {
+   Step* pStep = mpElmInteractive->getLogStep();
+   if (pStep != NULL)
+   {
+      pStep->finalize(Message::Abort, "Spatial data view closed");
+   }
+
    reject();
 }
 
@@ -378,7 +384,30 @@ void ElmDlg::accept()
       return;
    }
 
+   Step* pStep = mpElmInteractive->getLogStep();
+   if (pStep != NULL)
+   {
+      pStep->finalize(Message::Success);
+   }
+
    QDialog::accept();
+   mpElmInteractive->abort();
+}
+
+void ElmDlg::reject()
+{
+   Step* pStep = mpElmInteractive->getLogStep();
+   if (pStep != NULL)
+   {
+      const string& abortMessage = pStep->getFailureMessage();
+      if (abortMessage.empty() == true)
+      {
+         pStep->finalize(Message::Abort, "ELM dialog canceled");
+      }
+   }
+
+   QDialog::reject();
+   mpElmInteractive->abort();
 }
 
 void ElmDlg::deletePixels()

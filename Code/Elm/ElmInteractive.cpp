@@ -12,6 +12,7 @@
 #include "ElmDlg.h"
 #include "ElmInteractive.h"
 #include "PlugInArgList.h"
+#include "PlugInManagerServices.h"
 #include "PlugInRegistration.h"
 #include "Progress.h"
 #include "SpatialDataView.h"
@@ -22,28 +23,29 @@ using namespace std;
 REGISTER_PLUGIN_BASIC(SpectralElm, ElmInteractive);
 
 ElmInteractive::ElmInteractive() :
-   mpStep(NULL),
-   mpView(NULL)
+   mpView(NULL),
+   mpDialog(NULL),
+   mpStep(NULL)
 {
    setCreator("Ball Aerospace & Technologies Corp.");
    setCopyright(SPECTRAL_COPYRIGHT);
    setVersion(SPECTRAL_VERSION_NUMBER);
    setProductionStatus(SPECTRAL_IS_PRODUCTION_RELEASE);
    setName("ELM Interactive");
+   setType(PlugInManagerServices::AlgorithmType());
    setDescription("ELM Interactive");
    setShortDescription("ELM Interactive");
    setDescriptorId("{5760F07A-FFCA-47bf-907C-4DBBEB7BD969}");
    setMenuLocation("[Spectral]\\Preprocessing\\ELM");
+   setWizardSupported(false);
 }
 
 ElmInteractive::~ElmInteractive()
-{
-   // Do nothing
-}
+{}
 
 bool ElmInteractive::setBatch()
 {
-   AlgorithmShell::setBatch();
+   ViewerShell::setBatch();
    return false;
 }
 
@@ -69,6 +71,11 @@ bool ElmInteractive::getOutputSpecification(PlugInArgList*& pArgList)
 {
    pArgList = NULL;
    return !isBatch();
+}
+
+Step* ElmInteractive::getLogStep()
+{
+   return mpStep.get();
 }
 
 bool ElmInteractive::extractInputArgs(PlugInArgList* pInputArgList)
@@ -114,19 +121,18 @@ bool ElmInteractive::execute(PlugInArgList* pInputArgList, PlugInArgList* pOutpu
       return false;
    }
 
-   Service<DesktopServices> pDesktopServices;
-   ElmDlg elmDlg(mpView, this, pDesktopServices->getMainWidget());
-
    // Invoke the dialog as a modeless dialog
-   elmDlg.show();
-
-   // Start an event loop that will prevent execution from continuing until the user dismisses the dialog
-   if (elmDlg.exec() == QDialog::Rejected)
+   if (mpDialog == NULL)
    {
-      mpStep->finalize(Message::Abort);
-      return false;
+      Service<DesktopServices> pDesktopServices;
+      mpDialog = new ElmDlg(mpView, this, pDesktopServices->getMainWidget());
    }
 
-   mpStep->finalize(Message::Success);
+   mpDialog->show();
    return true;
+}
+
+QWidget* ElmInteractive::getWidget() const
+{
+   return mpDialog;
 }

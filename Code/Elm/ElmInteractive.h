@@ -10,28 +10,34 @@
 #ifndef ELMINTERACTIVE_H
 #define ELMINTERACTIVE_H
 
-#include "AlgorithmShell.h"
 #include "MessageLogResource.h"
 #include "ElmCore.h"
+#include "ViewerShell.h"
 
+class ElmDlg;
 class SpatialDataView;
+class Step;
 
-class ElmInteractive : public AlgorithmShell, public ElmCore
+class ElmInteractive : public ViewerShell, public ElmCore
 {
 public:
    ElmInteractive();
    virtual ~ElmInteractive();
 
-   bool setBatch();
-   bool getInputSpecification(PlugInArgList*& pArgList);
-   bool getOutputSpecification(PlugInArgList*& pArgList);
-   bool execute(PlugInArgList* pInputArgList, PlugInArgList* pOutputArgList);
+   virtual bool setBatch();
+   virtual bool getInputSpecification(PlugInArgList*& pArgList);
+   virtual bool getOutputSpecification(PlugInArgList*& pArgList);
+   virtual bool execute(PlugInArgList* pInputArgList, PlugInArgList* pOutputArgList);
+
+   Step* getLogStep();
 
 protected:
    bool extractInputArgs(PlugInArgList* pInputArgList);
+   virtual QWidget* getWidget() const;
 
 private:
    SpatialDataView* mpView;
+   ElmDlg* mpDialog;
    StepResource mpStep;
 };
 

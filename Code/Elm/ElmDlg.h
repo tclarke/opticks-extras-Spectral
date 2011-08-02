@@ -43,6 +43,7 @@ private slots:
    void newElement();
    void deleteElement();
    void accept();
+   void reject();
    void deletePixels();
    void selectSignature();
    void help();
