@@ -736,8 +736,7 @@ bool SignaturePlotObject::eventFilter(QObject* pObject, QEvent* pEvent)
                   Locator* pLocator = pPlotView->getMouseLocator();
                   if (pLocator != NULL)
                   {
-                     LocationType locatorPoint = getClosestBandLocation(LocationType(ptMouse.x(), ptMouse.y()));
-
+                     LocationType locatorPoint = getClosestActiveBandLocation(ptMouse);
                      pLocator->setVisible(true);
                      pLocator->setLocation(locatorPoint);
                      pLocator->setColor(activeColor);
@@ -769,7 +768,7 @@ bool SignaturePlotObject::eventFilter(QObject* pObject, QEvent* pEvent)
                   Locator* pLocator = pPlotView->getMouseLocator();
                   if (pLocator != NULL)
                   {
-                     LocationType locatorPoint = getClosestBandLocation(LocationType(ptMouse.x(), ptMouse.y()));
+                     LocationType locatorPoint = getClosestActiveBandLocation(ptMouse);
                      pLocator->setLocation(locatorPoint);
                   }
 
@@ -789,43 +788,13 @@ bool SignaturePlotObject::eventFilter(QObject* pObject, QEvent* pEvent)
             {
                if (modeName == "LocatorMode")
                {
-                  double dValue = 0.0;
-
-                  Locator* pLocator = pPlotView->getMouseLocator();
-                  if (pLocator != NULL)
+                  QPoint ptMouse = pMouseEvent->pos();
+                  if (pViewWidget != NULL)
                   {
-                     LocationType location = pLocator->getLocation();
-                     dValue = location.mX;
+                     ptMouse.setY(pViewWidget->height() - pMouseEvent->pos().y());
                   }
 
-                  DimensionDescriptor bandDim;
-                  if (mpBandDisplayAction->isChecked() == true)
-                  {
-                     if (mpRasterLayer.get() != NULL)
-                     {
-                        DataElement* pElement = mpRasterLayer->getDataElement();
-                        if (pElement != NULL)
-                        {
-                           const DataDescriptor* pDescriptor = pElement->getDataDescriptor();
-                           if (pDescriptor != NULL)
-                           {
-                              const RasterFileDescriptor* pFileDescriptor =
-                                 dynamic_cast<const RasterFileDescriptor*>(pDescriptor->getFileDescriptor());
-                              if (pFileDescriptor != NULL)
-                              {
-                                 bandDim =
-                                    pFileDescriptor->getOriginalBand(static_cast<unsigned int>(dValue - 1 + 0.5));
-                              }
-                           }
-                        }
-                     }
-                  }
-                  else
-                  {
-                     bandDim = getBandFromWavelength(dValue);
-                  }
-
-                  bandDim = getClosestActiveBand(bandDim);
+                  DimensionDescriptor bandDim = getClosestActiveBand(ptMouse);
                   setDisplayBand(meActiveBandColor, bandDim);
 
                   meActiveBandColor = RasterChannelType();
@@ -2786,70 +2755,24 @@ DimensionDescriptor SignaturePlotObject::getBandFromWavelength(double dWavelengt
    return foundBand;
 }
 
-DimensionDescriptor SignaturePlotObject::getClosestActiveBand(DimensionDescriptor band) const
+DimensionDescriptor SignaturePlotObject::getClosestActiveBand(const QPoint& screenCoord) const
 {
-   if ((mpRasterLayer.get() == NULL) || (band.isValid() == false))
+   if (mpPlotWidget == NULL)
    {
       return DimensionDescriptor();
    }
 
-   DataElement* pElement = mpRasterLayer->getDataElement();
-   if (pElement == NULL)
-   {
-      return DimensionDescriptor();
-   }
-
-   const RasterDataDescriptor* pDescriptor =
-      dynamic_cast<const RasterDataDescriptor*>(pElement->getDataDescriptor());
-   if (pDescriptor == NULL)
-   {
-      return DimensionDescriptor();
-   }
-
-   unsigned int originalNumber = band.getOriginalNumber();
-
-   DimensionDescriptor closestBand;
-   unsigned int ulOldDist = numeric_limits<unsigned int>::max();
-
-   const vector<DimensionDescriptor>& activeBands = pDescriptor->getBands();
-   for (unsigned int i = 0; i < activeBands.size(); i++)
-   {
-      DimensionDescriptor bandDim = activeBands[i];
-      if (bandDim.isOriginalNumberValid())
-      {
-         unsigned int ulBand = bandDim.getOriginalNumber();
-         unsigned int ulDist = abs(static_cast<int>(ulBand) - static_cast<int>(originalNumber));
-
-         if (ulDist < ulOldDist)
-         {
-            closestBand = bandDim;
-            ulOldDist = ulDist;
-         }
-      }
-   }
-   return closestBand;
-}
-
-LocationType SignaturePlotObject::getClosestBandLocation(const LocationType& plotPoint) const
-{
-   LocationType bandPoint;
-
-   PlotView* pPlotView = NULL;
-   if (mpPlotWidget != NULL)
-   {
-      pPlotView = mpPlotWidget->getPlot();
-   }
-
+   PlotView* pPlotView = mpPlotWidget->getPlot();
    if (pPlotView == NULL)
    {
-      return bandPoint;
+      return DimensionDescriptor();
    }
 
-   double dXValue = 0.0;
-   double dYValue = 0.0;
-   pPlotView->translateScreenToData(plotPoint.mX, plotPoint.mY, dXValue, dYValue);
+   double dataX = 0.0;
+   double dataY = 0.0;
+   pPlotView->translateScreenToData(screenCoord.x(), screenCoord.y(), dataX, dataY);
 
-   DimensionDescriptor bandDim;
+   DimensionDescriptor closestBand;
    if (mpBandDisplayAction->isChecked() == true)
    {
       if (mpRasterLayer.get() != NULL)
@@ -2857,20 +2780,36 @@ LocationType SignaturePlotObject::getClosestBandLocation(const LocationType& plo
          DataElement* pElement = mpRasterLayer->getDataElement();
          if (pElement != NULL)
          {
-            const DataDescriptor* pDescriptor = pElement->getDataDescriptor();
-            if (pDescriptor != NULL)
+            const RasterDataDescriptor* pDescriptor =
+               dynamic_cast<const RasterDataDescriptor*>(pElement->getDataDescriptor());
+            if (pDescriptor == NULL)
             {
-               const RasterFileDescriptor* pFileDescriptor =
-                  dynamic_cast<const RasterFileDescriptor*>(pDescriptor->getFileDescriptor());
-               if (pFileDescriptor != NULL)
-               {
-                  unsigned int originalBand = 0;
-                  if (dXValue > 0.5)
-                  {
-                     originalBand = static_cast<unsigned int>(dXValue + 0.5) - 1;
-                  }
+               return DimensionDescriptor();
+            }
 
-                  bandDim = pFileDescriptor->getOriginalBand(originalBand);
+            unsigned int originalNumber = 0;
+            if (dataX > 0.5)
+            {
+               originalNumber = static_cast<unsigned int>(dataX + 0.5) - 1;
+            }
+
+            unsigned int oldDist = numeric_limits<unsigned int>::max();
+
+            const vector<DimensionDescriptor>& activeBands = pDescriptor->getBands();
+            for (unsigned int i = 0; i < activeBands.size(); i++)
+            {
+               DimensionDescriptor currentBand = activeBands[i];
+               if (currentBand.isOriginalNumberValid() == true)
+               {
+                  unsigned int currentOriginalNumber = currentBand.getOriginalNumber();
+                  unsigned int dist = (currentOriginalNumber > originalNumber) ?
+                     currentOriginalNumber - originalNumber : originalNumber - currentOriginalNumber;
+
+                  if (dist < oldDist)
+                  {
+                     closestBand = currentBand;
+                     oldDist = dist;
+                  }
                }
             }
          }
@@ -2878,28 +2817,46 @@ LocationType SignaturePlotObject::getClosestBandLocation(const LocationType& plo
    }
    else
    {
-      bandDim = getBandFromWavelength(dXValue);
+      closestBand = getBandFromWavelength(dataX);
    }
 
-   DimensionDescriptor activeBand = getClosestActiveBand(bandDim);
-   if (activeBand.isValid() == false)
+   return closestBand;
+}
+
+LocationType SignaturePlotObject::getClosestActiveBandLocation(const QPoint& screenCoord) const
+{
+   DimensionDescriptor closestBand = getClosestActiveBand(screenCoord);
+   if (closestBand.isValid() == false)
    {
-      return bandPoint;
+      return LocationType();
    }
 
+   if (mpPlotWidget == NULL)
+   {
+      return LocationType();
+   }
+
+   PlotView* pPlotView = mpPlotWidget->getPlot();
+   if (pPlotView == NULL)
+   {
+      return LocationType();
+   }
+
+   double dataX = 0.0;
+   double dataY = 0.0;
+   pPlotView->translateScreenToData(screenCoord.x(), screenCoord.y(), dataX, dataY);
+
+   LocationType dataCoord(dataX, dataY);
    if (mpBandDisplayAction->isChecked() == true)
    {
-      dXValue = activeBand.getOriginalNumber() + 1;
+      dataCoord.mX = closestBand.getOriginalNumber() + 1;
    }
    else
    {
-      dXValue = getWavelengthFromBand(activeBand);
+      dataCoord.mX = getWavelengthFromBand(closestBand);
    }
 
-   bandPoint.mX = dXValue;
-   bandPoint.mY = dYValue;
-
-   return bandPoint;
+   return dataCoord;
 }
 
 void SignaturePlotObject::updateRegions()

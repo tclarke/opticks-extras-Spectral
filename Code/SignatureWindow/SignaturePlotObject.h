@@ -589,16 +589,6 @@ protected:
    DimensionDescriptor getBandFromWavelength(double dWavelength) const;
 
    /**
-    *  Returns the closest active band to the given spectral band.
-    *
-    *  @param    band
-    *            The band for which to get its closest band based on the original number.
-    *
-    *  @return   The active band closest to the given band.
-    */
-   DimensionDescriptor getClosestActiveBand(DimensionDescriptor band) const;
-
-   /**
     *  Queries whether a signature is from the associated data set.
     *
     *  This method compares the given signature wavelengths with the wavelengths of the
@@ -858,7 +848,8 @@ private:
    void setXAxisTitle();
    void setYAxisTitle();
    void setSignaturePlotValues(CurveCollection* pCollection, Signature* pSignature);
-   LocationType getClosestBandLocation(const LocationType& plotPoint) const;
+   DimensionDescriptor getClosestActiveBand(const QPoint& screenCoord) const;
+   LocationType getClosestActiveBandLocation(const QPoint& screenCoord) const;
 };
 
 #endif
