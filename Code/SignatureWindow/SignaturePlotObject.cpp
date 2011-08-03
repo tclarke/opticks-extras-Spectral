@@ -1531,18 +1531,27 @@ void SignaturePlotObject::enableBandCharacteristics(bool bEnable)
             {
                bool bLoaded = true;
                double regionStart = 1.0;
+               double regionEnd = 1.0;
                RegionObject* pRegion = NULL;
 
                for (unsigned int i = 0; i <= allBands.size(); i++)
                {
+                  unsigned int bandNumber = i;
                   bool bCurrentLoaded = true;
                   if (i < allBands.size())
                   {
                      DimensionDescriptor bandDim = allBands[i];
+                     if (bandDim.isOriginalNumberValid() == true)
+                     {
+                        bandNumber = bandDim.getOriginalNumber();
+                     }
+
                      vector<DimensionDescriptor>::iterator iter = find(activeBands.begin(), activeBands.end(), bandDim);
                      bCurrentLoaded = (iter != activeBands.end());
                   }
 
+                  bool startRegion = false;
+                  bool endRegion = false;
                   if ((bLoaded != bCurrentLoaded) || (i == allBands.size()))
                   {
                      if (i == allBands.size())
@@ -1556,36 +1565,50 @@ void SignaturePlotObject::enableBandCharacteristics(bool bEnable)
 
                      if (bLoaded == false)
                      {
-                        if (pRegion == NULL)
-                        {
-                           pRegion = static_cast<RegionObject*>(pPlotView->addObject(REGION, false));
-                           if (pRegion != NULL)
-                           {
-                              regionStart = i + 0.5;
-                              ColorType regionColor(mRegionColor.red(), mRegionColor.green(), mRegionColor.blue());
-
-                              pRegion->setVisible(mDisplayRegions);
-                              pRegion->setColor(regionColor);
-                              pRegion->setTransparency(mRegionOpacity);
-                           }
-                        }
+                        startRegion = true;
                      }
                      else
                      {
-                        // Set the region
-                        if (pRegion != NULL)
-                        {
-                           LocationType llCorner, ulCorner, urCorner, lrCorner;
-                           pPlotView->getVisibleCorners(llCorner, ulCorner, urCorner, lrCorner);
-
-                           double dMinY = llCorner.mY;
-                           double dMaxY = ulCorner.mY;
-
-                           pRegion->setRegion(regionStart, dMinY, i + 0.5, dMaxY);
-                           pRegion = NULL;
-                        }
+                        endRegion = true;
                      }
                   }
+                  else if ((bLoaded == bCurrentLoaded) && (regionEnd != (bandNumber + 0.5)))
+                  {
+                     if (bLoaded == false)
+                     {
+                        endRegion = true;
+                        startRegion = true;
+                     }
+                  }
+
+                  if (endRegion == true)
+                  {
+                     VERIFYNRV(pRegion != NULL);
+
+                     LocationType llCorner, ulCorner, urCorner, lrCorner;
+                     pPlotView->getVisibleCorners(llCorner, ulCorner, urCorner, lrCorner);
+
+                     pRegion->setRegion(regionStart, llCorner.mY, regionEnd, ulCorner.mY);
+                     pRegion = NULL;
+                  }
+
+                  if (startRegion == true)
+                  {
+                     VERIFYNRV(pRegion == NULL);
+
+                     pRegion = static_cast<RegionObject*>(pPlotView->addObject(REGION, false));
+                     if (pRegion != NULL)
+                     {
+                        regionStart = bandNumber + 0.5;
+                        ColorType regionColor(mRegionColor.red(), mRegionColor.green(), mRegionColor.blue());
+
+                        pRegion->setVisible(mDisplayRegions);
+                        pRegion->setColor(regionColor);
+                        pRegion->setTransparency(mRegionOpacity);
+                     }
+                  }
+
+                  regionEnd = bandNumber + 1.5;
                }
             }
          }
