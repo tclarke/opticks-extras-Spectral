@@ -88,6 +88,7 @@ private:
    std::vector<double> mSignalBandMeans;
    bool mbUseTransformFile;
    std::string mTransformFilename;
+   std::string mSaveCoefficientsFilename;
    bool mbUseAoi;
    AoiElement* mpProcessingAoi;
    AoiElement* mpNoiseAoi;

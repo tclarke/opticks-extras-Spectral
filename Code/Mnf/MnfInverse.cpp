@@ -17,6 +17,7 @@
 #include "Filename.h"
 #include "FileResource.h"
 #include "MatrixFunctions.h"
+#include "MessageLogResource.h"
 #include "MnfInverse.h"
 #include "ObjectResource.h"
 #include "PlugInArgList.h"
@@ -97,19 +98,28 @@ bool MnfInverse::getOutputSpecification(PlugInArgList*& pArgList)
 
 bool MnfInverse::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
 {
+   StepResource pStep("Perform Inverse MNF", "spectral", "A1E227B6-1480-4596-8FAB-8AD17C4243B5");
+   mpStep = pStep.get();
+
    VERIFY(pInArgList != NULL);
-   mProgress.initialize(pInArgList->getPlugInArgValue<Progress>(Executable::ProgressArg()),
-      "Perform Inverse MNF", "app", "A1E227B6-1480-4596-8FAB-8AD17C4243B5");
+   mpProgress = pInArgList->getPlugInArgValue<Progress>(Executable::ProgressArg());
 
    if (!extractInputArgs(pInArgList))
    {
-      mProgress.report("Unable to extract arguments.", 0, ERRORS, true);
+      if (mMessage.empty())
+      {
+         mMessage = "Unable to extract arguments.";
+      }
+      updateProgress(mMessage, 0, ERRORS);
+      pStep->finalize(Message::Failure, mMessage);
       return false;
    }
 
    if (mpRaster == NULL)
    {
-      mProgress.report("No raster element available.", 0, ERRORS, true);
+      mMessage = "No raster element available.";
+      updateProgress(mMessage, 0, ERRORS);
+      pStep->finalize(Message::Failure, mMessage);
       return false;
    }
 
@@ -136,7 +146,8 @@ bool MnfInverse::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
          "MNF files (*.mnf);;All Files (*)");
       if (filename.isEmpty())
       {
-         mProgress.report("MNF Inverse aborted by user", 0, ABORT, true);
+         mMessage = "MNF Inverse aborted by user";
+         pStep->finalize(Message::Abort, mMessage);
          return false;
       }
 
@@ -145,18 +156,24 @@ bool MnfInverse::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
 
    if (mTransformFilename.empty())
    {
-      mProgress.report("No MNF transform filename provided.", 0, ERRORS, true);
+      mMessage = "No MNF transform filename provided.";
+      updateProgress(mMessage, 0, ERRORS);
+      pStep->finalize(Message::Failure, mMessage);
       return false;
    }
-   
-   mProgress.getCurrentStep()->addProperty("Transform Filename", mTransformFilename);
+
+   pStep->addProperty("Transform Filename", mTransformFilename);
 
    unsigned int bandsInTransform(0);
    unsigned int numComponents(0);
    if (!getInfoFromTransformFile(mTransformFilename, bandsInTransform, numComponents))
    {
-      mMessage = "The transform file is invalid.";
-      mProgress.report(mMessage, 0, ERRORS, true);
+      if (mMessage.empty())
+      {
+         mMessage = "The transform file is invalid.";
+      }
+      updateProgress(mMessage, 0, ERRORS);
+      pStep->finalize(Message::Failure, mMessage);
       return false;
    }
 
@@ -167,21 +184,24 @@ bool MnfInverse::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
    wavelengths.reserve(bandsInTransform);
    if (!readInMnfTransform(mTransformFilename, pTransformMatrix, wavelengths))
    {
-      // error message sent in readInTransform
+      updateProgress(mMessage, 0, ERRORS);
+      pStep->finalize(Message::Failure, mMessage);
       return false;
    }
 
-   mProgress.report("Inverting Transform Matrix. This will take some time and "
-      "no progress updates will occur....", 0, NORMAL);
+   std::string localMsg = "Inverting Transform Matrix. This will take some time and no progress updates will occur...";
+   updateProgress(localMsg, 0, NORMAL);
    MatrixFunctions::MatrixResource<double> pInverseMatrix(bandsInTransform, numComponents);
    double** pInverse = pInverseMatrix;
    if (!MatrixFunctions::invertSquareMatrix2D(pInverse, const_cast<const double**>(pMatrix), bandsInTransform))
    {
       mMessage = "Error occurred computing inverse of the MNF transform.";
-      mProgress.report(mMessage, 0, ERRORS, true);
+      updateProgress(mMessage, 0, ERRORS);
+      pStep->finalize(Message::Failure, mMessage);
       return false;
    }
-   mProgress.report("Inverting Transform Matrix finished", 100, NORMAL);
+   localMsg = "Inverting Transform Matrix finished.";
+   updateProgress(localMsg, 100, NORMAL);
 
    FactoryResource<Filename> pInvRasterName;
    pInvRasterName->setFullPathAndName(mpRaster->getName());
@@ -196,7 +216,8 @@ bool MnfInverse::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
       {
          mMessage = "Unable to create the inverse raster element";
       }
-      mProgress.report(mMessage, 0, ERRORS);
+      updateProgress(mMessage, 0, ERRORS);
+      pStep->finalize(Message::Failure, mMessage);
       return false;
    }
 
@@ -216,14 +237,17 @@ bool MnfInverse::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
    {
       if (isAborted())
       {
-         mProgress.report("Inverse MNF transform canceled", 0, ABORT);
+         localMsg = "Inverse MNF transform canceled";
+         updateProgress(localMsg, 0, ABORT);
+         pStep->finalize(Message::Abort, localMsg);
          return false;
       }
       if (mMessage.empty())
       {
          mMessage = "Unable to compute the inverse.";
       }
-      mProgress.report(mMessage, 0, ERRORS);
+      updateProgress(mMessage, 0, ERRORS);
+      pStep->finalize(Message::Failure, mMessage);
       return false;
    }
 
@@ -231,16 +255,27 @@ bool MnfInverse::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
    {
       if (!createInverseView(pInverseRaster.get()))
       {
+         if (isAborted())
+         {
+            localMsg = "Inverse MNF transform canceled";
+            updateProgress(localMsg, 0, ABORT);
+            pStep->finalize(Message::Abort, localMsg);
+            return false;
+         }
          if (mMessage.empty())
          {
             mMessage = "Unable to create the Spatial Data View.";
          }
-         mProgress.report(mMessage, 0, ERRORS);
+         updateProgress(mMessage, 0, ERRORS);
+         pStep->finalize(Message::Failure, mMessage);
          return false;
       }
    }
 
    pOutArgList->setPlugInArgValue<RasterElement>("Inverse MNF Data Cube", pInverseRaster.release());
+   localMsg = "MNF Inverse transform finished";
+   updateProgress(localMsg, 100, NORMAL);
+   pStep->finalize(Message::Success);
    return true;
 }
 
@@ -251,8 +286,7 @@ bool MnfInverse::extractInputArgs(const PlugInArgList* pArgList)
    mpRaster = pArgList->getPlugInArgValue<RasterElement>(Executable::DataElementArg());
    if (mpRaster == NULL)
    {
-      mMessage = "The input raster element was null";
-      mProgress.report(mMessage, 0, ERRORS, true);
+      mMessage = "The input raster element was invalid.";
       return false;
    }
 
@@ -264,7 +298,6 @@ bool MnfInverse::extractInputArgs(const PlugInArgList* pArgList)
    if (dataType != FLT8BYTES || unitName != "MNF Value")
    {
       mMessage = "This is not a valid MNF data set!";
-      mProgress.report(mMessage, 0, ERRORS, true);
       return false;
    }
 
@@ -274,7 +307,6 @@ bool MnfInverse::extractInputArgs(const PlugInArgList* pArgList)
       if (pFilename == NULL)
       {
          mMessage = "The filename of the MNF transform file to use was not provided.";
-         mProgress.report(mMessage, 0, ERRORS, true);
          return false;
       }
 
@@ -282,7 +314,6 @@ bool MnfInverse::extractInputArgs(const PlugInArgList* pArgList)
       if (mTransformFilename.empty())
       {
          mMessage = "The filename of the MNF transform file to use was blank.";
-         mProgress.report(mMessage, 0, ERRORS, true);
          return false;
       }
 
@@ -297,6 +328,7 @@ bool MnfInverse::getInfoFromTransformFile(std::string& filename, unsigned int& n
 {
    if (filename.empty())
    {
+      mMessage = "The transform filename was invalid.";
       return false;
    }
 
@@ -304,7 +336,6 @@ bool MnfInverse::getInfoFromTransformFile(std::string& filename, unsigned int& n
    if (pFile.get() == NULL)
    {
       mMessage = "Unable to open transform file: " + filename;
-      mProgress.report(mMessage, 0, ERRORS, true);
       return false;
    }
 
@@ -312,7 +343,6 @@ bool MnfInverse::getInfoFromTransformFile(std::string& filename, unsigned int& n
    if (numFieldsRead != 1)
    {
       mMessage = "Error reading number of bands from MNF transform file:\n" + filename;
-      mProgress.report(mMessage, 0, ERRORS, true);
       return false;
    }
 
@@ -320,7 +350,6 @@ bool MnfInverse::getInfoFromTransformFile(std::string& filename, unsigned int& n
    if (numFieldsRead != 1)
    {
       mMessage = "Error reading number of components from MNF transform file:\n" + filename;
-      mProgress.report(mMessage, 0, ERRORS, true);
       return false;
    }
 
@@ -338,12 +367,11 @@ bool MnfInverse::readInMnfTransform(const std::string& filename, double** pTrans
    if (pFile.get() == NULL)
    {
       mMessage = "Unable to read MNF transform from file " + filename;
-      mProgress.report(mMessage, 0, ERRORS, true);
       return false;
    }
 
-   mMessage = "Reading MNF transform from file " + filename;
-   mProgress.report(mMessage, 0, NORMAL);
+   std::string msg = "Reading MNF transform from file " + filename;
+   updateProgress(msg, 0, NORMAL);
 
    unsigned int numBands = 0;
    unsigned int numComponents = 0;
@@ -351,7 +379,6 @@ bool MnfInverse::readInMnfTransform(const std::string& filename, double** pTrans
    if (numFieldsRead != 1)
    {
       mMessage = "Error reading number of bands from MNF transform file:\n" + filename;
-      mProgress.report(mMessage, 0, ERRORS, true);
       return false;
    }
 
@@ -359,14 +386,12 @@ bool MnfInverse::readInMnfTransform(const std::string& filename, double** pTrans
    if (numFieldsRead != 1)
    {
       mMessage = "Error reading number of components from MNF transform file:\n" + filename;
-      mProgress.report(mMessage, 0, ERRORS, true);
       return false;
    }
 
    if (numComponents < mNumBands)
    {
       mMessage = "Mismatch between number of bands in cube to invert and number of components in MNF transform file.";
-      mProgress.report(mMessage, 0, ERRORS, true);
       return false;
    }
 
@@ -389,12 +414,11 @@ bool MnfInverse::readInMnfTransform(const std::string& filename, double** pTrans
       {
          break;
       }
-      mProgress.report(mMessage, 100 * row / mNumBands, NORMAL);
+      updateProgress(msg, 100 * row / mNumBands, NORMAL);
    }
    if (!success)
    {
       mMessage = "Error reading MNF transform from disk.";
-      mProgress.report(mMessage, 0, ERRORS);
       return false;
    }
 
@@ -423,15 +447,15 @@ bool MnfInverse::readInMnfTransform(const std::string& filename, double** pTrans
       wavelengths.clear();
    }
 
-   mMessage = "MNF transform successfully read from disk";
+   msg = "MNF transform successfully read from disk";
    if (wavelengths.empty())
    {
-      mMessage += " however no center wavelength information is available";
-      mProgress.report(mMessage, 100, WARNING);
+      msg += " however no center wavelength information is available";
+      updateProgress(mMessage, 100, WARNING);
    }
    else
    {
-      mProgress.report(mMessage, 100, NORMAL);
+      updateProgress(msg, 100, NORMAL);
    }
 
    return success;
@@ -523,7 +547,7 @@ bool MnfInverse::computeInverse(RasterElement* pInvRaster, double** pInvTransfor
       }
       origAcc->nextRow();
       invAcc->nextRow();
-      mProgress.report("Computing Inverse data values...", (row + 1) * 100 / mNumRows, NORMAL);
+      updateProgress("Computing Inverse data values...", (row + 1) * 100 / mNumRows, NORMAL);
    }
 
    return true;
@@ -533,7 +557,8 @@ bool MnfInverse::computeInverse(RasterElement* pInvRaster, double** pInvTransfor
 bool MnfInverse::createInverseView(RasterElement* pInvRaster)
 {
    VERIFY(pInvRaster != NULL);
-   mProgress.report("Creating view...", 0, NORMAL);
+   std::string msg = "Creating view...";
+   updateProgress(msg, 0, NORMAL);
 
    std::string filename = pInvRaster->getName();
 
@@ -543,38 +568,60 @@ bool MnfInverse::createInverseView(RasterElement* pInvRaster)
    if (pWindow == NULL)
    {
       mMessage = "Could not create new window!";
-      mProgress.report(mMessage, 0, ERRORS, true);
       return false;
    }
 
-   mProgress.report("Creating view...", 25, NORMAL);
-   SpatialDataView* pView(NULL);
-   if (pWindow != NULL)
-   {
-      pView = pWindow->getSpatialDataView();
-   }
+   updateProgress(msg, 25, NORMAL);
+   SpatialDataView* pView = pWindow->getSpatialDataView();
 
    if (pView == NULL)
    {
       mMessage = "Could not obtain new view!";
-      mProgress.report(mMessage, 25, ERRORS, true);
+      pDesktop->deleteWindow(pWindow);
+      return false;
+   }
+
+   if (isAborted())
+   {
+      pDesktop->deleteWindow(pWindow);
       return false;
    }
 
    pView->setPrimaryRasterElement(pInvRaster);
 
-   mProgress.report("Creating view...", 50, NORMAL);
+   updateProgress(msg, 50, NORMAL);
 
-   UndoLock lock(pView);
-   if (pView->createLayer(RASTER, pInvRaster) == NULL)
+   if (!createLayers(pView, pInvRaster))
    {
       pDesktop->deleteWindow(pWindow);
-      mMessage = "Could not access raster properties for view!";
-      mProgress.report(mMessage, 50, ERRORS, true);
       return false;
    }
 
-   mProgress.report("Creating view...", 75, NORMAL);
+   if (isAborted())
+   {
+      pDesktop->deleteWindow(pWindow);
+      return false;
+   }
+
+   msg = "Finished creating view";
+   updateProgress(msg, 100, NORMAL);
+
+   return true;
+}
+
+bool MnfInverse::createLayers(SpatialDataView* pView, RasterElement* pInvRaster)
+{
+   UndoLock lock(pView);
+   if (pView->createLayer(RASTER, pInvRaster) == NULL)
+   {
+      mMessage = "Could not access raster properties for view!";
+      return false;
+   }
+
+   if (isAborted())
+   {
+      return false;
+   }
 
    // Create a GCP layer if available
    if (mpRaster != NULL)
@@ -635,6 +682,11 @@ bool MnfInverse::createInverseView(RasterElement* pInvRaster)
                   }
                }
 
+               if (isAborted())
+               {
+                  return false;
+               }
+
                if (gcps.empty() == false)
                {
                   DataDescriptor* pGcpDescriptor = Service<ModelServices>()->createDataDescriptor("Corner Coordinates",
@@ -655,23 +707,19 @@ bool MnfInverse::createInverseView(RasterElement* pInvRaster)
                else
                {
                   mMessage = "Geocoordinates are not available and will not be added to the new MNF cube!";
-                  mProgress.report(mMessage, 0, WARNING, true);
+                  updateProgress(mMessage, 0, WARNING);
                }
             }
          }
       }
    }
-
-   if (isAborted() == false)
-   {
-      mProgress.report("Finished creating view", 100, NORMAL);
-   }
-   else
-   {
-      pDesktop->deleteWindow(pWindow);
-      mProgress.report("Create view aborted", 100, ABORT, true);
-      return false;
-   }
-
    return true;
+}
+
+void MnfInverse::updateProgress(const std::string& msg, int percent, ReportingLevel level)
+{
+   if (mpProgress != NULL)
+   {
+      mpProgress->updateProgress(msg, percent, level);
+   }
 }

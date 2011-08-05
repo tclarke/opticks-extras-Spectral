@@ -24,7 +24,6 @@
 #include "DimensionDescriptor.h"
 #include "DynamicObject.h"
 #include "EigenPlotDlg.h"
-#include "Filename.h"
 #include "FileResource.h"
 #include "MatrixFunctions.h"
 #include "MessageLogResource.h"
@@ -246,10 +245,11 @@ bool Mnf::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
 
       int iResult = 0;
 
+      mSaveCoefficientsFilename = mpRaster->getName() + ".mnf";
       if (isBatch() == false)
       {
          vector<string> aoiNames = mpModel->getElementNames(mpRaster, TypeConverter::toString<AoiElement>());
-         MnfDlg dlg(aoiNames, mNumBands, mpDesktop->getMainWidget());
+         MnfDlg dlg(mSaveCoefficientsFilename, aoiNames, mNumBands, mpDesktop->getMainWidget());
          dlg.setNoiseStatisticsMethods(mNoiseEstimationMethods);
 
          bool inputValid = false;
@@ -269,6 +269,7 @@ bool Mnf::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
             else
             {
                mNoiseStatisticsMethod = getNoiseEstimationMethodType(dlg.getNoiseStatisticsMethod());
+               mSaveCoefficientsFilename = dlg.getCoefficientsFilename();
             }
 
             mbUseSnrValPlot = dlg.selectNumComponentsFromPlot();
@@ -395,17 +396,12 @@ bool Mnf::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
          }
 
          // Save MNF transform
-         QString filename = QString::fromStdString(mpRaster->getFilename());
-         filename += ".mnf";
-         if (isBatch() == false)
+         if (writeOutMnfTransform(mSaveCoefficientsFilename) == false)
          {
-            filename = QFileDialog::getSaveFileName(NULL, "Choose filename to save MNF Transform",
-               filename, "MNF files (*.mnf);;All Files (*)");
-         }
-
-         if (filename.isEmpty() == false)
-         {
-            writeOutMnfTransform(filename.toStdString());
+            if (mpProgress != NULL)
+            {
+               mpProgress->updateProgress(mMessage, 0, WARNING);
+            }
          }
       }
 
@@ -1778,16 +1774,17 @@ bool Mnf::readInMnfTransform(const string& filename)
 
 bool Mnf::writeOutMnfTransform(const string& filename)
 {
+   if (filename.empty())
+   {
+      mMessage = "The MNF transform was not saved to disk since no filename was specified";
+      mpStep->addMessage(mMessage, "spectral", "1133D0B9-C38B-4CC4-B21D-9CC44035E439");
+      return false;
+   }
    FileResource pFile(filename.c_str(), "wt");
    if (pFile.get() == NULL)
    {
       mMessage = "Unable to save MNF transform to disk as " + filename;
-      if (mpProgress != NULL)
-      {
-         mpProgress->updateProgress(mMessage, 100, ERRORS);
-      }
-
-      mpStep->finalize(Message::Failure, mMessage);
+      mpStep->addMessage(mMessage, "spectral", "9C78847C-41D6-4B68-A5FA-0F7005373A6C");
       return false;
    }
 
@@ -1817,12 +1814,7 @@ bool Mnf::writeOutMnfTransform(const string& filename)
       }
    }
 
-   mMessage = "MNF transform saved to disk as " + filename;
-   if (mpProgress != NULL)
-   {
-      mpProgress->updateProgress(mMessage, 100, NORMAL);
-   }
-
+   mpStep->addProperty("MNF transform saved filename", filename);
    return true;
 }
 

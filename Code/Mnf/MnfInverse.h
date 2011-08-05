@@ -11,12 +11,13 @@
 #define MNFINVERSE_H
 
 #include "AlgorithmShell.h"
-#include "ProgressTracker.h"
+#include "Progress.h"
 
 #include <string>
 #include <vector>
 
 class PlugInArgList;
+class Step;
 class RasterElement;
 
 class MnfInverse : public AlgorithmShell
@@ -38,9 +39,12 @@ protected:
    bool computeInverse(RasterElement* pInvRaster, double** pInvTransform,
       unsigned int numBands, unsigned int numComponents);
    bool createInverseView(RasterElement* pInvRaster);
+   bool createLayers(SpatialDataView* pView, RasterElement* pInvRaster);
+   void updateProgress(const std::string& msg, int percent, ReportingLevel level);
 
 private:
-   ProgressTracker mProgress;
+   Progress* mpProgress;
+   Step* mpStep;
    RasterElement* mpRaster;
    std::string mMessage;
    std::string mTransformFilename;

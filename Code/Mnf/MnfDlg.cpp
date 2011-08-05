@@ -7,6 +7,14 @@
  * http://www.gnu.org/licenses/lgpl.html
  */
 
+#include "AppVerify.h"
+#include "ConfigurationSettings.h"
+#include "FileBrowser.h"
+#include "Filename.h"
+#include "FileResource.h"
+#include "MnfDlg.h"
+#include "StringUtilities.h"
+
 #include <QtCore/QStringList>
 #include <QtGui/QBitmap>
 #include <QtGui/QCheckBox>
@@ -23,17 +31,10 @@
 #include <QtGui/QRadioButton>
 #include <QtGui/QSpinBox>
 
-#include "AppVerify.h"
-#include "ConfigurationSettings.h"
-#include "Filename.h"
-#include "FileResource.h"
-#include "MnfDlg.h"
-#include "StringUtilities.h"
-
 using namespace std;
 
-MnfDlg::MnfDlg(const vector<string> &aoiList, unsigned int ulBands, QWidget* parent) :
-   QDialog(parent)
+MnfDlg::MnfDlg(const std::string& saveFilename, const vector<string>& aoiList, unsigned int ulBands, QWidget* pParent) :
+   QDialog(pParent)
 {
    // Caption
    setWindowTitle("Minimum Noise Fraction Transform");
@@ -55,6 +56,19 @@ MnfDlg::MnfDlg(const vector<string> &aoiList, unsigned int ulBands, QWidget* par
    pMethodLayout->addWidget(mpMethodCombo);
    pMethodLayout->addStretch(10);
 
+   QLabel* pSaveLabel = new QLabel("Save coefficients to:", pTransformGroup);
+   mpCoefficientsFilename = new FileBrowser(pTransformGroup);
+   mpCoefficientsFilename->setMinimumWidth(250);
+   mpCoefficientsFilename->setBrowseExistingFile(false);
+   mpCoefficientsFilename->setBrowseCaption("Select MNF Transform Filename");
+   mpCoefficientsFilename->setBrowseFileFilters("MNF Files (*.mnf);;AllFiles (*)");
+
+   QHBoxLayout* pSaveLayout = new QHBoxLayout();
+   pSaveLayout->setMargin(0);
+   pSaveLayout->setSpacing(5);
+   pSaveLayout->addWidget(pSaveLabel);
+   pSaveLayout->addWidget(mpCoefficientsFilename, 10);
+
    mpFileRadio = new QRadioButton("Load From File", pTransformGroup);
    mpFileRadio->setFocusPolicy(Qt::StrongFocus);
 
@@ -62,7 +76,6 @@ MnfDlg::MnfDlg(const vector<string> &aoiList, unsigned int ulBands, QWidget* par
    mpFileEdit->setMinimumWidth(250);
 
    QIcon icnBrowse(":/icons/Open");
-
    QPushButton* pBrowseButton = new QPushButton(icnBrowse, QString(), pTransformGroup);
    pBrowseButton->setFixedWidth(27);
    VERIFYNRV(connect(pBrowseButton, SIGNAL(clicked()), this, SLOT(browse())));
@@ -79,12 +92,15 @@ MnfDlg::MnfDlg(const vector<string> &aoiList, unsigned int ulBands, QWidget* par
    pTransformGrid->setColumnMinimumWidth(0, 13);
    pTransformGrid->addWidget(mpCalculateRadio, 0, 0, 1, 2);
    pTransformGrid->addLayout(pMethodLayout, 1, 1);
-   pTransformGrid->addWidget(mpFileRadio, 2, 0, 1, 2);
-   pTransformGrid->addLayout(pFileLayout, 3, 1);
-   pTransformGrid->setRowStretch(4, 10);
+   pTransformGrid->addLayout(pSaveLayout, 2, 1);
+   pTransformGrid->addWidget(mpFileRadio, 3, 0, 1, 2);
+   pTransformGrid->addLayout(pFileLayout, 4, 1);
+   pTransformGrid->setRowStretch(5, 10);
 
    VERIFYNRV(connect(mpCalculateRadio, SIGNAL(toggled(bool)), pMethodLabel, SLOT(setEnabled(bool))));
    VERIFYNRV(connect(mpCalculateRadio, SIGNAL(toggled(bool)), mpMethodCombo, SLOT(setEnabled(bool))));
+   VERIFYNRV(connect(mpCalculateRadio, SIGNAL(toggled(bool)), pSaveLabel, SLOT(setEnabled(bool))));
+   VERIFYNRV(connect(mpCalculateRadio, SIGNAL(toggled(bool)), mpCoefficientsFilename, SLOT(setEnabled(bool))));
    VERIFYNRV(connect(mpFileRadio, SIGNAL(toggled(bool)), mpFileEdit, SLOT(setEnabled(bool))));
    VERIFYNRV(connect(mpFileRadio, SIGNAL(toggled(bool)), pBrowseButton, SLOT(setEnabled(bool))));
 
@@ -166,6 +182,10 @@ MnfDlg::MnfDlg(const vector<string> &aoiList, unsigned int ulBands, QWidget* par
    pBrowseButton->setEnabled(false);
    mpComponentsSpin->setValue(ulBands);
    mpRoiCombo->setEnabled(false);
+   if (saveFilename.empty() == false)
+   {
+      mpCoefficientsFilename->setFilename(QString::fromStdString(saveFilename));
+   }
 }
 
 MnfDlg::~MnfDlg()
@@ -278,4 +298,30 @@ void MnfDlg::setNoiseStatisticsMethods(QStringList& methods)
 {
    mpMethodCombo->clear();
    mpMethodCombo->addItems(methods);
+}
+
+void MnfDlg::accept()
+{
+   if (mpFileRadio->isChecked() && mpFileEdit->text().isEmpty())
+   {
+      QMessageBox::critical(this, windowTitle(), "The filename for the transform coefficients to use is invalid.");
+      return;
+   }
+
+   if (mpCalculateRadio->isChecked() && mpCoefficientsFilename->getFilename().isEmpty())
+   {
+      QString msg = "No filename is specified for saving the transform coefficients.\n"
+         "Do you want to continue without saving the coefficients?";
+      if (QMessageBox::warning(this, windowTitle(), msg, QMessageBox::Yes, QMessageBox::No) == QMessageBox::No)
+      {
+         return;
+      }
+   }
+
+   QDialog::accept();
+}
+
+std::string MnfDlg::getCoefficientsFilename() const
+{
+   return mpCoefficientsFilename->getFilename().toStdString();
 }
