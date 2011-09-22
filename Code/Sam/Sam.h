@@ -30,7 +30,7 @@ struct SamInputs
 {
    SamInputs() : mThreshold(5.0),
                  mbDisplayResults(false),
-                 mResultsName("Sam Results"),
+                 mResultsName("SAM Results"),
                  mpAoi(NULL),
                  mbCreatePseudocolor(true) {}
    std::vector<Signature*> mSignatures;

@@ -34,6 +34,7 @@
 #include "SpectralUtilities.h"
 #include "SpectralVersion.h"
 #include "Statistics.h"
+#include "StringUtilities.h"
 #include "switchOnEncoding.h"
 #include "Wavelengths.h"
 
@@ -56,8 +57,7 @@ Sam::Sam() : AlgorithmPlugIn(&mInputs), mpSamGui(NULL), mpSamAlg(NULL), mpProgre
 }
 
 Sam::~Sam()
-{
-}
+{}
 
 bool Sam::populateBatchInputArgList(PlugInArgList* pInArgList)
 {
@@ -65,13 +65,17 @@ bool Sam::populateBatchInputArgList(PlugInArgList* pInArgList)
    populateInteractiveInputArgList(pInArgList);
    VERIFY(pInArgList->addArg<Signature>("Target Signatures", NULL, "Target signatures to be used by SAM."));
    VERIFY(pInArgList->addArg<double>("Threshold", mInputs.mThreshold, "Threshold for pixels that will be "
-      "automatically flagged in the resulting threshold layer."));
+      "automatically flagged in the resulting threshold layer.  The default value is " +
+      StringUtilities::toDisplayString(mInputs.mThreshold) + "."));
    VERIFY(pInArgList->addArg<AoiElement>("AOI", mInputs.mpAoi, "AOI over which SAM will be performed. If not "
       "specified, the entire cube is used in processing."));
-   VERIFY(pInArgList->addArg<bool>("Display Results", mInputs.mbDisplayResults, "Flag for whether the results of the "
-      "SAM operation should be displayed."));
-   VERIFY(pInArgList->addArg<string>("Results Name", mInputs.mResultsName, "Name of the raster element resulting from "
-      "SAM."));
+   VERIFY(pInArgList->addArg<bool>("Display Results", mInputs.mbDisplayResults, "Flag for whether the results of "
+      "the SAM operation should be displayed.  The results are not displayed by default."));
+   VERIFY(pInArgList->addArg<string>("Results Name", mInputs.mResultsName, "Name of the raster element resulting "
+      "from SAM.  The default name is \"" + mInputs.mResultsName + "\"."));
+   VERIFY(pInArgList->addArg<bool>("Create Pseudocolor", mInputs.mbCreatePseudocolor, "Flag for whether a single "
+      "pseudocolor layer should be created instead of multiple threshold layers if multiple target signatures are "
+      "used and the results are displayed.  A pseudocolor layer is created by default if results are displayed."));
    return true;
 }
 
@@ -126,6 +130,7 @@ bool Sam::parseInputArgList(PlugInArgList* pInArgList)
       mInputs.mpAoi = pInArgList->getPlugInArgValue<AoiElement>("AOI");
       VERIFY(pInArgList->getPlugInArgValue("Display Results", mInputs.mbDisplayResults));
       VERIFY(pInArgList->getPlugInArgValue("Results Name", mInputs.mResultsName));
+      VERIFY(pInArgList->getPlugInArgValue("Create Pseudocolor", mInputs.mbCreatePseudocolor));
 
       mInputs.mSignatures = SpectralUtilities::extractSignatures(vector<Signature*>(1, pSignatures));
    }

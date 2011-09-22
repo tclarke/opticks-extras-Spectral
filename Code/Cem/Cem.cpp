@@ -33,6 +33,7 @@
 #include "SpectralUtilities.h"
 #include "SpectralVersion.h"
 #include "Statistics.h"
+#include "StringUtilities.h"
 #include "switchOnEncoding.h"
 #include "Wavelengths.h"
 
@@ -109,8 +110,7 @@ Cem::Cem() : AlgorithmPlugIn(&mInputs),
 }
 
 Cem::~Cem()
-{
-}
+{}
 
 bool Cem::populateBatchInputArgList(PlugInArgList* pInArgList)
 {
@@ -119,14 +119,18 @@ bool Cem::populateBatchInputArgList(PlugInArgList* pInArgList)
       return false;
    }
    VERIFY(pInArgList->addArg<Signature>("Target Signatures", NULL, "Signatures that will be used by CEM."));
-   VERIFY(pInArgList->addArg<double>("Threshold", 0.5, "Value of pixels to be flagged by default in the threshold layer "
-      "resulting from the CEM operation."));
-   VERIFY(pInArgList->addArg<AoiElement>("AOI", NULL, "Area of interest over which CEM will be performed. If not "
-      "specified, the entire cube is used in processing."));
-   VERIFY(pInArgList->addArg<bool>("Display Results", false, "Flag representing whether to display the results of the "
-      "CEM operation."));
-   VERIFY(pInArgList->addArg<string>("Results Name", "CEM Results", "Name of the raster element resulting from the "
-      "CEM operation."));
+   VERIFY(pInArgList->addArg<double>("Threshold", mInputs.mThreshold, "Value of pixels to be flagged by default "
+      "in the threshold layer resulting from the CEM operation.  The default value is " +
+      StringUtilities::toDisplayString(mInputs.mThreshold) + "."));
+   VERIFY(pInArgList->addArg<AoiElement>("AOI", mInputs.mpAoi, "Area of interest over which CEM will be performed.  "
+      "If not specified, the entire cube is used in processing."));
+   VERIFY(pInArgList->addArg<bool>("Display Results", mInputs.mbDisplayResults, "Flag representing whether to "
+      "display the results of the CEM operation.  The results are not displayed by default."));
+   VERIFY(pInArgList->addArg<string>("Results Name", mInputs.mResultsName, "Name of the raster element resulting "
+      "from the CEM operation.  The default name is \"" + mInputs.mResultsName + "\"."));
+   VERIFY(pInArgList->addArg<bool>("Create Pseudocolor", mInputs.mbCreatePseudocolor, "Flag for whether a single "
+      "pseudocolor layer should be created instead of multiple threshold layers if multiple target signatures are "
+      "used and the results are displayed.  A pseudocolor layer is created by default if results are displayed."));
    return true;
 }
 
@@ -171,6 +175,7 @@ bool Cem::parseInputArgList(PlugInArgList* pInArgList)
       mInputs.mpAoi = pInArgList->getPlugInArgValue<AoiElement>("AOI");
       VERIFY(pInArgList->getPlugInArgValue("Display Results", mInputs.mbDisplayResults));
       VERIFY(pInArgList->getPlugInArgValue("Results Name", mInputs.mResultsName));
+      VERIFY(pInArgList->getPlugInArgValue("Create Pseudocolor", mInputs.mbCreatePseudocolor));
 
       mInputs.mSignatures = SpectralUtilities::extractSignatures(vector<Signature*>(1, pSignatures));
    }
