@@ -180,20 +180,20 @@ bool SignatureImporter::execute(PlugInArgList* pInArgList, PlugInArgList* OutArg
    VERIFY(pMetadata != NULL);
    string warningMsg;
    UnitType units(REFLECTANCE);
-   DataVariant& dv = pMetadata->getAttribute("UnitType");
-   if (dv.isValid())
+   const DataVariant& dvType = pMetadata->getAttribute("UnitType");
+   if (dvType.isValid())
    {
-      units = dv_cast<UnitType>(dv);
+      units = dv_cast<UnitType>(dvType);
    }
    else
    {
       warningMsg = "No metadata defining units in signature file - setting to reflectance";
    }
    float unitScale(1.0);
-   dv = pMetadata->getAttribute("UnitScale");
-   if (dv.isValid())
+   const DataVariant& dvScale = pMetadata->getAttribute("UnitScale");
+   if (dvScale.isValid())
    {
-      unitScale = dv_cast<float>(dv);
+      unitScale = dv_cast<float>(dvScale);
    }
    else
    {
