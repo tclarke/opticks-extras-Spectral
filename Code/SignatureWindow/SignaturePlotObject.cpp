@@ -1477,7 +1477,14 @@ void SignaturePlotObject::enableBandCharacteristics(bool bEnable)
    }
    else
    {
-      mpBandDisplayAction->activate(QAction::Trigger);
+      if (SignatureWindowOptions::getSettingDisplayWavelengths() == true)
+      {
+         mpWavelengthAction->activate(QAction::Trigger);
+      }
+      else
+      {
+         mpBandDisplayAction->activate(QAction::Trigger);
+      }
 
       if (pPlotView != NULL)
       {
@@ -1614,8 +1621,6 @@ void SignaturePlotObject::enableBandCharacteristics(bool bEnable)
          }
       }
    }
-
-   displayBandNumbers();
 
    if (mWaveUnits == MICRONS)
    {

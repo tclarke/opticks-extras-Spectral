@@ -9,11 +9,12 @@
 
 #include <QtGui/QButtonGroup>
 #include <QtGui/QCheckBox>
+#include <QtGui/QComboBox>
 #include <QtGui/QGridLayout>
 #include <QtGui/QGroupBox>
 #include <QtGui/QLabel>
+#include <QtGui/QLayout>
 #include <QtGui/QRadioButton>
-#include <QtGui/QVBoxLayout>
 
 #include "AppVerify.h"
 #include "CustomColorButton.h"
@@ -87,18 +88,28 @@ SignatureWindowOptions::SignatureWindowOptions()
    pPixelSigLayout->addStretch(10);
    LabeledSection* pPixelSigSection = new LabeledSection(pPixelSigWidget, "Pixel Signatures Plot Color", this);
 
-   // signature window options section
+   // Signature window options section
    QWidget* pSigWinWidget = new QWidget(this);
-   QVBoxLayout* pSigWinLayout = new QVBoxLayout(pSigWinWidget);
+
+   mpSigUnitsCombo = new QComboBox(pSigWinWidget);
+   mpSigUnitsCombo->setEditable(false);
+   mpSigUnitsCombo->addItem("Band Numbers");
+   mpSigUnitsCombo->addItem("Wavelengths");
+
    mpRescaleOnAdd = new QCheckBox("Rescale plot after adding signature", pSigWinWidget);
    mpScaleToFirst = new QCheckBox("Scale signatures to first signature", pSigWinWidget);
    mpPinSigPlot = new QCheckBox("Pin Signature Window to single plot", pSigWinWidget);
+
+   QGridLayout* pSigWinLayout = new QGridLayout(pSigWinWidget);
    pSigWinLayout->setMargin(0);
    pSigWinLayout->setSpacing(5);
-   pSigWinLayout->addWidget(mpRescaleOnAdd);
-   pSigWinLayout->addWidget(mpScaleToFirst);
-   pSigWinLayout->addWidget(mpPinSigPlot);
-   pSigWinLayout->addStretch(10);
+   pSigWinLayout->addWidget(new QLabel("Signature Units:", pSigWinWidget), 0, 0);
+   pSigWinLayout->addWidget(mpSigUnitsCombo, 0, 1);
+   pSigWinLayout->addWidget(mpRescaleOnAdd, 1, 0, 1, 3);
+   pSigWinLayout->addWidget(mpScaleToFirst, 2, 0, 1, 3);
+   pSigWinLayout->addWidget(mpPinSigPlot, 3, 0, 1, 3);
+   pSigWinLayout->setRowStretch(4, 10);
+   pSigWinLayout->setColumnStretch(2, 10);
    LabeledSection* pRescaleSection = new LabeledSection(pSigWinWidget, "Signature Window Options", this);
 
    addSection(pAvgSection);
@@ -127,12 +138,10 @@ SignatureWindowOptions::SignatureWindowOptions()
    mpUseAoiColorForAoiSignatures->setChecked(useAoiColor);
    color = SignatureWindowOptions::getSettingPixelSignaturesColor();
    mpPixelSignaturesColor->setColor(color);
-   bool rescale = SignatureWindowOptions::getSettingRescaleOnAdd();
-   mpRescaleOnAdd->setChecked(rescale);
-   bool scale = SignatureWindowOptions::getSettingScaleToFirstSignature();
-   mpScaleToFirst->setChecked(scale);
-   bool pinSigWin = SignatureWindowOptions::getSettingPinSignaturePlot();
-   mpPinSigPlot->setChecked(pinSigWin);
+   mpSigUnitsCombo->setCurrentIndex(SignatureWindowOptions::getSettingDisplayWavelengths() == true ? 1 : 0);
+   mpRescaleOnAdd->setChecked(SignatureWindowOptions::getSettingRescaleOnAdd());
+   mpScaleToFirst->setChecked(SignatureWindowOptions::getSettingScaleToFirstSignature());
+   mpPinSigPlot->setChecked(SignatureWindowOptions::getSettingPinSignaturePlot());
 }
 
 SignatureWindowOptions::~SignatureWindowOptions()
@@ -145,6 +154,7 @@ void SignatureWindowOptions::applyChanges()
    SignatureWindowOptions::setSettingAoiSignaturesColor(mpAoiSignaturesColor->getColorType());
    SignatureWindowOptions::setSettingUseAoiColorForAoiSignatures(mpUseAoiColorForAoiSignatures->isChecked());
    SignatureWindowOptions::setSettingPixelSignaturesColor(mpPixelSignaturesColor->getColorType());
+   SignatureWindowOptions::setSettingDisplayWavelengths(mpSigUnitsCombo->currentIndex() == 1 ? true : false);
    SignatureWindowOptions::setSettingRescaleOnAdd(mpRescaleOnAdd->isChecked());
    SignatureWindowOptions::setSettingScaleToFirstSignature(mpScaleToFirst->isChecked());
    SignatureWindowOptions::setSettingPinSignaturePlot(mpPinSigPlot->isChecked());

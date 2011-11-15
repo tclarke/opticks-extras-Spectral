@@ -17,6 +17,7 @@
 
 class CustomColorButton;
 class QCheckBox;
+class QComboBox;
 class QRadioButton;
 
 class SignatureWindowOptions : public LabeledSectionGroup
@@ -30,6 +31,7 @@ public:
    SETTING(UseAoiColorForAoiSignatures, SignatureWindow, bool, false);            // default = false, use fixed color
    SETTING(AoiSignaturesColor, SignatureWindow, ColorType, ColorType(0, 0, 0));   // default = black
    SETTING(PixelSignaturesColor, SignatureWindow, ColorType, ColorType(0, 0, 0)); // default = black
+   SETTING(DisplayWavelengths, SignatureWindow, bool, false);
    SETTING(RescaleOnAdd, SignatureWindow, bool, true);
    SETTING(PinSignaturePlot, SignatureWindow, bool, false);
    SETTING(ScaleToFirstSignature, SignatureWindow, bool, false);
@@ -97,6 +99,7 @@ private:
    CustomColorButton* mpAoiSignaturesColor;
    QRadioButton* mpUseAoiColorForAoiSignatures;
    CustomColorButton* mpPixelSignaturesColor;
+   QComboBox* mpSigUnitsCombo;
    QCheckBox* mpRescaleOnAdd;
    QCheckBox* mpScaleToFirst;
    QCheckBox* mpPinSigPlot;
