@@ -512,9 +512,12 @@ public slots:
    void setDisplayBand(RasterChannelType eColor, DimensionDescriptor band);
 
    /**
-    *  Removes all signatures from the plot.
+    *  Removes all signatures.
+    *
+    *  This method removes all signatures from the plot, but does not delete
+    *  the Signature objects in the data model.
     */
-   void clearSignatures();
+   void removeAllSignatures();
 
    /**
     *  Cancels the active signature search or signature exporter.
@@ -546,6 +549,22 @@ protected:
     *            if the event should be processed normally.
     */
    bool eventFilter(QObject* pObject, QEvent* pEvent);
+
+   /**
+    *  Detaches from the parent plot widget.
+    *
+    *  This method is called automatically when the parent plot widget is
+    *  deleted.  The plot widget signals are detached and all signatures are
+    *  removed from the plot.
+    *
+    *  @param    subject
+    *            The plot widget that is being deleted.
+    *  @param    signal
+    *            The Subject::Deleted signal.
+    *  @param    value
+    *            This value is empty.
+    */
+   void plotWidgetDeleted(Subject& subject, const std::string& signal, const boost::any& value);
 
    /**
     *  Returns the name of the plot.
@@ -743,6 +762,22 @@ protected slots:
    void removeSelectedSignatures();
 
    /**
+    *  Deletes all selected signatures.
+    *
+    *  This method removes the selected signatures from the plot, and deletes
+    *  the Signature objects in the data model.
+    */
+   void deleteSelectedSignatures();
+
+   /**
+    *  Deletes all signatures.
+    *
+    *  This method removes all signatures from the plot, and deletes the
+    *  Signature objects in the data model.
+    */
+   void deleteAllSignatures();
+
+   /**
     *  Changes the color of the selected signatures.
     *
     *  This method invokes a color selection dialog for the user to select a new color.
@@ -841,6 +876,16 @@ private:
    QMenu* mpDisplayModeMenu;
    QAction* mpGrayscaleAction;
    QAction* mpRgbAction;
+   QAction* mpAddSignatureAction;
+   QAction* mpSaveSignatureAction;
+   QAction* mpSaveLibraryAction;
+   QAction* mpSelectAllAction;
+   QAction* mpDeselectAllAction;
+   QAction* mpChangeColorAction;
+   QAction* mpRemoveSelectedAction;
+   QAction* mpRemoveAllAction;
+   QAction* mpDeleteSelectedAction;
+   QAction* mpDeleteAllAction;
    QAction* mpRescaleOnAdd;
    QAction* mpScaleToFirst;
 

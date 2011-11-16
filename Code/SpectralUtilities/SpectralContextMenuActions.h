@@ -53,40 +53,9 @@
 #define SPECTRAL_LIBRARY_MATCH_RESULTS_SEPARATOR_ACTION "SPECTRAL_LIBRARY_MATCH_RESULTS_SEPARATOR_ACTION"
 
 /**
- *  Adds a new signature plot to the current plot set in the Signature Window.
- */
-#define SPECTRAL_SIGNATUREWINDOW_ADD_PLOT_ACTION "SPECTRAL_SIGNATUREWINDOW_ADD_PLOT_ACTION"
-
-/**
  *  Adds one or more signatures to the signature plot.
  */
 #define SPECTRAL_SIGNATUREPLOT_ADD_SIG_ACTION "SPECTRAL_SIGNATUREPLOT_ADD_SIG_ACTION"
-
-/**
- *  Saves the selected signatures in the signature plot to separate files.
- */
-#define SPECTRAL_SIGNATUREPLOT_SAVE_SIG_ACTION "SPECTRAL_SIGNATUREPLOT_SAVE_SIG_ACTION"
-
-/**
- *  Saves the selected signatures in the signature plot as a spectral library
- *  in a single file.
- */
-#define SPECTRAL_SIGNATUREPLOT_SAVE_LIBRARY_ACTION "SPECTRAL_SIGNATUREPLOT_SAVE_LIBRARY_ACTION"
-
-/**
- *  Selects all signatures in the signature plot.
- */
-#define SPECTRAL_SIGNATUREPLOT_SELECT_ALL_ACTION "SPECTRAL_SIGNATUREPLOT_SELECT_ALL_ACTION"
-
-/**
- *  Deselects all signatures in the signature plot.
- */
-#define SPECTRAL_SIGNATUREPLOT_DESELECT_ALL_ACTION "SPECTRAL_SIGNATUREPLOT_DESELECT_ALL_ACTION"
-
-/**
- *  Deletes all selected signatures in the signature plot.
- */
-#define SPECTRAL_SIGNATUREPLOT_DELETE_SELECTED_ACTION "SPECTRAL_SIGNATUREPLOT_DELETE_SELECTED_ACTION"
 
 /**
  *  Changes the color of the selected signatures in the signature plot.
@@ -96,7 +65,32 @@
 /**
  *  Deletes all signatures in the signature plot.
  */
-#define SPECTRAL_SIGNATUREPLOT_CLEAR_ACTION "SPECTRAL_SIGNATUREPLOT_CLEAR_ACTION"
+#define SPECTRAL_SIGNATUREPLOT_DELETE_ALL_ACTION "SPECTRAL_SIGNATUREPLOT_DELETE_ALL_ACTION"
+
+/**
+ *  Deletes all selected signatures in the signature plot.
+ */
+#define SPECTRAL_SIGNATUREPLOT_DELETE_SELECTED_ACTION "SPECTRAL_SIGNATUREPLOT_DELETE_SELECTED_ACTION"
+
+/**
+ *  Deselects all signatures in the signature plot.
+ */
+#define SPECTRAL_SIGNATUREPLOT_DESELECT_ALL_ACTION "SPECTRAL_SIGNATUREPLOT_DESELECT_ALL_ACTION"
+
+/**
+ *  Sets the display mode in the signature plot displaying data set signatures.
+ */
+#define SPECTRAL_SIGNATUREPLOT_DISPLAY_MODE_ACTION "SPECTRAL_SIGNATUREPLOT_DISPLAY_MODE_ACTION"
+
+/**
+ *  Removes all signatures in the signature plot without deleting them.
+ */
+#define SPECTRAL_SIGNATUREPLOT_REMOVE_ALL_ACTION "SPECTRAL_SIGNATUREPLOT_REMOVE_ALL_ACTION"
+
+/**
+ *  Removes all selected signatures in the signature plot without deleting them.
+ */
+#define SPECTRAL_SIGNATUREPLOT_REMOVE_SELECTED_ACTION "SPECTRAL_SIGNATUREPLOT_REMOVE_SELECTED_ACTION"
 
 /**
  *  Enable/disable auto rescaling when a signature is added to the plot.
@@ -104,14 +98,40 @@
 #define SPECTRAL_SIGNATUREPLOT_RESCALE_ON_ADD_ACTION "SPECTRAL_SIGNATUREPLOT_RESCALE_ON_ADD_ACTION"
 
 /**
+ *  Saves the selected signatures in the signature plot as a spectral library
+ *  in a single file.
+ */
+#define SPECTRAL_SIGNATUREPLOT_SAVE_LIBRARY_ACTION "SPECTRAL_SIGNATUREPLOT_SAVE_LIBRARY_ACTION"
+
+/**
+ *  Saves the selected signatures in the signature plot to separate files.
+ */
+#define SPECTRAL_SIGNATUREPLOT_SAVE_SIG_ACTION "SPECTRAL_SIGNATUREPLOT_SAVE_SIG_ACTION"
+
+/**
  *  Enable/disable plot scaling signatures to first signature.
  */
 #define SPECTRAL_SIGNATUREPLOT_SCALE_TO_FIRST_ACTION "SPECTRAL_SIGNATUREPLOT_SCALE_TO_FIRST_ACTION"
 
 /**
+ *  Selects all signatures in the signature plot.
+ */
+#define SPECTRAL_SIGNATUREPLOT_SELECT_ALL_ACTION "SPECTRAL_SIGNATUREPLOT_SELECT_ALL_ACTION"
+
+/**
  *  Default menu separator.
  */
 #define SPECTRAL_SIGNATUREPLOT_SEPARATOR_ACTION "SPECTRAL_SIGNATUREPLOT_SEPARATOR_ACTION"
+
+/**
+ *  Default menu separator.
+ */
+#define SPECTRAL_SIGNATUREPLOT_SEPARATOR2_ACTION "SPECTRAL_SIGNATUREPLOT_SEPARATOR2_ACTION"
+
+/**
+ *  Default menu separator.
+ */
+#define SPECTRAL_SIGNATUREPLOT_SEPARATOR3_ACTION "SPECTRAL_SIGNATUREPLOT_SEPARATOR3_ACTION"
 
 /**
  *  Toggles the displayed units in the signature plot.
@@ -124,18 +144,8 @@
 #define SPECTRAL_SIGNATUREPLOT_WAVE_UNITS_ACTION "SPECTRAL_SIGNATUREPLOT_WAVE_UNITS_ACTION"
 
 /**
- *  Default menu separator.
+ *  Adds a new signature plot to the current plot set in the Signature Window.
  */
-#define SPECTRAL_SIGNATUREPLOT_SEPARATOR2_ACTION "SPECTRAL_SIGNATUREPLOT_SEPARATOR2_ACTION"
-
-/**
- *  Sets the display mode in the signature plot displaying data set signatures.
- */
-#define SPECTRAL_SIGNATUREPLOT_DISPLAY_MODE_ACTION "SPECTRAL_SIGNATUREPLOT_DISPLAY_MODE_ACTION"
-
-/**
- *  Default menu separator.
- */
-#define SPECTRAL_SIGNATUREPLOT_SEPARATOR3_ACTION "SPECTRAL_SIGNATUREPLOT_SEPARATOR3_ACTION"
+#define SPECTRAL_SIGNATUREWINDOW_ADD_PLOT_ACTION "SPECTRAL_SIGNATUREWINDOW_ADD_PLOT_ACTION"
 
 #endif

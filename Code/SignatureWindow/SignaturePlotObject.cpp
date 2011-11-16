@@ -93,8 +93,15 @@ SignaturePlotObject::SignaturePlotObject(PlotWidget* pPlotWidget, Progress* pPro
    mpRescaleOnAdd(NULL),
    mpScaleToFirst(NULL)
 {
-   string shortcutContext = "Signature Window/Signature Plot";
+   REQUIRE (mpPlotWidget != NULL);
 
+   PlotView* pPlotView = mpPlotWidget->getPlot();
+   REQUIRE(pPlotView != NULL);
+
+   QWidget* pWidget = pPlotView->getWidget();
+   REQUIRE(pWidget != NULL);
+
+   string shortcutContext = "Signature Plot";
    Service<DesktopServices> pDesktop;
 
    // Actions
@@ -104,46 +111,51 @@ SignaturePlotObject::SignaturePlotObject(PlotWidget* pPlotWidget, Progress* pPro
 
    string xAxisContext = shortcutContext + string("/X-Axis Values");
 
-   mpBandDisplayAction = pXAxisUnitsGroup->addAction("Band &Numbers");
+   mpBandDisplayAction = pXAxisUnitsGroup->addAction("Band Numbers");
    mpBandDisplayAction->setAutoRepeat(false);
    mpBandDisplayAction->setCheckable(true);
-   mpBandDisplayAction->setToolTip("Band Numbers");
+   mpBandDisplayAction->setShortcutContext(Qt::WidgetShortcut);
    mpBandDisplayAction->setStatusTip("Displays the signature according to the spectral band numbers");
    pDesktop->initializeAction(mpBandDisplayAction, xAxisContext);
+   pWidget->addAction(mpBandDisplayAction);
 
-   mpWavelengthAction = pXAxisUnitsGroup->addAction("&Wavelengths");
+   mpWavelengthAction = pXAxisUnitsGroup->addAction("Wavelengths");
    mpWavelengthAction->setAutoRepeat(false);
    mpWavelengthAction->setCheckable(true);
-   mpWavelengthAction->setToolTip("Wavelengths");
+   mpWavelengthAction->setShortcutContext(Qt::WidgetShortcut);
    mpWavelengthAction->setStatusTip("Displays the signature according to its wavelengths");
    pDesktop->initializeAction(mpWavelengthAction, xAxisContext);
+   pWidget->addAction(mpWavelengthAction);
 
    QActionGroup* pWaveUnitsGroup = new QActionGroup(this);
    pWaveUnitsGroup->setExclusive(true);
    VERIFYNR(connect(pWaveUnitsGroup, SIGNAL(triggered(QAction*)), this, SLOT(setWavelengthUnits(QAction*))));
 
-   string wavelengthsContext = xAxisContext + string("/Wavelengths");
+   string wavelengthsContext = shortcutContext + string("/Wavelength Values");
 
-   mpMicronsAction = pWaveUnitsGroup->addAction("&Microns");
+   mpMicronsAction = pWaveUnitsGroup->addAction("Microns");
    mpMicronsAction->setAutoRepeat(false);
    mpMicronsAction->setCheckable(true);
-   mpMicronsAction->setToolTip("Microns");
+   mpMicronsAction->setShortcutContext(Qt::WidgetShortcut);
    mpMicronsAction->setStatusTip("Displays the wavelength values in microns");
    pDesktop->initializeAction(mpMicronsAction, wavelengthsContext);
+   pWidget->addAction(mpMicronsAction);
 
-   mpNanometersAction = pWaveUnitsGroup->addAction("&Nanometers");
+   mpNanometersAction = pWaveUnitsGroup->addAction("Nanometers");
    mpNanometersAction->setAutoRepeat(false);
    mpNanometersAction->setCheckable(true);
-   mpNanometersAction->setToolTip("Nanometers");
+   mpNanometersAction->setShortcutContext(Qt::WidgetShortcut);
    mpNanometersAction->setStatusTip("Displays the wavelength values in nanometers");
    pDesktop->initializeAction(mpNanometersAction, wavelengthsContext);
+   pWidget->addAction(mpNanometersAction);
 
-   mpCentimetersAction = pWaveUnitsGroup->addAction("Inverse &Centimeters");
+   mpCentimetersAction = pWaveUnitsGroup->addAction("Inverse Centimeters");
    mpCentimetersAction->setAutoRepeat(false);
    mpCentimetersAction->setCheckable(true);
-   mpCentimetersAction->setToolTip("Inverse Centimeters");
+   mpCentimetersAction->setShortcutContext(Qt::WidgetShortcut);
    mpCentimetersAction->setStatusTip("Displays the wavelength values in inverse centimeters");
    pDesktop->initializeAction(mpCentimetersAction, wavelengthsContext);
+   pWidget->addAction(mpCentimetersAction);
 
    QActionGroup* pDisplayModeGroup = new QActionGroup(this);
    pWaveUnitsGroup->setExclusive(true);
@@ -151,59 +163,152 @@ SignaturePlotObject::SignaturePlotObject(PlotWidget* pPlotWidget, Progress* pPro
 
    string displayModeContext = shortcutContext + string("/Display Mode");
 
-   mpGrayscaleAction = pDisplayModeGroup->addAction("Gra&yscale");
+   mpGrayscaleAction = pDisplayModeGroup->addAction("Grayscale");
    mpGrayscaleAction->setAutoRepeat(false);
    mpGrayscaleAction->setCheckable(true);
-   mpGrayscaleAction->setToolTip("Grayscale");
+   mpGrayscaleAction->setShortcutContext(Qt::WidgetShortcut);
    mpGrayscaleAction->setStatusTip("Sets the display mode to Grayscale for the current data set");
    pDesktop->initializeAction(mpGrayscaleAction, displayModeContext);
+   pWidget->addAction(mpGrayscaleAction);
 
-   mpRgbAction = pDisplayModeGroup->addAction("RG&B");
+   mpRgbAction = pDisplayModeGroup->addAction("RGB");
    mpRgbAction->setAutoRepeat(false);
    mpRgbAction->setCheckable(true);
-   mpRgbAction->setToolTip("RGB");
+   mpRgbAction->setShortcutContext(Qt::WidgetShortcut);
    mpRgbAction->setStatusTip("Sets the display mode to RGB for the current data set");
    pDesktop->initializeAction(mpRgbAction, displayModeContext);
+   pWidget->addAction(mpRgbAction);
 
    // X-axis menu
-   REQUIRE (mpPlotWidget != NULL);
-
-   PlotView* pPlotView = mpPlotWidget->getPlot();
-   REQUIRE(pPlotView != NULL);
-
-   QWidget* pWidget = pPlotView->getWidget();
-   REQUIRE(pWidget != NULL);
-
-   mpSignatureUnitsMenu = new QMenu("Signature &Units", pWidget);
+   mpSignatureUnitsMenu = new QMenu("Signature Units", pWidget);
    mpSignatureUnitsMenu->addAction(mpBandDisplayAction);
    mpSignatureUnitsMenu->addAction(mpWavelengthAction);
 
    // Wavelength units menu
-   mpWaveUnitsMenu = new QMenu("Wavelength &Units", pWidget);
+   mpWaveUnitsMenu = new QMenu("Wavelength Units", pWidget);
    mpWaveUnitsMenu->addAction(mpMicronsAction);
    mpWaveUnitsMenu->addAction(mpNanometersAction);
    mpWaveUnitsMenu->addAction(mpCentimetersAction);
 
    // Display mode menu
-   mpDisplayModeMenu = new QMenu("Display &Mode", pWidget);
+   mpDisplayModeMenu = new QMenu("Display Mode", pWidget);
    mpDisplayModeMenu->addAction(mpGrayscaleAction);
    mpDisplayModeMenu->addAction(mpRgbAction);
 
    // Plot
-   mpRescaleOnAdd = new QAction("Rescale on addition", this);
+   QPixmap pixOpenSig(SignatureWindowIcons::OpenSignatureIcon);
+   QBitmap bmpOpenSig(SignatureWindowIcons::OpenSignatureMask);
+   pixOpenSig.setMask(bmpOpenSig);
+
+   mpAddSignatureAction = new QAction(QIcon(pixOpenSig), "Add Signature...", pParent);
+   mpAddSignatureAction->setAutoRepeat(false);
+   mpAddSignatureAction->setShortcutContext(Qt::WidgetShortcut);
+   mpAddSignatureAction->setStatusTip("Adds one or more signatures to the plot");
+   mpAddSignatureAction->setToolTip("Add Signature");
+   VERIFYNR(connect(mpAddSignatureAction, SIGNAL(triggered()), this, SLOT(addSignature())));
+   pDesktop->initializeAction(mpAddSignatureAction, shortcutContext);
+   pWidget->addAction(mpAddSignatureAction);
+
+   QPixmap pixSaveSig(SignatureWindowIcons::SaveSignatureIcon);
+   QBitmap bmpSaveSig(SignatureWindowIcons::SaveSignatureMask);
+   pixSaveSig.setMask(bmpSaveSig);
+
+   mpSaveSignatureAction = new QAction(QIcon(pixSaveSig), "Save Signatures...", pParent);
+   mpSaveSignatureAction->setAutoRepeat(false);
+   mpSaveSignatureAction->setShortcut(QKeySequence::Save);
+   mpSaveSignatureAction->setShortcutContext(Qt::WidgetShortcut);
+   mpSaveSignatureAction->setStatusTip("Saves the selected signatures or all signatures if none are selected to disk");
+   mpAddSignatureAction->setToolTip("Save Signatures");
+   VERIFYNR(connect(mpSaveSignatureAction, SIGNAL(triggered()), this, SLOT(saveSignatures())));
+   pDesktop->initializeAction(mpSaveSignatureAction, shortcutContext);
+   pWidget->addAction(mpSaveSignatureAction);
+
+   mpSaveLibraryAction = new QAction("Save As Library...", pParent);
+   mpSaveLibraryAction->setAutoRepeat(false);
+   mpSaveLibraryAction->setShortcut(QKeySequence::SaveAs);
+   mpSaveLibraryAction->setShortcutContext(Qt::WidgetShortcut);
+   mpSaveLibraryAction->setStatusTip("Saves the selected signatures or all signatures if none are selected to a "
+      "new spectral library");
+   mpSaveLibraryAction->setToolTip("Save As Library");
+   VERIFYNR(connect(mpSaveLibraryAction, SIGNAL(triggered()), this, SLOT(saveSignatureLibrary())));
+   pDesktop->initializeAction(mpSaveLibraryAction, shortcutContext);
+   pWidget->addAction(mpSaveLibraryAction);
+
+   mpSelectAllAction = new QAction("Select All", pParent);
+   mpSelectAllAction->setAutoRepeat(false);
+   mpSelectAllAction->setShortcut(QKeySequence::SelectAll);
+   mpSelectAllAction->setShortcutContext(Qt::WidgetShortcut);
+   mpSelectAllAction->setStatusTip("Selects all signatures in the plot");
+   VERIFYNR(connect(mpSelectAllAction, SIGNAL(triggered()), this, SLOT(selectAllSignatures())));
+   pDesktop->initializeAction(mpSelectAllAction, shortcutContext);
+   pWidget->addAction(mpSelectAllAction);
+
+   mpDeselectAllAction = new QAction("Deselect All", pParent);
+   mpDeselectAllAction->setAutoRepeat(false);
+   mpDeselectAllAction->setShortcutContext(Qt::WidgetShortcut);
+   mpDeselectAllAction->setStatusTip("Deselects all signatures in the plot");
+   VERIFYNR(connect(mpDeselectAllAction, SIGNAL(triggered()), this, SLOT(deselectAllSignatures())));
+   pDesktop->initializeAction(mpDeselectAllAction, shortcutContext);
+   pWidget->addAction(mpDeselectAllAction);
+
+   mpChangeColorAction = new QAction("Change Color...", pParent);
+   mpChangeColorAction->setAutoRepeat(false);
+   mpChangeColorAction->setShortcutContext(Qt::WidgetShortcut);
+   mpChangeColorAction->setStatusTip("Changes the color of the selected signatures");
+   mpChangeColorAction->setToolTip("Change Color");
+   VERIFYNR(connect(mpChangeColorAction, SIGNAL(triggered()), this, SLOT(changeSignaturesColor())));
+   pDesktop->initializeAction(mpChangeColorAction, shortcutContext);
+   pWidget->addAction(mpChangeColorAction);
+
+   mpRemoveSelectedAction = new QAction("Remove Selected", pParent);
+   mpRemoveSelectedAction->setAutoRepeat(false);
+   mpRemoveSelectedAction->setShortcutContext(Qt::WidgetShortcut);
+   mpRemoveSelectedAction->setStatusTip("Removes the selected signatures from the plot without deleting them");
+   VERIFYNR(connect(mpRemoveSelectedAction, SIGNAL(triggered()), this, SLOT(removeSelectedSignatures())));
+   pDesktop->initializeAction(mpRemoveSelectedAction, shortcutContext);
+   pWidget->addAction(mpRemoveSelectedAction);
+
+   mpRemoveAllAction = new QAction("Remove All", pParent);
+   mpRemoveAllAction->setAutoRepeat(false);
+   mpRemoveAllAction->setShortcutContext(Qt::WidgetShortcut);
+   mpRemoveAllAction->setStatusTip("Removes all signatures from the plot without deleting them");
+   VERIFYNR(connect(mpRemoveAllAction, SIGNAL(triggered()), this, SLOT(removeAllSignatures())));
+   pDesktop->initializeAction(mpRemoveAllAction, shortcutContext);
+   pWidget->addAction(mpRemoveAllAction);
+
+   mpDeleteSelectedAction = new QAction("Delete Selected", pParent);
+   mpDeleteSelectedAction->setAutoRepeat(false);
+   mpDeleteSelectedAction->setShortcutContext(Qt::WidgetShortcut);
+   mpDeleteSelectedAction->setStatusTip("Removes the selected signatures from the plot and deletes them");
+   VERIFYNR(connect(mpDeleteSelectedAction, SIGNAL(triggered()), this, SLOT(deleteSelectedSignatures())));
+   pDesktop->initializeAction(mpDeleteSelectedAction, shortcutContext);
+   pWidget->addAction(mpDeleteSelectedAction);
+
+   mpDeleteAllAction = new QAction("Delete All", pParent);
+   mpDeleteAllAction->setAutoRepeat(false);
+   mpDeleteAllAction->setShortcutContext(Qt::WidgetShortcut);
+   mpDeleteAllAction->setStatusTip("Removes all signatures from the plot and deletes them");
+   VERIFYNR(connect(mpDeleteAllAction, SIGNAL(triggered()), this, SLOT(deleteAllSignatures())));
+   pDesktop->initializeAction(mpDeleteAllAction, shortcutContext);
+   pWidget->addAction(mpDeleteAllAction);
+
+   mpRescaleOnAdd = new QAction("Rescale on Add", pParent);
    mpRescaleOnAdd->setAutoRepeat(false);
    mpRescaleOnAdd->setCheckable(true);
    mpRescaleOnAdd->setChecked(SignatureWindowOptions::getSettingRescaleOnAdd());
-   mpRescaleOnAdd->setToolTip("Check to enable rescaling plot when a signature is added");
-   mpRescaleOnAdd->setStatusTip("Enable/disable rescaling the plot when adding new signatures.");
+   mpRescaleOnAdd->setStatusTip("Toggles rescaling the plot when adding new signatures");
+   pDesktop->initializeAction(mpRescaleOnAdd, shortcutContext);
+   pWidget->addAction(mpRescaleOnAdd);
 
-   mpScaleToFirst = new QAction("Scale signatures to first signature", this);
+   mpScaleToFirst = new QAction("Scale to First Signature", pParent);
    mpScaleToFirst->setAutoRepeat(false);
    mpScaleToFirst->setCheckable(true);
    mpScaleToFirst->setChecked(SignatureWindowOptions::getSettingScaleToFirstSignature());
-   mpScaleToFirst->setToolTip("Check to enable scaling signatures in plot\nto the first signature that was added");
-   mpScaleToFirst->setStatusTip("Enable/disable scaling signatures to the first signature.");
+   mpScaleToFirst->setShortcutContext(Qt::WidgetShortcut);
+   mpScaleToFirst->setStatusTip("Toggles scaling signatures to the first signature added to the plot");
    VERIFYNR(connect(mpScaleToFirst, SIGNAL(toggled(bool)), this, SLOT(updatePlotForScaleToFirst(bool))));
+   pDesktop->initializeAction(mpScaleToFirst, shortcutContext);
+   pWidget->addAction(mpScaleToFirst);
 
    pPlotView->attach(SIGNAL_NAME(Subject, Modified), Slot(this, &SignaturePlotObject::plotModified));
    pWidget->installEventFilter(this);
@@ -244,6 +349,7 @@ SignaturePlotObject::SignaturePlotObject(PlotWidget* pPlotWidget, Progress* pPro
    // Connections
    mpPlotWidget->attach(SIGNAL_NAME(PlotWidget, AboutToShowContextMenu),
       Slot(this, &SignaturePlotObject::updateContextMenu));
+   mpPlotWidget->attach(SIGNAL_NAME(Subject, Deleted), Slot(this, &SignaturePlotObject::plotWidgetDeleted));
    pDesktop->attach(SIGNAL_NAME(DesktopServices, AboutToShowPropertiesDialog),
       Slot(this, &SignaturePlotObject::updatePropertiesDialog));
 }
@@ -253,21 +359,6 @@ SignaturePlotObject::~SignaturePlotObject()
    Service<DesktopServices> pDesktop;
    pDesktop->detach(SIGNAL_NAME(DesktopServices, AboutToShowPropertiesDialog),
       Slot(this, &SignaturePlotObject::updatePropertiesDialog));
-
-   if (mpPlotWidget != NULL)
-   {
-      PlotView* pPlotView = mpPlotWidget->getPlot();
-      if (pPlotView != NULL)
-      {
-         pPlotView->detach(SIGNAL_NAME(Subject, Modified), Slot(this, &SignaturePlotObject::plotModified));
-      }
-
-      mpPlotWidget->detach(SIGNAL_NAME(PlotWidget, AboutToShowContextMenu),
-         Slot(this, &SignaturePlotObject::updateContextMenu));
-   }
-
-   clearSignatures();
-   setRasterLayer(NULL);
 }
 
 void SignaturePlotObject::initializeFromPlot(const vector<Signature*>& signatures)
@@ -515,104 +606,48 @@ void SignaturePlotObject::updateContextMenu(Subject& subject, const string& sign
 
    QObject* pParent = pMenu->getActionParent();
 
-   // Add signature
-   QPixmap pixOpenSig(SignatureWindowIcons::OpenSignatureIcon);
-   QBitmap bmpOpenSig(SignatureWindowIcons::OpenSignatureMask);
-   pixOpenSig.setMask(bmpOpenSig);
-
-   QAction* pAddSignatureAction = new QAction(QIcon(pixOpenSig), "&Add Signature...", pParent);
-   pAddSignatureAction->setAutoRepeat(false);
-   pAddSignatureAction->setShortcut(QKeySequence("Ctrl+A"));
-   VERIFYNR(connect(pAddSignatureAction, SIGNAL(triggered()), this, SLOT(addSignature())));
-   pMenu->addActionBefore(pAddSignatureAction, SPECTRAL_SIGNATUREPLOT_ADD_SIG_ACTION, APP_PLOTWIDGET_PRINT_ACTION);
-
-   // Save selected signature(s)
-   QPixmap pixSaveSig(SignatureWindowIcons::SaveSignatureIcon);
-   QBitmap bmpSaveSig(SignatureWindowIcons::SaveSignatureMask);
-   pixSaveSig.setMask(bmpSaveSig);
-
-   QAction* pSaveSignatureAction = new QAction(QIcon(pixSaveSig), "&Save Signatures...", pParent);
-   pSaveSignatureAction->setAutoRepeat(false);
-   pSaveSignatureAction->setShortcut(QKeySequence("Ctrl+S"));
-   VERIFYNR(connect(pSaveSignatureAction, SIGNAL(triggered()), this, SLOT(saveSignatures())));
-   pMenu->addActionAfter(pSaveSignatureAction, SPECTRAL_SIGNATUREPLOT_SAVE_SIG_ACTION,
+   pMenu->addActionBefore(mpAddSignatureAction, SPECTRAL_SIGNATUREPLOT_ADD_SIG_ACTION, APP_PLOTWIDGET_PRINT_ACTION);
+   pMenu->addActionAfter(mpSaveSignatureAction, SPECTRAL_SIGNATUREPLOT_SAVE_SIG_ACTION,
       SPECTRAL_SIGNATUREPLOT_ADD_SIG_ACTION);
-
-   // Save as signature library
-   QAction* pSaveLibraryAction = new QAction("Save &As Library...", pParent);
-   pSaveLibraryAction->setAutoRepeat(false);
-   VERIFYNR(connect(pSaveLibraryAction, SIGNAL(triggered()), this, SLOT(saveSignatureLibrary())));
-   pMenu->addActionAfter(pSaveLibraryAction, SPECTRAL_SIGNATUREPLOT_SAVE_LIBRARY_ACTION,
+   pMenu->addActionAfter(mpSaveLibraryAction, SPECTRAL_SIGNATUREPLOT_SAVE_LIBRARY_ACTION,
       SPECTRAL_SIGNATUREPLOT_SAVE_SIG_ACTION);
-
-   // Select all
-   QAction* pSelectAllAction = new QAction("Sel&ect All", pParent);
-   pSelectAllAction->setAutoRepeat(false);
-   VERIFYNR(connect(pSelectAllAction, SIGNAL(triggered()), this, SLOT(selectAllSignatures())));
-   pMenu->addActionBefore(pSelectAllAction, SPECTRAL_SIGNATUREPLOT_SELECT_ALL_ACTION,
+   pMenu->addActionBefore(mpSelectAllAction, SPECTRAL_SIGNATUREPLOT_SELECT_ALL_ACTION,
       APP_CARTESIANPLOT_CUSTOM_ZOOM_ACTION);
-
-   // Deselect all
-   QAction* pDeselectAllAction = new QAction("&Deselect All", pParent);
-   pDeselectAllAction->setAutoRepeat(false);
-   VERIFYNR(connect(pDeselectAllAction, SIGNAL(triggered()), this, SLOT(deselectAllSignatures())));
-   pMenu->addActionAfter(pDeselectAllAction, SPECTRAL_SIGNATUREPLOT_DESELECT_ALL_ACTION,
+   pMenu->addActionAfter(mpDeselectAllAction, SPECTRAL_SIGNATUREPLOT_DESELECT_ALL_ACTION,
       SPECTRAL_SIGNATUREPLOT_SELECT_ALL_ACTION);
-
-   // Delete selected
-   QAction* pDeleteSelectedAction = new QAction("Dele&te Selected", pParent);
-   pDeleteSelectedAction->setAutoRepeat(false);
-   VERIFYNR(connect(pDeleteSelectedAction, SIGNAL(triggered()), this, SLOT(removeSelectedSignatures())));
-   pMenu->addActionAfter(pDeleteSelectedAction, SPECTRAL_SIGNATUREPLOT_DELETE_SELECTED_ACTION,
+   pMenu->addActionAfter(mpChangeColorAction, SPECTRAL_SIGNATUREPLOT_CHANGE_COLOR_ACTION,
       SPECTRAL_SIGNATUREPLOT_DESELECT_ALL_ACTION);
-
-   // Change color
-   QAction* pChangeColorAction = new QAction("C&hange Color...", pParent);
-   pChangeColorAction->setAutoRepeat(false);
-   VERIFYNR(connect(pChangeColorAction, SIGNAL(triggered()), this, SLOT(changeSignaturesColor())));
-   pMenu->addActionAfter(pChangeColorAction, SPECTRAL_SIGNATUREPLOT_CHANGE_COLOR_ACTION,
+   pMenu->addActionAfter(mpRemoveSelectedAction, SPECTRAL_SIGNATUREPLOT_REMOVE_SELECTED_ACTION,
+      SPECTRAL_SIGNATUREPLOT_CHANGE_COLOR_ACTION);
+   pMenu->addActionAfter(mpRemoveAllAction, SPECTRAL_SIGNATUREPLOT_REMOVE_ALL_ACTION,
+      SPECTRAL_SIGNATUREPLOT_REMOVE_SELECTED_ACTION);
+   pMenu->addActionAfter(mpDeleteSelectedAction, SPECTRAL_SIGNATUREPLOT_DELETE_SELECTED_ACTION,
+      SPECTRAL_SIGNATUREPLOT_REMOVE_ALL_ACTION);
+   pMenu->addActionAfter(mpDeleteAllAction, SPECTRAL_SIGNATUREPLOT_DELETE_ALL_ACTION,
       SPECTRAL_SIGNATUREPLOT_DELETE_SELECTED_ACTION);
 
-   // Clear
-   QAction* pClearAction = new QAction("&Clear", pParent);
-   pClearAction->setAutoRepeat(false);
-   VERIFYNR(connect(pClearAction, SIGNAL(triggered()), this, SLOT(clearSignatures())));
-   pMenu->addActionAfter(pClearAction, SPECTRAL_SIGNATUREPLOT_CLEAR_ACTION,
-      SPECTRAL_SIGNATUREPLOT_CHANGE_COLOR_ACTION);
-
-   // Separator
    QAction* pSeparatorAction = new QAction(pParent);
    pSeparatorAction->setSeparator(true);
    pMenu->addActionAfter(pSeparatorAction, SPECTRAL_SIGNATUREPLOT_SEPARATOR_ACTION,
-      SPECTRAL_SIGNATUREPLOT_CLEAR_ACTION);
+      SPECTRAL_SIGNATUREPLOT_DELETE_ALL_ACTION);
 
-   // rescale on addition
    pMenu->addActionBefore(mpRescaleOnAdd, SPECTRAL_SIGNATUREPLOT_RESCALE_ON_ADD_ACTION,
       APP_PLOTVIEW_RESCALE_AXES_ACTION);
-
-   // scale to first signature
    pMenu->addActionBefore(mpScaleToFirst, SPECTRAL_SIGNATUREPLOT_SCALE_TO_FIRST_ACTION,
       SPECTRAL_SIGNATUREPLOT_RESCALE_ON_ADD_ACTION);
-
-   // Signature units
    pMenu->addActionBefore(mpSignatureUnitsMenu->menuAction(), SPECTRAL_SIGNATUREPLOT_SIG_UNITS_ACTION,
       APP_APPLICATIONWINDOW_EXPORT_ACTION);
-
-   // Wavelength units
    pMenu->addActionAfter(mpWaveUnitsMenu->menuAction(), SPECTRAL_SIGNATUREPLOT_WAVE_UNITS_ACTION,
       SPECTRAL_SIGNATUREPLOT_SIG_UNITS_ACTION);
 
-   // Separator
    QAction* pSeparator2Action = new QAction(pParent);
    pSeparator2Action->setSeparator(true);
    pMenu->addActionAfter(pSeparator2Action, SPECTRAL_SIGNATUREPLOT_SEPARATOR2_ACTION,
       SPECTRAL_SIGNATUREPLOT_WAVE_UNITS_ACTION);
 
-   // Display mode
    pMenu->addActionAfter(mpDisplayModeMenu->menuAction(), SPECTRAL_SIGNATUREPLOT_DISPLAY_MODE_ACTION,
       SPECTRAL_SIGNATUREPLOT_SEPARATOR2_ACTION);
 
-   // Separator
    QAction* pSeparator3Action = new QAction(pParent);
    pSeparator3Action->setSeparator(true);
    pMenu->addActionAfter(pSeparator3Action, SPECTRAL_SIGNATUREPLOT_SEPARATOR3_ACTION,
@@ -810,6 +845,25 @@ bool SignaturePlotObject::eventFilter(QObject* pObject, QEvent* pEvent)
    return QObject::eventFilter(pObject, pEvent);
 }
 
+void SignaturePlotObject::plotWidgetDeleted(Subject& subject, const string& signal, const boost::any& value)
+{
+   PlotWidget* pPlotWidget = dynamic_cast<PlotWidget*> (&subject);
+   if ((pPlotWidget != NULL) && (pPlotWidget == mpPlotWidget))
+   {
+      PlotView* pPlotView = mpPlotWidget->getPlot();
+      if (pPlotView != NULL)
+      {
+         pPlotView->detach(SIGNAL_NAME(Subject, Modified), Slot(this, &SignaturePlotObject::plotModified));
+      }
+
+      mpPlotWidget->detach(SIGNAL_NAME(PlotWidget, AboutToShowContextMenu),
+         Slot(this, &SignaturePlotObject::updateContextMenu));
+   }
+
+   removeAllSignatures();
+   setRasterLayer(NULL);
+}
+
 QString SignaturePlotObject::getPlotName() const
 {
    QString strPlotName;
@@ -911,7 +965,7 @@ void SignaturePlotObject::addSignatures(const vector<Signature*>& signatures, Co
 
    if (mbClearOnAdd == true)
    {
-      clearSignatures();
+      removeAllSignatures();
    }
 
    // determine if this is the first addition of a signature
@@ -964,7 +1018,7 @@ void SignaturePlotObject::addSignature(Signature* pSignature, ColorType color)
 
    if (mbClearOnAdd == true)
    {
-      clearSignatures();
+      removeAllSignatures();
    }
 
    // determine if this is the first addition of a signature
@@ -1133,6 +1187,7 @@ void SignaturePlotObject::selectAllSignatures(bool bSelect)
       if (pPlotView != NULL)
       {
          pPlotView->selectObjects(bSelect);
+         pPlotView->refresh();
       }
    }
 }
@@ -1210,37 +1265,13 @@ void SignaturePlotObject::removeSelectedSignatures()
       Signature* pSignature = *iter;
       if (pSignature != NULL)
       {
-         removeSignature(pSignature, true);
+         removeSignature(pSignature, false);
       }
    }
-
-   if (mpPlotWidget != NULL)
-   {
-      PlotView* pPlotView = mpPlotWidget->getPlot();
-      if (pPlotView != NULL)
-      {
-         pPlotView->deleteSelectedObjects(false);
-      }
-   }
-
-   refresh();
 }
 
-void SignaturePlotObject::clearSignatures()
+void SignaturePlotObject::removeAllSignatures()
 {
-   // Clear the plot
-   PlotView* pPlotView = NULL;
-   if (mpPlotWidget != NULL)
-   {
-      pPlotView = mpPlotWidget->getPlot();
-   }
-
-   if (pPlotView != NULL)
-   {
-      pPlotView->clear();
-   }
-
-   // Remove the signatures
    while (mSignatures.empty() == false)
    {
       QMap<Signature*, CurveCollection*>::iterator iter = mSignatures.begin();
@@ -1249,6 +1280,33 @@ void SignaturePlotObject::clearSignatures()
       if (pSignature != NULL)
       {
          removeSignature(pSignature, false);
+      }
+   }
+}
+
+void SignaturePlotObject::deleteSelectedSignatures()
+{
+   vector<Signature*> signatures = getSelectedSignatures();
+   for (vector<Signature*>::iterator iter = signatures.begin(); iter != signatures.end(); ++iter)
+   {
+      Signature* pSignature = *iter;
+      if (pSignature != NULL)
+      {
+         removeSignature(pSignature, true);
+      }
+   }
+}
+
+void SignaturePlotObject::deleteAllSignatures()
+{
+   while (mSignatures.empty() == false)
+   {
+      QMap<Signature*, CurveCollection*>::iterator iter = mSignatures.begin();
+
+      Signature* pSignature = iter.key();
+      if (pSignature != NULL)
+      {
+         removeSignature(pSignature, true);
       }
    }
 }
@@ -2132,7 +2190,7 @@ void SignaturePlotObject::addSignature()
       {
          if (mbClearOnAdd == true)
          {
-            clearSignatures();
+            removeAllSignatures();
          }
 
          string message = "Adding the signatures to the plot...";
@@ -3033,7 +3091,7 @@ bool SignaturePlotObject::isValidAddition(Signature* pSignature)
          {
             return false;
          }
-         clearSignatures();
+         removeAllSignatures();
       }
    }
 

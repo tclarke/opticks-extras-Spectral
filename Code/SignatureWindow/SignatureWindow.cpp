@@ -830,7 +830,7 @@ void SignatureWindow::plotWidgetAdded(Subject& subject, const string& signal, co
          Service<SessionManager> pSessionManager;
          if (pSessionManager->isSessionLoading() == false)
          {
-            SignaturePlotObject* pSignaturePlot = new SignaturePlotObject(pPlot, mpProgress);
+            SignaturePlotObject* pSignaturePlot = new SignaturePlotObject(pPlot, mpProgress, pPlot->getWidget());
             if (pSignaturePlot != NULL)
             {
                SpatialDataView* pView = dynamic_cast<SpatialDataView*> (pPlotSet->getAssociatedView());
@@ -875,7 +875,6 @@ void SignatureWindow::plotWidgetDeleted(Subject& subject, const string& signal, 
             if (pCurrentPlot == pPlotWidget)
             {
                mPlots.erase(iter);
-               delete pSignaturePlot;
                break;
             }
          }
@@ -904,9 +903,12 @@ void SignatureWindow::sessionRestored(Subject& subject, const string& signal, co
    {
       SignaturePlotObjectInitializer initializer = *iter;
 
+      QWidget* pParent = NULL;
       MouseMode* pMouseMode = NULL;
       if (initializer.mpPlotWidget != NULL)
       {
+         pParent = initializer.mpPlotWidget->getWidget();
+
          PlotView* pPlotView = initializer.mpPlotWidget->getPlot();
          if (pPlotView != NULL)
          {
@@ -914,7 +916,7 @@ void SignatureWindow::sessionRestored(Subject& subject, const string& signal, co
          }
       }
 
-      SignaturePlotObject* pSignaturePlot = new SignaturePlotObject(initializer.mpPlotWidget, mpProgress);
+      SignaturePlotObject* pSignaturePlot = new SignaturePlotObject(initializer.mpPlotWidget, mpProgress, pParent);
       if (pSignaturePlot != NULL)
       {
          // Signatures
@@ -1372,7 +1374,7 @@ void SignatureWindow::displayAoiSignatures()
    if (isAborted())
    {
       // clear plot and reset local abort flag
-      pSignaturePlot->clearSignatures();
+      pSignaturePlot->removeAllSignatures();
       mAborted = false;
       return;
    }
@@ -1565,7 +1567,7 @@ void SignatureWindow::addPlot(const RasterElement* pRaster, Signature* pSignatur
       {
          if (clearBeforeAdd)
          {
-            pSignaturePlot->clearSignatures();
+            pSignaturePlot->removeAllSignatures();
          }
          pSignaturePlot->displayBandNumbers(false);
          pSignaturePlot->addSignature(pSignature, color);
