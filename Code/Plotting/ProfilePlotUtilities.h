@@ -16,10 +16,10 @@
 #include <string>
 
 class DimensionDescriptor;
+class DockWindow;
 class PlotSet;
 class PlotView;
 class PlotWidget;
-class PlotWindow;
 class RasterLayer;
 class Subject;
 
@@ -29,7 +29,7 @@ public:
    ProfilePlotUtilities(bool isHorizontal);
    virtual ~ProfilePlotUtilities();
 
-   void setPlotSet(PlotSet* pPlotSet, PlotWindow* pPlotWindow);
+   void setPlotSet(PlotSet* pPlotSet, DockWindow* pDockWindow);
    PlotView* getPlot(RasterLayer* pLayer);
    RasterLayer* getActivePlotLayer() const;
    void clearPlot(RasterLayer* pLayer);
@@ -61,7 +61,7 @@ private:
 
    bool mIsHorizontal;
    PlotSet* mpPlotSet;
-   PlotWindow* mpPlotWindow;
+   DockWindow* mpDockWindow;
    std::map<RasterLayer*, PlotWidget*> mPlotWidgets;
 };
 

@@ -17,7 +17,7 @@
 #include <boost/any.hpp>
 #include <QtCore/QObject>
 
-class PlotWindow;
+class DockWindow;
 class QAction;
 class QSpinBox;
 
@@ -41,15 +41,15 @@ public:
    virtual bool deserialize(SessionItemDeserializer& deserializer);
 
 private slots:
-   void plotWindowActionToggled(bool shown);
+   void dockWindowActionToggled(bool shown);
 
 private:
    void windowAdded(Subject& subject, const std::string& signal, const boost::any& value);
    void windowRemoved(Subject& subject, const std::string& signal, const boost::any& value);
    void windowActivated(Subject& subject, const std::string& signal, const boost::any& value);
    void enableAction();
-   void plotWindowShown(Subject& subject, const std::string& signal, const boost::any& value);
-   void plotWindowHidden(Subject& subject, const std::string& signal, const boost::any& value);
+   void dockWindowShown(Subject& subject, const std::string& signal, const boost::any& value);
+   void dockWindowHidden(Subject& subject, const std::string& signal, const boost::any& value);
    virtual bool eventFilter(QObject* pObject, QEvent* pEvent);
 
    ProfilePlotUtilities mHorizontal;
@@ -59,7 +59,7 @@ private:
 
    MouseMode* mpProfileMouseMode;
    QAction* mpProfileAction;
-   std::map<PlotWindow*, QAction*> mToggleActions;
+   std::map<DockWindow*, QAction*> mToggleActions;
 };
 
 #endif

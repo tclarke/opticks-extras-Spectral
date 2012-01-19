@@ -19,7 +19,6 @@
 #include "PlotObject.h"
 #include "PlotView.h"
 #include "PlotWidget.h"
-#include "PlotWindow.h"
 #include "PlugInArgList.h"
 #include "PlugInManagerServices.h"
 #include "PlugInRegistration.h"
@@ -53,8 +52,7 @@ RangeProfileImporter::RangeProfileImporter()
 }
 
 RangeProfileImporter::~RangeProfileImporter()
-{
-}
+{}
 
 std::vector<ImportDescriptor*> RangeProfileImporter::getImportDescriptors(const std::string& filename)
 {
@@ -218,7 +216,8 @@ bool RangeProfileImporter::execute(PlugInArgList* pInArgList, PlugInArgList* pOu
 
    if (!isBatch())
    {
-      std::vector<PlugIn*> instances = Service<PlugInManagerServices>()->getPlugInInstances("Range Profile Plot Manager");
+      std::vector<PlugIn*> instances =
+         Service<PlugInManagerServices>()->getPlugInInstances("Range Profile Plot Manager");
       if (instances.size() != 1)
       {
          progress.report("Unable to plot the data.", 0, ERRORS, true);

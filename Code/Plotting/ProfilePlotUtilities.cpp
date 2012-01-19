@@ -12,12 +12,13 @@
 #include "DataAccessorImpl.h"
 #include "DataRequest.h"
 #include "DimensionDescriptor.h"
+#include "DockWindow.h"
 #include "Locator.h"
 #include "ObjectFactory.h"
 #include "PlotSet.h"
+#include "PlotSetGroup.h"
 #include "PlotView.h"
 #include "PlotWidget.h"
-#include "PlotWindow.h"
 #include "PointSet.h"
 #include "ProfilePlotUtilities.h"
 #include "RasterDataDescriptor.h"
@@ -31,16 +32,17 @@
 #include "xmlreader.h"
 #include "xmlwriter.h"
 
+#include <QtGui/QWidget>
+
 using XERCES_CPP_NAMESPACE_QUALIFIER DOMNode;
 using XERCES_CPP_NAMESPACE_QUALIFIER DOMElement;
 using XERCES_CPP_NAMESPACE_QUALIFIER XMLString;
 
 ProfilePlotUtilities::ProfilePlotUtilities(bool isHorizontal) :
-         mIsHorizontal(isHorizontal),
-         mpPlotSet(NULL),
-         mpPlotWindow(NULL)
-{
-}
+   mIsHorizontal(isHorizontal),
+   mpPlotSet(NULL),
+   mpDockWindow(NULL)
+{}
 
 ProfilePlotUtilities::~ProfilePlotUtilities()
 {
@@ -56,10 +58,10 @@ ProfilePlotUtilities::~ProfilePlotUtilities()
    }
 }
 
-void ProfilePlotUtilities::setPlotSet(PlotSet* pPlotSet, PlotWindow* pPlotWindow)
+void ProfilePlotUtilities::setPlotSet(PlotSet* pPlotSet, DockWindow* pDockWindow)
 {
    mpPlotSet = pPlotSet;
-   mpPlotWindow = pPlotWindow;
+   mpDockWindow = pDockWindow;
 }
 
 PlotView* ProfilePlotUtilities::getPlot(RasterLayer* pLayer)
@@ -197,7 +199,7 @@ bool ProfilePlotUtilities::plot(RasterLayer* pLayer,
       return false;
    }
    // ensure the window is visible
-   mpPlotWindow->show();
+   mpDockWindow->show();
 
    RasterElement* pElement = static_cast<RasterElement*>(pLayer->getDataElement());
    VERIFY(pElement);
@@ -362,7 +364,14 @@ bool ProfilePlotUtilities::toXml(XMLWriter* pXml) const
 {
    pXml->addAttr("horizontal", mIsHorizontal);
    pXml->addAttr("plotSet", mpPlotSet->getId());
-   pXml->addAttr("plotWindow", mpPlotWindow->getId());
+   pXml->addAttr("dockWindow", mpDockWindow->getId());
+
+   PlotSetGroup* pPlotSetGroup = dynamic_cast<PlotSetGroup*>(mpDockWindow->getWidget());
+   if ((pPlotSetGroup == NULL) || (pPlotSetGroup->toXml(pXml) == false))
+   {
+      return false;
+   }
+
    for (std::map<RasterLayer*, PlotWidget*>::const_iterator widget = mPlotWidgets.begin();
          widget != mPlotWidgets.end(); ++widget)
    {
@@ -384,11 +393,18 @@ bool ProfilePlotUtilities::fromXml(DOMNode* pDocument, unsigned int version)
    {
       return false;
    }
-   if ((mpPlotWindow = dynamic_cast<PlotWindow*>(
-      Service<SessionManager>()->getSessionItem(A(pTopElement->getAttribute(X("plotWindow")))))) == NULL)
+   if ((mpDockWindow = dynamic_cast<DockWindow*>(
+      Service<SessionManager>()->getSessionItem(A(pTopElement->getAttribute(X("dockWindow")))))) == NULL)
    {
       return false;
    }
+
+   PlotSetGroup* pPlotSetGroup = dynamic_cast<PlotSetGroup*>(mpDockWindow->getWidget());
+   if ((pPlotSetGroup == NULL) || (pPlotSetGroup->fromXml(pDocument, version) == false))
+   {
+      return false;
+   }
+
    for (DOMNode* pChild = pTopElement->getFirstChild(); pChild != NULL; pChild = pChild->getNextSibling())
    {
       if (XMLString::equals(pChild->getNodeName(), X("PlotWidget")))

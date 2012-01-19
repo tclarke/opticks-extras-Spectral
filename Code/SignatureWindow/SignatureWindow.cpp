@@ -14,22 +14,21 @@
 #include "AoiElement.h"
 #include "AoiLayer.h"
 #include "AppVerify.h"
-#include "BitMask.h"
 #include "ColorType.h"
 #include "ContextMenu.h"
 #include "ContextMenuActions.h"
+#include "DockWindow.h"
 #include "LayerList.h"
 #include "MenuBar.h"
 #include "ModelServices.h"
 #include "MouseMode.h"
 #include "PlotSet.h"
+#include "PlotSetGroup.h"
 #include "PlotView.h"
 #include "PlotWidget.h"
-#include "PlotWindow.h"
 #include "PlugInArgList.h"
 #include "PlugInManagerServices.h"
 #include "PlugInRegistration.h"
-#include "RasterDataDescriptor.h"
 #include "RasterElement.h"
 #include "RasterLayer.h"
 #include "SessionItemDeserializer.h"
@@ -65,7 +64,6 @@ SignatureWindow::SignatureWindow() :
    mpProgress(NULL),
    mSignatureWindowName("Signature Window"),
    mDefaultPlotSetName("Custom Plots"),
-   mpWindowAction(NULL),
    mpPinSigPlotAction(NULL),
    mpPixelSignatureMode(NULL),
    mpPixelSignatureAction(NULL),
@@ -74,7 +72,7 @@ SignatureWindow::SignatureWindow() :
    mbNotifySigPlotObjectsOfAbort(true),
    mbFirstTime(true)
 {
-   AlgorithmShell::setName("Signature Window");
+   setName(mSignatureWindowName);
    setCreator("Ball Aerospace & Technologies, Corp.");
    setVersion(SPECTRAL_VERSION_NUMBER);
    setCopyright(SPECTRAL_COPYRIGHT);
@@ -90,36 +88,47 @@ SignatureWindow::SignatureWindow() :
 
 SignatureWindow::~SignatureWindow()
 {
+   // Destroy the signature plots, which (via signals) destroys the signature plot objects
+   PlotSetGroup* pPlotSetGroup = dynamic_cast<PlotSetGroup*>(getWidget());
+   if (pPlotSetGroup != NULL)
+   {
+      pPlotSetGroup->clear();
+      VERIFYNR(pPlotSetGroup->detach(SIGNAL_NAME(PlotSetGroup, PlotSetAdded),
+         Slot(this, &SignatureWindow::plotSetAdded)));
+   }
+
    // Remove the window action
-   if (mpWindowAction != NULL)
+   QAction* pAction = getAction();
+   if (pAction != NULL)
    {
       ToolBar* pToolBar = static_cast<ToolBar*>(mpDesktop->getWindow("Spectral", TOOLBAR));
       if (pToolBar != NULL)
       {
+         // Remove the menu command
          MenuBar* pMenuBar = pToolBar->getMenuBar();
          if (pMenuBar != NULL)
          {
-            pMenuBar->removeMenuItem(mpWindowAction);
+            pMenuBar->removeMenuItem(pAction);
          }
 
-         pToolBar->removeItem(mpWindowAction);
+         // Remove the toolbar button
+         pToolBar->removeItem(pAction);
       }
 
+      // Delete the action
       if (mpDesktop->getMainWidget() != NULL)
       {
-         delete mpWindowAction;
+         delete pAction;
       }
    }
 
-   // Delete the signature window
-   PlotWindow* pWindow = static_cast<PlotWindow*>(mpDesktop->getWindow(mSignatureWindowName, PLOT_WINDOW));
+   // Detach from the dock window
+   DockWindow* pWindow = getDockWindow();
    if (pWindow != NULL)
    {
-      pWindow->detach(SIGNAL_NAME(DockWindow, Shown), Slot(this, &SignatureWindow::plotWindowShown));
-      pWindow->detach(SIGNAL_NAME(DockWindow, Hidden), Slot(this, &SignatureWindow::plotWindowHidden));
       pWindow->detach(SIGNAL_NAME(DockWindow, AboutToShowContextMenu),
          Slot(this, &SignatureWindow::updateContextMenu));
-      mpDesktop->deleteWindow(pWindow);
+      pWindow->detach(SIGNAL_NAME(Window, SessionItemDropped), Slot(this, &SignatureWindow::dropSessionItem));
    }
 
    // Remove the toolbar buttons
@@ -176,19 +185,14 @@ SignatureWindow::~SignatureWindow()
    }
 }
 
-bool SignatureWindow::setBatch()
-{
-   AlgorithmShell::setBatch();
-   return false;
-}
-
 bool SignatureWindow::getInputSpecification(PlugInArgList*& pArgList)
 {
    if (mbFirstTime)
    {
-      pArgList = NULL;
+      return DockWindowShell::getInputSpecification(pArgList);
    }
-   else
+
+   if (isBatch() == false)
    {
       pArgList = Service<PlugInManagerServices>()->getPlugInArgList();
       VERIFY(pArgList != NULL);
@@ -201,15 +205,10 @@ bool SignatureWindow::getInputSpecification(PlugInArgList*& pArgList)
       VERIFY(pArgList->addArg<ColorType>("Curve color", &defaultColor, "Curve color for the added plot."));
       VERIFY(pArgList->addArg<bool>("Clear before adding", &addPlot, "Flag for whether the plot should be cleared "
          "prior to adding new signatures."));
+      return true;
    }
 
-   return !isBatch();
-}
-
-bool SignatureWindow::getOutputSpecification(PlugInArgList*& pArgList)
-{
-   pArgList = NULL;
-   return !isBatch();
+   return false;
 }
 
 bool SignatureWindow::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
@@ -223,33 +222,9 @@ bool SignatureWindow::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgL
    if (mbFirstTime)
    {
       mbFirstTime = false;
-      QPixmap pixSignatureWindow(SignatureWindowIcons::SignatureWindowIcon);
-      pixSignatureWindow.setMask(QPixmap(SignatureWindowIcons::SignatureWindowMask));
-      QIcon signatureWindowIcon(pixSignatureWindow);
 
-      // Add a menu command and toolbar button to invoke the window
-      ToolBar* pToolBar = static_cast<ToolBar*>(mpDesktop->getWindow("Spectral", TOOLBAR));
-      if (pToolBar != NULL)
-      {
-         MenuBar* pMenuBar = pToolBar->getMenuBar();
-         if (pMenuBar != NULL)
-         {
-            mpWindowAction = pMenuBar->addCommand("Spectral/Support Tools/&Signature Window", "Signature Window");
-            if (mpWindowAction != NULL)
-            {
-               mpWindowAction->setAutoRepeat(false);
-               mpWindowAction->setIcon(signatureWindowIcon);
-               mpWindowAction->setCheckable(true);
-               mpWindowAction->setToolTip("Signature Window");
-               mpWindowAction->setStatusTip("Toggles the display of the Signature Window");
-               VERIFYNR(connect(mpWindowAction, SIGNAL(triggered(bool)), this, SLOT(displaySignatureWindow(bool))));
-
-               pToolBar->addButton(mpWindowAction);
-            }
-         }
-      }
-
-      if (mpWindowAction == NULL)
+      // Create the dock window and menu command action
+      if (DockWindowShell::execute(pInArgList, pOutArgList) == false)
       {
          return false;
       }
@@ -262,24 +237,14 @@ bool SignatureWindow::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgL
          mpDesktop->createProgressDialog(getName(), mpProgress);
       }
 
-      // Create the window
-      PlotWindow* pWindow = static_cast<PlotWindow*>(mpDesktop->getWindow(mSignatureWindowName, PLOT_WINDOW));
-      if (pWindow == NULL)
+      // Attach to the dock window
+      DockWindow* pWindow = getDockWindow();
+      if (pWindow != NULL)
       {
-         pWindow = static_cast<PlotWindow*>(mpDesktop->createWindow(mSignatureWindowName, PLOT_WINDOW));
-         if (pWindow == NULL)
-         {
-            return false;
-         }
+         pWindow->attach(SIGNAL_NAME(DockWindow, AboutToShowContextMenu),
+            Slot(this, &SignatureWindow::updateContextMenu));
+         pWindow->attach(SIGNAL_NAME(Window, SessionItemDropped), Slot(this, &SignatureWindow::dropSessionItem));
       }
-
-      // Attach the window
-      pWindow->attach(SIGNAL_NAME(DockWindow, Shown), Slot(this, &SignatureWindow::plotWindowShown));
-      pWindow->attach(SIGNAL_NAME(DockWindow, Hidden), Slot(this, &SignatureWindow::plotWindowHidden));
-      pWindow->attach(SIGNAL_NAME(DockWindow, AboutToShowContextMenu),
-         Slot(this, &SignatureWindow::updateContextMenu));
-      pWindow->attach(SIGNAL_NAME(PlotWindow, PlotSetAdded), Slot(this, &SignatureWindow::plotSetAdded));
-      pWindow->attach(SIGNAL_NAME(PlotWindow, SessionItemDropped), Slot(this, &SignatureWindow::dropSessionItem));
 
       // Create the pixel spectrum action
       QPixmap pixPixelSignature(SignatureWindowIcons::PixelSignatureIcon);
@@ -328,6 +293,7 @@ bool SignatureWindow::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgL
       VERIFYNR(connect(mpAoiAverageSigAction, SIGNAL(triggered()), this, SLOT(displayAoiAverageSig())));
 
       // Add buttons to the toolbar
+      ToolBar* pToolBar = static_cast<ToolBar*>(mpDesktop->getWindow("Spectral", TOOLBAR));
       if (pToolBar != NULL)
       {
          pToolBar->addButton(mpPinSigPlotAction);
@@ -349,9 +315,11 @@ bool SignatureWindow::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgL
 
       // Initialization
       enableActions();
-      pWindow->setIcon(signatureWindowIcon);
-      pWindow->enableSessionItemDrops(this);
-      pWindow->hide();
+      if (pWindow != NULL)
+      {
+         pWindow->enableSessionItemDrops(this);
+         pWindow->hide();
+      }
 
       // Connections
       mpDesktop->attach(SIGNAL_NAME(DesktopServices, WindowAdded), Slot(this, &SignatureWindow::windowAdded));
@@ -403,9 +371,10 @@ bool SignatureWindow::abort()
    if (mbNotifySigPlotObjectsOfAbort)
    {
       // get the active plot and call abort
-      PlotWindow* pPlotWindow = static_cast<PlotWindow*>(mpDesktop->getWindow(mSignatureWindowName, PLOT_WINDOW));
-      VERIFY(pPlotWindow != NULL);
-      PlotWidget* pPlotWidget = pPlotWindow->getCurrentPlot();
+      PlotSetGroup* pPlotSetGroup = dynamic_cast<PlotSetGroup*>(getWidget());
+      VERIFY(pPlotSetGroup != NULL);
+
+      PlotWidget* pPlotWidget = pPlotSetGroup->getCurrentPlot();
       SignaturePlotObject* pSigPlot = getSignaturePlot(pPlotWidget);
       if (pSigPlot != NULL)
       {
@@ -413,7 +382,7 @@ bool SignatureWindow::abort()
       }
    }
 
-   return AlgorithmShell::abort();
+   return DockWindowShell::abort();
 }
 
 bool SignatureWindow::accept(SessionItem* pItem) const
@@ -423,156 +392,228 @@ bool SignatureWindow::accept(SessionItem* pItem) const
 
 bool SignatureWindow::serialize(SessionItemSerializer& serializer) const
 {
-   if (mpWindowAction != NULL)
+   if (DockWindowShell::serialize(serializer) == false)
    {
-      XMLWriter writer("SignatureWindow");
-      writer.addAttr("shown", mpWindowAction->isChecked());
-      writer.addAttr("pinSignaturePlot", mpPinSigPlotAction->isChecked());
-
-      for (vector<SignaturePlotObject*>::const_iterator iter = mPlots.begin(); iter != mPlots.end(); ++iter)
-      {
-         SignaturePlotObject* pPlot = *iter;
-         if (pPlot != NULL)
-         {
-            writer.pushAddPoint(writer.addElement("SignaturePlotObject"));
-
-            // Plot widget
-            PlotWidget* pPlotWidget = pPlot->getPlotWidget();
-            if (pPlotWidget != NULL)
-            {
-               writer.addAttr("plotWidgetId", pPlotWidget->getId());
-            }
-
-            // Signatures
-            vector<Signature*> signatures = pPlot->getSignatures();
-            for (vector<Signature*>::iterator iter = signatures.begin(); iter != signatures.end(); ++iter)
-            {
-               Signature* pSignature = *iter;
-               if (pSignature != NULL)
-               {
-                  writer.pushAddPoint(writer.addElement("Signature"));
-                  writer.addAttr("signatureId", pSignature->getId());
-                  writer.popAddPoint();
-               }
-            }
-
-            // Plot
-            writer.addAttr("wavelengthUnits", pPlot->getWavelengthUnits());
-            writer.addAttr("bandsDisplayed", pPlot->areBandNumbersDisplayed());
-            writer.addAttr("clearOnAdd", pPlot->isClearOnAdd());
-            writer.addAttr("rescaleOnAdd", pPlot->getRescaleOnAdd());
-
-            // Raster layer
-            RasterLayer* pRasterLayer = pPlot->getRasterLayer();
-            if (pRasterLayer != NULL)
-            {
-               writer.addAttr("rasterLayerId", pRasterLayer->getId());
-            }
-
-            // Regions
-            writer.pushAddPoint(writer.addElement("Regions"));
-            writer.addAttr("displayed", pPlot->areRegionsDisplayed());
-            writer.addAttr("color", QCOLOR_TO_COLORTYPE(pPlot->getRegionColor()));
-            writer.addAttr("opacity", pPlot->getRegionOpacity());
-            writer.popAddPoint();
-
-            // End the signature plot object
-            writer.popAddPoint();
-         }
-      }
-
-      return serializer.serialize(writer);
+      return false;
    }
 
-   return false;
+   serializer.endBlock();
+
+   // Pin signature plot action
+   XMLWriter writer("SignatureWindow");
+   writer.addAttr("pinSignaturePlot", mpPinSigPlotAction->isChecked());
+
+   // Plot sets
+   PlotSetGroup* pPlotSetGroup = dynamic_cast<PlotSetGroup*>(getWidget());
+   if (pPlotSetGroup == NULL)
+   {
+      return false;
+   }
+
+   if (pPlotSetGroup->toXml(&writer) == false)
+   {
+      return false;
+   }
+
+   // Signature plot objects
+   for (vector<SignaturePlotObject*>::const_iterator iter = mPlots.begin(); iter != mPlots.end(); ++iter)
+   {
+      SignaturePlotObject* pPlot = *iter;
+      if (pPlot != NULL)
+      {
+         writer.pushAddPoint(writer.addElement("SignaturePlotObject"));
+
+         // Plot widget
+         PlotWidget* pPlotWidget = pPlot->getPlotWidget();
+         if (pPlotWidget != NULL)
+         {
+            writer.addAttr("plotWidgetId", pPlotWidget->getId());
+         }
+
+         // Signatures
+         vector<Signature*> signatures = pPlot->getSignatures();
+         for (vector<Signature*>::iterator iter = signatures.begin(); iter != signatures.end(); ++iter)
+         {
+            Signature* pSignature = *iter;
+            if (pSignature != NULL)
+            {
+               writer.pushAddPoint(writer.addElement("Signature"));
+               writer.addAttr("signatureId", pSignature->getId());
+               writer.popAddPoint();
+            }
+         }
+
+         // Plot
+         writer.addAttr("wavelengthUnits", pPlot->getWavelengthUnits());
+         writer.addAttr("bandsDisplayed", pPlot->areBandNumbersDisplayed());
+         writer.addAttr("clearOnAdd", pPlot->isClearOnAdd());
+         writer.addAttr("rescaleOnAdd", pPlot->getRescaleOnAdd());
+
+         // Raster layer
+         RasterLayer* pRasterLayer = pPlot->getRasterLayer();
+         if (pRasterLayer != NULL)
+         {
+            writer.addAttr("rasterLayerId", pRasterLayer->getId());
+         }
+
+         // Regions
+         writer.pushAddPoint(writer.addElement("Regions"));
+         writer.addAttr("displayed", pPlot->areRegionsDisplayed());
+         writer.addAttr("color", QCOLOR_TO_COLORTYPE(pPlot->getRegionColor()));
+         writer.addAttr("opacity", pPlot->getRegionOpacity());
+         writer.popAddPoint();
+
+         // End the signature plot object
+         writer.popAddPoint();
+      }
+   }
+
+   return serializer.serialize(writer);
 }
 
 bool SignatureWindow::deserialize(SessionItemDeserializer& deserializer)
 {
-   if (isBatch() == true)
+   if (DockWindowShell::deserialize(deserializer) == false)
    {
-      setInteractive();
+      return false;
    }
 
-   bool pinSigPlot(false);
-   bool success = execute(NULL, NULL);
-   if ((success == true) && (mpWindowAction != NULL))
+   deserializer.nextBlock();
+   XmlReader reader(NULL, false);
+
+   DOMElement* pRootElement = deserializer.deserialize(reader, "SignatureWindow");
+   if (pRootElement == NULL)
    {
-      // Initialize the menu action
-      XmlReader reader(NULL, false);
-      DOMElement* pRootElement = deserializer.deserialize(reader, "SignatureWindow");
-      if (pRootElement)
-      {
-         bool shown = StringUtilities::fromXmlString<bool>(A(pRootElement->getAttribute(X("shown"))));
-         mpWindowAction->setChecked(shown);
+      return false;
+   }
 
-         // have to save value till after session restore finishes
-         pinSigPlot = StringUtilities::fromXmlString<bool>(A(pRootElement->getAttribute(X("pinSignaturePlot"))));
-      }
+   // Pin signature plot action
+   bool pinSigPlot = StringUtilities::fromXmlString<bool>(A(pRootElement->getAttribute(X("pinSignaturePlot"))));
+   mpPinSigPlotAction->setChecked(pinSigPlot);
 
-      // Signature plots
-      Service<SessionManager> pSessionManager;
-      for (DOMNode* pChild = pRootElement->getFirstChild(); pChild != NULL; pChild = pChild->getNextSibling())
+   // Plot sets
+   PlotSetGroup* pPlotSetGroup = dynamic_cast<PlotSetGroup*>(getWidget());
+   if (pPlotSetGroup == NULL)
+   {
+      return false;
+   }
+
+   if (pPlotSetGroup->fromXml(pRootElement, XmlBase::VERSION) == false)
+   {
+      return false;
+   }
+
+   // Signature plot objects
+   Service<SessionManager> pSessionManager;
+   for (DOMNode* pChild = pRootElement->getFirstChild(); pChild != NULL; pChild = pChild->getNextSibling())
+   {
+      DOMElement* pElement = static_cast<DOMElement*>(pChild);
+      if (XMLString::equals(pChild->getNodeName(), X("SignaturePlotObject")))
       {
-         DOMElement* pElement = static_cast<DOMElement*>(pChild);
-         if (XMLString::equals(pChild->getNodeName(), X("SignaturePlotObject")))
+         SignaturePlotObjectInitializer initializer;
+
+         // Plot widget
+         string plotWidgetId = A(pElement->getAttribute(X("plotWidgetId")));
+         if (plotWidgetId.empty() == false)
          {
-            SignaturePlotObjectInitializer initializer;
+            initializer.mpPlotWidget = dynamic_cast<PlotWidget*>(pSessionManager->getSessionItem(plotWidgetId));
+         }
 
-            // Plot widget
-            string plotWidgetId = A(pElement->getAttribute(X("plotWidgetId")));
-            if (plotWidgetId.empty() == false)
+         // Signatures and regions
+         for (DOMNode* pGChild = pElement->getFirstChild(); pGChild != NULL; pGChild = pGChild->getNextSibling())
+         {
+            DOMElement* pGChildElement = static_cast<DOMElement*>(pGChild);
+            if (XMLString::equals(pGChild->getNodeName(), X("Signature")))
             {
-               initializer.mpPlotWidget = dynamic_cast<PlotWidget*>(pSessionManager->getSessionItem(plotWidgetId));
-            }
+               string signatureId = A(pGChildElement->getAttribute(X("signatureId")));
 
-            // Signatures and regions
-            for (DOMNode* pGChild = pElement->getFirstChild(); pGChild != NULL; pGChild = pGChild->getNextSibling())
-            {
-               DOMElement* pGChildElement = static_cast<DOMElement*>(pGChild);
-               if (XMLString::equals(pGChild->getNodeName(), X("Signature")))
+               Signature* pSignature = dynamic_cast<Signature*>(pSessionManager->getSessionItem(signatureId));
+               if (pSignature != NULL)
                {
-                  string signatureId = A(pGChildElement->getAttribute(X("signatureId")));
-
-                  Signature* pSignature = dynamic_cast<Signature*>(pSessionManager->getSessionItem(signatureId));
-                  if (pSignature != NULL)
-                  {
-                     initializer.mSignatures.push_back(pSignature);
-                  }
-               }
-               else if (XMLString::equals(pGChild->getNodeName(), X("Regions")))
-               {
-                  initializer.mRegionsDisplayed = StringUtilities::fromXmlString<bool>(
-                     A(pGChildElement->getAttribute(X("displayed"))));
-                  initializer.mRegionColor = COLORTYPE_TO_QCOLOR(StringUtilities::fromXmlString<ColorType>(
-                     A(pGChildElement->getAttribute(X("color")))));
-                  initializer.mRegionOpacity = StringUtilities::fromXmlString<int>(
-                     A(pGChildElement->getAttribute(X("opacity"))));
+                  initializer.mSignatures.push_back(pSignature);
                }
             }
-
-            // Plot
-            initializer.mWavelengthUnits = StringUtilities::fromXmlString<WavelengthUnitsType>(
-               A(pElement->getAttribute(X("wavelengthUnits"))));
-            initializer.mBandsDisplayed = StringUtilities::fromXmlString<bool>(
-               A(pElement->getAttribute(X("bandsDisplayed"))));
-            initializer.mClearOnAdd = StringUtilities::fromXmlString<bool>(A(pElement->getAttribute(X("clearOnAdd"))));
-            initializer.mRescaleOnAdd = StringUtilities::fromXmlString<bool>(A(pElement->getAttribute(X("rescaleOnAdd"))));
-
-            // Raster layer
-            string rasterLayerId = A(pElement->getAttribute(X("rasterLayerId")));
-            if (rasterLayerId.empty() == false)
+            else if (XMLString::equals(pGChild->getNodeName(), X("Regions")))
             {
-               initializer.mpRasterLayer = dynamic_cast<RasterLayer*>(pSessionManager->getSessionItem(rasterLayerId));
+               initializer.mRegionsDisplayed = StringUtilities::fromXmlString<bool>(
+                  A(pGChildElement->getAttribute(X("displayed"))));
+               initializer.mRegionColor = COLORTYPE_TO_QCOLOR(StringUtilities::fromXmlString<ColorType>(
+                  A(pGChildElement->getAttribute(X("color")))));
+               initializer.mRegionOpacity = StringUtilities::fromXmlString<int>(
+                  A(pGChildElement->getAttribute(X("opacity"))));
             }
+         }
 
-            mSessionPlots.push_back(initializer);
+         // Plot
+         initializer.mWavelengthUnits = StringUtilities::fromXmlString<WavelengthUnitsType>(
+            A(pElement->getAttribute(X("wavelengthUnits"))));
+         initializer.mBandsDisplayed = StringUtilities::fromXmlString<bool>(
+            A(pElement->getAttribute(X("bandsDisplayed"))));
+         initializer.mClearOnAdd = StringUtilities::fromXmlString<bool>(A(pElement->getAttribute(X("clearOnAdd"))));
+         initializer.mRescaleOnAdd = StringUtilities::fromXmlString<bool>(A(pElement->getAttribute(X("rescaleOnAdd"))));
+
+         // Raster layer
+         string rasterLayerId = A(pElement->getAttribute(X("rasterLayerId")));
+         if (rasterLayerId.empty() == false)
+         {
+            initializer.mpRasterLayer = dynamic_cast<RasterLayer*>(pSessionManager->getSessionItem(rasterLayerId));
+         }
+
+         mSessionPlots.push_back(initializer);
+      }
+   }
+
+   return true;
+}
+
+QAction* SignatureWindow::createAction()
+{
+   // Create the menu command and toolbar button action to invoke the window
+   ToolBar* pToolBar = static_cast<ToolBar*>(mpDesktop->getWindow("Spectral", TOOLBAR));
+   if (pToolBar != NULL)
+   {
+      MenuBar* pMenuBar = pToolBar->getMenuBar();
+      if (pMenuBar != NULL)
+      {
+         QAction* pAction = pMenuBar->addCommand("Spectral/Support Tools/&Signature Window", mSignatureWindowName);
+         if (pAction != NULL)
+         {
+            QPixmap pixSignatureWindow(SignatureWindowIcons::SignatureWindowIcon);
+            pixSignatureWindow.setMask(QPixmap(SignatureWindowIcons::SignatureWindowMask));
+            QIcon signatureWindowIcon(pixSignatureWindow);
+
+            pAction->setIcon(signatureWindowIcon);
+            pAction->setToolTip(QString::fromStdString(mSignatureWindowName));
+            pAction->setStatusTip("Toggles the display of the Signature Window");
+
+            // Add a button to the toolbar
+            pToolBar->addButton(pAction);
+            return pAction;
          }
       }
    }
-   mpPinSigPlotAction->setChecked(pinSigPlot);
 
-   return success;
+   return NULL;
+}
+
+QWidget* SignatureWindow::createWidget()
+{
+   Service<DesktopServices> pDesktop;
+
+   PlotSetGroup* pPlotSetGroup = pDesktop->createPlotSetGroup(pDesktop->getMainWidget());
+   if (pPlotSetGroup == NULL)
+   {
+      return NULL;
+   }
+
+   QPixmap pixSignatureWindow(SignatureWindowIcons::SignatureWindowIcon);
+   pixSignatureWindow.setMask(QPixmap(SignatureWindowIcons::SignatureWindowMask));
+   QIcon signatureWindowIcon(pixSignatureWindow);
+
+   pPlotSetGroup->setInfoBarIcon(signatureWindowIcon);
+   VERIFYNR(pPlotSetGroup->attach(SIGNAL_NAME(PlotSetGroup, PlotSetAdded),
+      Slot(this, &SignatureWindow::plotSetAdded)));
+   return pPlotSetGroup->getWidget();
 }
 
 bool SignatureWindow::eventFilter(QObject* pObject, QEvent* pEvent)
@@ -666,13 +707,13 @@ void SignatureWindow::dropSessionItem(Subject& subject, const string& signal, co
       // Lock Session Save while adding the dropped sig
       SessionSaveLock lock;
 
-      PlotWindow* pPlotWindow = static_cast<PlotWindow*>(mpDesktop->getWindow(mSignatureWindowName, PLOT_WINDOW));
-      if (pPlotWindow != NULL)
+      PlotSetGroup* pPlotSetGroup = dynamic_cast<PlotSetGroup*>(getWidget());
+      if (pPlotSetGroup != NULL)
       {
-         PlotWidget* pWidget = pPlotWindow->getCurrentPlot();
-         if (pWidget != NULL)
+         PlotWidget* pPlotWidget = pPlotSetGroup->getCurrentPlot();
+         if (pPlotWidget != NULL)
          {
-            SignaturePlotObject* pSignaturePlot = getSignaturePlot(pWidget);
+            SignaturePlotObject* pSignaturePlot = getSignaturePlot(pPlotWidget);
             if (pSignaturePlot != NULL)
             {
                pSignaturePlot->addSignature(pSignature);
@@ -690,8 +731,14 @@ void SignatureWindow::updateContextMenu(Subject& subject, const string& signal, 
       return;
    }
 
-   PlotWindow* pWindow = static_cast<PlotWindow*>(mpDesktop->getWindow(mSignatureWindowName, PLOT_WINDOW));
+   DockWindow* pWindow = getDockWindow();
    if (pWindow == NULL)
+   {
+      return;
+   }
+
+   PlotSetGroup* pPlotSetGroup = dynamic_cast<PlotSetGroup*>(pWindow->getWidget());
+   if (pPlotSetGroup == NULL)
    {
       return;
    }
@@ -711,14 +758,14 @@ void SignatureWindow::updateContextMenu(Subject& subject, const string& signal, 
          PlotSet* pPlotSet = dynamic_cast<PlotSet*>(items.front());
          if (pPlotSet != NULL)
          {
-            if (pWindow->containsPlotSet(pPlotSet) == true)
+            if (pPlotSetGroup->containsPlotSet(pPlotSet) == true)
             {
                bAddAction = true;
             }
          }
       }
    }
-   else if (dynamic_cast<PlotWindow*>(&subject) == pWindow)
+   else if (dynamic_cast<DockWindow*>(&subject) == pWindow)
    {
       bAddAction = true;
       beforeId = APP_PLOTSET_DELETE_ACTION;
@@ -773,40 +820,12 @@ void SignatureWindow::layerActivated(Subject& subject, const string& signal, con
    enableActions();
 }
 
-void SignatureWindow::plotWindowShown(Subject& subject, const string& signal, const boost::any& value)
-{
-   PlotWindow* pPlotWindow = dynamic_cast<PlotWindow*> (&subject);
-   if (pPlotWindow != NULL)
-   {
-      if (mpWindowAction != NULL)
-      {
-         mpWindowAction->setChecked(true);
-      }
-   }
-}
-
-void SignatureWindow::plotWindowHidden(Subject& subject, const string& signal, const boost::any& value)
-{
-   PlotWindow* pPlotWindow = dynamic_cast<PlotWindow*> (&subject);
-   if (pPlotWindow != NULL)
-   {
-      if (mpWindowAction != NULL)
-      {
-         mpWindowAction->setChecked(false);
-      }
-   }
-}
-
 void SignatureWindow::plotSetAdded(Subject& subject, const string& signal, const boost::any& value)
 {
-   PlotWindow* pPlotWindow = dynamic_cast<PlotWindow*> (&subject);
-   if (pPlotWindow != NULL)
+   PlotSet* pPlotSet = boost::any_cast<PlotSet*>(value);
+   if (pPlotSet != NULL)
    {
-      PlotSet* pPlotSet = boost::any_cast<PlotSet*>(value);
-      if (pPlotSet != NULL)
-      {
-         pPlotSet->attach(SIGNAL_NAME(PlotSet, PlotAdded), Slot(this, &SignatureWindow::plotWidgetAdded));
-      }
+      pPlotSet->attach(SIGNAL_NAME(PlotSet, PlotAdded), Slot(this, &SignatureWindow::plotWidgetAdded));
    }
 }
 
@@ -1093,14 +1112,20 @@ SignaturePlotObject* SignatureWindow::getSignaturePlot(const string& plotName)
    }
 
    // Get a pointer to the signature window
-   PlotWindow* pPlotWindow = static_cast<PlotWindow*>(mpDesktop->getWindow(mSignatureWindowName, PLOT_WINDOW));
-   if (pPlotWindow == NULL)
+   DockWindow* pDockWindow = getDockWindow();
+   if (pDockWindow == NULL)
+   {
+      return NULL;
+   }
+
+   PlotSetGroup* pPlotSetGroup = dynamic_cast<PlotSetGroup*>(pDockWindow->getWidget());
+   if (pPlotSetGroup == NULL)
    {
       return NULL;
    }
 
    // Show the window to ensure it is visible
-   pPlotWindow->show();
+   pDockWindow->show();
 
    // Get or create the plot set
    string plotSetName = getPlotSetName();
@@ -1108,17 +1133,18 @@ SignaturePlotObject* SignatureWindow::getSignaturePlot(const string& plotName)
    {
       return NULL;
    }
-   PlotSet* pPlotSet = pPlotWindow->getPlotSet(plotSetName);
+
+   PlotSet* pPlotSet = pPlotSetGroup->getPlotSet(plotSetName);
    if (pPlotSet == NULL)
    {
       if (mpPinSigPlotAction->isChecked())
       {
          addDefaultPlot();
-         pPlotSet = pPlotWindow->getPlotSet(mDefaultPlotSetName);
+         pPlotSet = pPlotSetGroup->getPlotSet(mDefaultPlotSetName);
       }
       else
       {
-         pPlotSet = pPlotWindow->createPlotSet(plotSetName);
+         pPlotSet = pPlotSetGroup->createPlotSet(plotSetName);
          if (pPlotSet != NULL)
          {
             pPlotSet->setAssociatedView(pView);
@@ -1130,7 +1156,7 @@ SignaturePlotObject* SignatureWindow::getSignaturePlot(const string& plotName)
       }
    }
 
-   pPlotWindow->setCurrentPlotSet(pPlotSet);
+   pPlotSetGroup->setCurrentPlotSet(pPlotSet);
 
    // Get or create the plot
    PlotWidget* pPlot(NULL);
@@ -1158,43 +1184,27 @@ SignaturePlotObject* SignatureWindow::getSignaturePlot(const string& plotName)
    }
 
    // Set the plot as the active plot
-   pPlotWindow->setCurrentPlot(pPlot);
+   pPlotSetGroup->setCurrentPlot(pPlot);
 
    return getSignaturePlot(pPlot);
 }
 
-void SignatureWindow::displaySignatureWindow(bool bDisplay)
-{
-   PlotWindow* pWindow = static_cast<PlotWindow*>(mpDesktop->getWindow(mSignatureWindowName, PLOT_WINDOW));
-   if (pWindow != NULL)
-   {
-      if (bDisplay == true)
-      {
-         pWindow->show();
-      }
-      else
-      {
-         pWindow->hide();
-      }
-   }
-}
-
 void SignatureWindow::addDefaultPlot()
 {
-   PlotWindow* pWindow = static_cast<PlotWindow*>(mpDesktop->getWindow(mSignatureWindowName, PLOT_WINDOW));
-   if (pWindow == NULL)
+   PlotSetGroup* pPlotSetGroup = dynamic_cast<PlotSetGroup*>(getWidget());
+   if (pPlotSetGroup == NULL)
    {
       return;
    }
 
    // Create a default plot name
-   QString strPlotName = "Plot " + QString::number(pWindow->getNumPlots() + 1);
+   QString strPlotName = "Plot " + QString::number(pPlotSetGroup->getNumPlots() + 1);
 
    // Add the plot
-   PlotSet* pPlotSet = pWindow->getCurrentPlotSet();
+   PlotSet* pPlotSet = pPlotSetGroup->getCurrentPlotSet();
    if (pPlotSet == NULL)
    {
-      pPlotSet = pWindow->createPlotSet(mDefaultPlotSetName);
+      pPlotSet = pPlotSetGroup->createPlotSet(mDefaultPlotSetName);
    }
 
    if (pPlotSet != NULL)
@@ -1211,8 +1221,14 @@ SignaturePlotObject* SignatureWindow::getSignaturePlotForAverage() const
       return NULL;
    }
 
-   PlotWindow* pWindow = static_cast<PlotWindow*>(mpDesktop->getWindow(mSignatureWindowName, PLOT_WINDOW));
+   DockWindow* pWindow = const_cast<DockWindow*>(getDockWindow());
    if (pWindow == NULL)
+   {
+      return NULL;
+   }
+
+   PlotSetGroup* pPlotSetGroup = dynamic_cast<PlotSetGroup*>(pWindow->getWidget());
+   if (pPlotSetGroup == NULL)
    {
       return NULL;
    }
@@ -1227,14 +1243,14 @@ SignaturePlotObject* SignatureWindow::getSignaturePlotForAverage() const
       return NULL;
    }
 
-   PlotSet* pPlotSet = pWindow->getPlotSet(plotSetName);
+   PlotSet* pPlotSet = pPlotSetGroup->getPlotSet(plotSetName);
    if (pPlotSet == NULL)
    {
       return NULL;
    }
 
    // set as current plotset in case user has changed the currently displayed plotset 
-   pWindow->setCurrentPlotSet(pPlotSet);
+   pPlotSetGroup->setCurrentPlotSet(pPlotSet);
 
    PlotWidget* pPlot = pPlotSet->getCurrentPlot();
    if (pPlot == NULL)
@@ -1247,13 +1263,13 @@ SignaturePlotObject* SignatureWindow::getSignaturePlotForAverage() const
 
 void SignatureWindow::renameCurrentPlot()
 {
-   PlotWindow* pWindow = static_cast<PlotWindow*>(mpDesktop->getWindow(mSignatureWindowName, PLOT_WINDOW));
-   if (pWindow == NULL)
+   PlotSetGroup* pPlotSetGroup = dynamic_cast<PlotSetGroup*>(getWidget());
+   if (pPlotSetGroup == NULL)
    {
       return;
    }
 
-   PlotSet* pPlotSet = pWindow->getCurrentPlotSet();
+   PlotSet* pPlotSet = pPlotSetGroup->getCurrentPlotSet();
    if (pPlotSet != NULL)
    {
       PlotWidget* pPlot = pPlotSet->getCurrentPlot();
@@ -1266,13 +1282,13 @@ void SignatureWindow::renameCurrentPlot()
 
 void SignatureWindow::deleteCurrentPlot()
 {
-   PlotWindow* pWindow = static_cast<PlotWindow*>(mpDesktop->getWindow(mSignatureWindowName, PLOT_WINDOW));
-   if (pWindow == NULL)
+   PlotSetGroup* pPlotSetGroup = dynamic_cast<PlotSetGroup*>(getWidget());
+   if (pPlotSetGroup == NULL)
    {
       return;
    }
 
-   PlotSet* pPlotSet = pWindow->getCurrentPlotSet();
+   PlotSet* pPlotSet = pPlotSetGroup->getCurrentPlotSet();
    if (pPlotSet != NULL)
    {
       PlotWidget* pPlot = pPlotSet->getCurrentPlot();
@@ -1498,16 +1514,16 @@ void SignatureWindow::displayAoiAverageSig()
 
 bool SignatureWindow::setCurrentPlotSet(const string& plotsetName)
 {
-   PlotWindow* pSigWindow = static_cast<PlotWindow*>(mpDesktop->getWindow(mSignatureWindowName, PLOT_WINDOW));
-   VERIFY(pSigWindow != NULL);  // signature window should always exist - no means for user to close or delete it.
+   PlotSetGroup* pPlotSetGroup = dynamic_cast<PlotSetGroup*>(getWidget());
+   VERIFY(pPlotSetGroup != NULL);  // signature window should always exist - no means for user to close or delete it.
 
-   PlotSet* pPlotSet = pSigWindow->getPlotSet(plotsetName);
+   PlotSet* pPlotSet = pPlotSetGroup->getPlotSet(plotsetName);
    if (pPlotSet == NULL)
    {
       return false;
    }
 
-   return pSigWindow->setCurrentPlotSet(pPlotSet);
+   return pPlotSetGroup->setCurrentPlotSet(pPlotSet);
 }
 
 void SignatureWindow::pinSignatureWindow(bool enable)
@@ -1556,7 +1572,8 @@ void SignatureWindow::updateProgress(const std::string& msg, int percent, Report
    }
 }
 
-void SignatureWindow::addPlot(const RasterElement* pRaster, Signature* pSignature, const ColorType& color, bool clearBeforeAdd)
+void SignatureWindow::addPlot(const RasterElement* pRaster, Signature* pSignature, const ColorType& color,
+                              bool clearBeforeAdd)
 {
    if (pRaster != NULL && pSignature != NULL && color.isValid())
    {

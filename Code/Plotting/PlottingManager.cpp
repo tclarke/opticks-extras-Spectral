@@ -9,10 +9,11 @@
 
 #include "AppVerify.h"
 #include "DesktopServices.h"
+#include "DockWindow.h"
 #include "LayerList.h"
 #include "MouseMode.h"
+#include "PlotSetGroup.h"
 #include "PlottingManager.h"
-#include "PlotWindow.h"
 #include "PlugInArgList.h"
 #include "PlugInManagerServices.h"
 #include "PlugInRegistration.h"
@@ -71,14 +72,14 @@ PlottingManager::~PlottingManager()
    ToolBar* pToolBar = static_cast<ToolBar*>(Service<DesktopServices>()->getWindow("Spectral", TOOLBAR));
    if (pToolBar != NULL)
    {
-      for (std::map<PlotWindow*, QAction*>::iterator toggleAction = mToggleActions.begin();
+      for (std::map<DockWindow*, QAction*>::iterator toggleAction = mToggleActions.begin();
               toggleAction != mToggleActions.end(); ++toggleAction)
       {
          pToolBar->removeItem(toggleAction->second);
          toggleAction->first->detach(SIGNAL_NAME(DockWindow, Shown),
-            Slot(this, &PlottingManager::plotWindowShown));
+            Slot(this, &PlottingManager::dockWindowShown));
          toggleAction->first->detach(SIGNAL_NAME(DockWindow, Hidden),
-            Slot(this, &PlottingManager::plotWindowHidden));
+            Slot(this, &PlottingManager::dockWindowHidden));
          Service<DesktopServices>()->deleteWindow(toggleAction->first);
          delete toggleAction->second;
       }
@@ -128,39 +129,55 @@ bool PlottingManager::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgL
    bool sesLoad = Service<SessionManager>()->isSessionLoading();
 
    // Setup the plot windows
-   PlotWindow* pHorizontalPlotWindow = static_cast<PlotWindow*>(
-      sesLoad ? Service<DesktopServices>()->getWindow("Horizontal Profiles", PLOT_WINDOW)
-              : Service<DesktopServices>()->createWindow("Horizontal Profiles", PLOT_WINDOW));
-   if (pHorizontalPlotWindow == NULL)
+   DockWindow* pHorizontalDockWindow = static_cast<DockWindow*>(
+      sesLoad ? Service<DesktopServices>()->getWindow("Horizontal Profiles", DOCK_WINDOW)
+              : Service<DesktopServices>()->createWindow("Horizontal Profiles", DOCK_WINDOW));
+   if (pHorizontalDockWindow == NULL)
    {
       return false;
    }
-   pHorizontalPlotWindow->attach(SIGNAL_NAME(DockWindow, Shown), Slot(this, &PlottingManager::plotWindowShown));
-   pHorizontalPlotWindow->attach(SIGNAL_NAME(DockWindow, Hidden), Slot(this, &PlottingManager::plotWindowHidden));
-   PlotSet* pHorizontal = pHorizontalPlotWindow->createPlotSet("Horizontal Profiles");
+   pHorizontalDockWindow->attach(SIGNAL_NAME(DockWindow, Shown), Slot(this, &PlottingManager::dockWindowShown));
+   pHorizontalDockWindow->attach(SIGNAL_NAME(DockWindow, Hidden), Slot(this, &PlottingManager::dockWindowHidden));
+
+   PlotSetGroup* pHorizontalWidget = Service<DesktopServices>()->createPlotSetGroup();
+   if (pHorizontalWidget == NULL)
+   {
+      return false;
+   }
+   pHorizontalDockWindow->setWidget(pHorizontalWidget->getWidget());
+
+   PlotSet* pHorizontal = pHorizontalWidget->createPlotSet("Horizontal Profiles");
    if (pHorizontal == NULL)
    {
       return false;
    }
-   mHorizontal.setPlotSet(pHorizontal, pHorizontalPlotWindow);
-   pHorizontalPlotWindow->hide();
+   mHorizontal.setPlotSet(pHorizontal, pHorizontalDockWindow);
+   pHorizontalDockWindow->hide();
 
-   PlotWindow* pVerticalPlotWindow = static_cast<PlotWindow*>(
-      sesLoad ? Service<DesktopServices>()->getWindow("Vertical Profiles", PLOT_WINDOW)
-              : Service<DesktopServices>()->createWindow("Vertical Profiles", PLOT_WINDOW));
-   if (pVerticalPlotWindow == NULL)
+   DockWindow* pVerticalDockWindow = static_cast<DockWindow*>(
+      sesLoad ? Service<DesktopServices>()->getWindow("Vertical Profiles", DOCK_WINDOW)
+              : Service<DesktopServices>()->createWindow("Vertical Profiles", DOCK_WINDOW));
+   if (pVerticalDockWindow == NULL)
    {
       return false;
    }
-   pVerticalPlotWindow->attach(SIGNAL_NAME(DockWindow, Shown), Slot(this, &PlottingManager::plotWindowShown));
-   pVerticalPlotWindow->attach(SIGNAL_NAME(DockWindow, Hidden), Slot(this, &PlottingManager::plotWindowHidden));
-   PlotSet* pVertical = pVerticalPlotWindow->createPlotSet("Vertical Profiles");
+   pVerticalDockWindow->attach(SIGNAL_NAME(DockWindow, Shown), Slot(this, &PlottingManager::dockWindowShown));
+   pVerticalDockWindow->attach(SIGNAL_NAME(DockWindow, Hidden), Slot(this, &PlottingManager::dockWindowHidden));
+
+   PlotSetGroup* pVerticalWidget = Service<DesktopServices>()->createPlotSetGroup();
+   if (pVerticalWidget == NULL)
+   {
+      return false;
+   }
+   pVerticalDockWindow->setWidget(pVerticalWidget->getWidget());
+
+   PlotSet* pVertical = pVerticalWidget->createPlotSet("Vertical Profiles");
    if (pVertical == NULL)
    {
       return false;
    }
-   mVertical.setPlotSet(pVertical, pVerticalPlotWindow);
-   pVerticalPlotWindow->hide();
+   mVertical.setPlotSet(pVertical, pVerticalDockWindow);
+   pVerticalDockWindow->hide();
 
    // Create mouse modes
    mpProfileAction = new QAction(QIcon(":/Spectral/icons/ProfileMouseMode"), "Profile Plot", this);
@@ -185,9 +202,9 @@ bool PlottingManager::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgL
    pHorizontalToggleAction->setCheckable(true);
    pHorizontalToggleAction->setChecked(false);
    pHorizontalToggleAction->setStatusTip("Toggle the display of the Horizontal Profiles");
-   VERIFYNR(connect(pHorizontalToggleAction, SIGNAL(triggered(bool)), this, SLOT(plotWindowActionToggled(bool))));
-   pHorizontalToggleAction->setData(qVariantFromValue(reinterpret_cast<void*>(pHorizontalPlotWindow)));
-   mToggleActions[pHorizontalPlotWindow] = pHorizontalToggleAction;
+   VERIFYNR(connect(pHorizontalToggleAction, SIGNAL(triggered(bool)), this, SLOT(dockWindowActionToggled(bool))));
+   pHorizontalToggleAction->setData(qVariantFromValue(reinterpret_cast<void*>(pHorizontalDockWindow)));
+   mToggleActions[pHorizontalDockWindow] = pHorizontalToggleAction;
    pToolBar->addButton(pHorizontalToggleAction);
 
    QAction* pVerticalToggleAction = new QAction(QIcon(":/Spectral/icons/VerticalProfilePlot"),
@@ -196,9 +213,9 @@ bool PlottingManager::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgL
    pVerticalToggleAction->setCheckable(true);
    pVerticalToggleAction->setChecked(false);
    pVerticalToggleAction->setStatusTip("Toggle the display of the Band Vertical Profiles");
-   VERIFYNR(connect(pVerticalToggleAction, SIGNAL(triggered(bool)), this, SLOT(plotWindowActionToggled(bool))));
-   pVerticalToggleAction->setData(qVariantFromValue(reinterpret_cast<void*>(pVerticalPlotWindow)));
-   mToggleActions[pVerticalPlotWindow] = pVerticalToggleAction;
+   VERIFYNR(connect(pVerticalToggleAction, SIGNAL(triggered(bool)), this, SLOT(dockWindowActionToggled(bool))));
+   pVerticalToggleAction->setData(qVariantFromValue(reinterpret_cast<void*>(pVerticalDockWindow)));
+   mToggleActions[pVerticalDockWindow] = pVerticalToggleAction;
    pToolBar->addButton(pVerticalToggleAction);
 
    pToolBar->addButton(mpProfileAction);
@@ -232,7 +249,7 @@ bool PlottingManager::serialize(SessionItemSerializer& serializer) const
 {
    XMLWriter xml("PlottingManager");
    xml.addAttr("mouseModeActive", mpProfileAction->isChecked());
-   for (std::map<PlotWindow*, QAction*>::const_iterator toggle = mToggleActions.begin();
+   for (std::map<DockWindow*, QAction*>::const_iterator toggle = mToggleActions.begin();
          toggle != mToggleActions.end(); ++toggle)
    {
       xml.pushAddPoint(xml.addElement("ToggleAction"));
@@ -277,9 +294,9 @@ bool PlottingManager::deserialize(SessionItemDeserializer& deserializer)
          DOMElement* pElement = static_cast<DOMElement*>(pChild);
          bool shown = StringUtilities::fromXmlString<bool>(A(pElement->getAttribute(X("shown"))));
          std::string sessId = A(pElement->getTextContent());
-         PlotWindow* pWindow = dynamic_cast<PlotWindow*>(
+         DockWindow* pWindow = dynamic_cast<DockWindow*>(
             Service<SessionManager>()->getSessionItem(A(pElement->getTextContent())));
-         std::map<PlotWindow*, QAction*>::iterator it = mToggleActions.find(pWindow);
+         std::map<DockWindow*, QAction*>::iterator it = mToggleActions.find(pWindow);
          if (it == mToggleActions.end())
          {
             return false;
@@ -348,45 +365,45 @@ void PlottingManager::enableAction()
    }
 }
 
-void PlottingManager::plotWindowShown(Subject& subject, const std::string& signal, const boost::any& value)
+void PlottingManager::dockWindowShown(Subject& subject, const std::string& signal, const boost::any& value)
 {
-   PlotWindow* pPlotWindow = dynamic_cast<PlotWindow*>(&subject);
-   QAction* pAction = mToggleActions[pPlotWindow];
+   DockWindow* pDockWindow = dynamic_cast<DockWindow*>(&subject);
+   QAction* pAction = mToggleActions[pDockWindow];
    if (pAction != NULL)
    {
       pAction->setChecked(true);
    }
 }
 
-void PlottingManager::plotWindowHidden(Subject& subject, const std::string& signal, const boost::any& value)
+void PlottingManager::dockWindowHidden(Subject& subject, const std::string& signal, const boost::any& value)
 {
-   PlotWindow* pPlotWindow = dynamic_cast<PlotWindow*>(&subject);
-   QAction* pAction = mToggleActions[pPlotWindow];
+   DockWindow* pDockWindow = dynamic_cast<DockWindow*>(&subject);
+   QAction* pAction = mToggleActions[pDockWindow];
    if (pAction != NULL)
    {
       pAction->setChecked(false);
    }
 }
 
-void PlottingManager::plotWindowActionToggled(bool shown)
+void PlottingManager::dockWindowActionToggled(bool shown)
 {
    QAction* pSender = qobject_cast<QAction*>(sender());
    if (pSender == NULL)
    {
       return;
    }
-   PlotWindow* pPlotWindow = reinterpret_cast<PlotWindow*>(qvariant_cast<void*>(pSender->data()));
-   if (pPlotWindow == NULL)
+   DockWindow* pDockWindow = reinterpret_cast<DockWindow*>(qvariant_cast<void*>(pSender->data()));
+   if (pDockWindow == NULL)
    {
       return;
    }
    if (shown)
    {
-      pPlotWindow->show();
+      pDockWindow->show();
    }
    else
    {
-      pPlotWindow->hide();
+      pDockWindow->hide();
    }
 }
 
@@ -474,4 +491,3 @@ bool PlottingManager::eventFilter(QObject* pObject, QEvent* pEvent)
 
    return QObject::eventFilter(pObject, pEvent);
 }
-

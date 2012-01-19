@@ -12,9 +12,9 @@
 
 #include <QtGui/QAction>
 
-#include "AlgorithmShell.h"
 #include "AttachmentPtr.h"
 #include "DesktopServices.h"
+#include "DockWindowShell.h"
 #include "Progress.h"
 #include "SessionExplorer.h"
 #include "TypesFile.h"
@@ -33,28 +33,28 @@ class SessionItemDeserializer;
 class SessionItemSerializer;
 class Signature;
 class SignaturePlotObject;
-class SpatialDataView;
 class SpatialDataWindow;
 
-class SignatureWindow : public QObject, public AlgorithmShell, public Window::SessionItemDropFilter
+class SignatureWindow : public DockWindowShell, public Window::SessionItemDropFilter
 {
    Q_OBJECT
 
 public:
    SignatureWindow();
-   ~SignatureWindow();
+   virtual ~SignatureWindow();
 
-   bool setBatch();
-   bool getInputSpecification(PlugInArgList*& pArgList);
-   bool getOutputSpecification(PlugInArgList*& pArgList);
-   bool execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList);
-   bool abort();
+   virtual bool getInputSpecification(PlugInArgList*& pArgList);
+   virtual bool execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList);
+   virtual bool abort();
 
-   bool accept(SessionItem* pItem) const;
-   bool serialize(SessionItemSerializer& serializer) const;
-   bool deserialize(SessionItemDeserializer& deserializer);
+   virtual bool accept(SessionItem* pItem) const;
+   virtual bool serialize(SessionItemSerializer& serializer) const;
+   virtual bool deserialize(SessionItemDeserializer& deserializer);
 
 protected:
+   virtual QAction* createAction();
+   virtual QWidget* createWidget();
+
    void addPlot(const RasterElement* pRaster, Signature* pSignature, const ColorType& color, bool clearBeforeAdd = false);
    bool eventFilter(QObject* pObject, QEvent* pEvent);
    void dropSessionItem(Subject& subject, const std::string& signal, const boost::any& value);
@@ -63,8 +63,6 @@ protected:
    void windowActivated(Subject& subject, const std::string& signal, const boost::any& value);
    void windowRemoved(Subject& subject, const std::string& signal, const boost::any& value);
    void layerActivated(Subject& subject, const std::string& signal, const boost::any& value);
-   void plotWindowShown(Subject& subject, const std::string& signal, const boost::any& value);
-   void plotWindowHidden(Subject& subject, const std::string& signal, const boost::any& value);
    void plotSetAdded(Subject& subject, const std::string& signal, const boost::any& value);
    void plotWidgetAdded(Subject& subject, const std::string& signal, const boost::any& value);
    void plotWidgetDeleted(Subject& subject, const std::string& signal, const boost::any& value);
@@ -84,7 +82,6 @@ protected:
    friend class PropertiesSignaturePlotObject;
 
 protected slots:
-   void displaySignatureWindow(bool bDisplay);
    void addDefaultPlot();
    void renameCurrentPlot();
    void deleteCurrentPlot();
@@ -105,8 +102,7 @@ private:
          mRegionsDisplayed(false),
          mRegionColor(Qt::red),
          mRegionOpacity(35)
-      {
-      }
+      {}
 
       PlotWidget* mpPlotWidget;
       std::vector<Signature*> mSignatures;
@@ -126,7 +122,6 @@ private:
    std::string mSignatureWindowName;
    std::string mDefaultPlotSetName;
 
-   QAction* mpWindowAction;
    QAction* mpPinSigPlotAction;
    MouseMode* mpPixelSignatureMode;
    QAction* mpPixelSignatureAction;

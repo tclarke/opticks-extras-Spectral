@@ -22,7 +22,6 @@
 #include "PlotSet.h"
 #include "PlotView.h"
 #include "PlotWidget.h"
-#include "PlotWindow.h"
 #include "PlugInRegistration.h"
 #include "Point.h"
 #include "PointSet.h"
@@ -94,8 +93,7 @@ RangeProfilePlotManager::~RangeProfilePlotManager()
    Window* pWindow = getDockWindow();
    if (pWindow != NULL)
    {
-      pWindow->detach(SIGNAL_NAME(PlotWindow, SessionItemDropped),
-         Slot(this, &RangeProfilePlotManager::dropSessionItem));
+      pWindow->detach(SIGNAL_NAME(Window, SessionItemDropped), Slot(this, &RangeProfilePlotManager::dropSessionItem));
    }
    for (std::map<Signature*, std::string>::iterator sig = mSigPointSets.begin(); sig != mSigPointSets.end(); ++sig)
    {
@@ -258,8 +256,7 @@ QWidget* RangeProfilePlotManager::createWidget()
 {
    DockWindow* pWindow = getDockWindow();
    VERIFYRV(pWindow, NULL);
-   pWindow->attach(SIGNAL_NAME(PlotWindow, SessionItemDropped),
-      Slot(this, &RangeProfilePlotManager::dropSessionItem));
+   pWindow->attach(SIGNAL_NAME(Window, SessionItemDropped), Slot(this, &RangeProfilePlotManager::dropSessionItem));
    pWindow->enableSessionItemDrops(this);
    if (!Service<SessionManager>()->isSessionLoading())
    {
