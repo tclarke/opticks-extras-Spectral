@@ -12,6 +12,9 @@
 
 #include "ImporterShell.h"
 #include "xmlreader.h"
+#include <map>
+#include <string>
+#include <vector>
 
 class SignatureSetImporter : public ImporterShell
 {
@@ -27,9 +30,11 @@ public:
 
 private:
    std::vector<ImportDescriptor*> createImportDescriptors(XERCES_CPP_NAMESPACE_QUALIFIER DOMTreeWalker* pTree, std::vector<std::string>& datasetPath);
+   void loadDoc(const std::string& filename);
 
    unsigned int mDatasetNumber;
-   XmlReader mXml;
+   std::map<std::string, XmlReader*> mXml;
+   std::map<std::string, XERCES_CPP_NAMESPACE_QUALIFIER DOMDocument*> mDoc;
    std::string mFilename;
 };
 

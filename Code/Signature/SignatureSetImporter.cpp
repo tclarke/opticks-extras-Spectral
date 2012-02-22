@@ -58,7 +58,7 @@ namespace
 
 REGISTER_PLUGIN_BASIC(SpectralSignature, SignatureSetImporter);
 
-SignatureSetImporter::SignatureSetImporter() : mDatasetNumber(0), mXml(Service<MessageLogMgr>()->getLog(), false)
+SignatureSetImporter::SignatureSetImporter() : mDatasetNumber(0)
 {
    setDescriptorId("{792F86A1-AAB3-4333-A3DB-39A9B13F6CC6}");
    setName("Spectral Signature Library Importer");
@@ -74,15 +74,27 @@ SignatureSetImporter::SignatureSetImporter() : mDatasetNumber(0), mXml(Service<M
 
 SignatureSetImporter::~SignatureSetImporter()
 {
+   for (std::map<std::string, XmlReader*>::const_iterator xmlit = mXml.begin(); xmlit != mXml.end(); ++xmlit)
+   {
+      delete xmlit->second;
+   }
+}
+
+void SignatureSetImporter::loadDoc(const std::string& filename)
+{
+   if (mXml.find(filename) == mXml.end())
+   {
+      mXml[filename] = new XmlReader(Service<MessageLogMgr>()->getLog(), false);
+      mDoc[filename] = mXml[filename]->parse(filename);
+   }
 }
 
 unsigned char SignatureSetImporter::getFileAffinity(const string &filename)
 {
    // is this an XML file?
    // This is a double parse but ensures that we don't get parse errors on non-xml files
-   XmlReader xml(NULL, false);
-   XERCES_CPP_NAMESPACE_QUALIFIER DOMDocument* pDoc = xml.parse(filename);
-   if (pDoc == NULL || pDoc->getDocumentElement() == NULL)
+   loadDoc(filename);
+   if (mDoc[filename] == NULL || mDoc[filename]->getDocumentElement() == NULL)
    {
       return CAN_NOT_LOAD;
    }
@@ -99,8 +111,8 @@ vector<ImportDescriptor*> SignatureSetImporter::getImportDescriptors(const strin
    mFilename = filename;
    try
    {
-      XERCES_CPP_NAMESPACE_QUALIFIER DOMDocument* pDoc = NULL;
-      if ((pDoc = mXml.parse(filename)) == NULL)
+      loadDoc(filename);
+      if (mDoc[filename] == NULL)
       {
          return descriptors;
       }
@@ -109,7 +121,7 @@ vector<ImportDescriptor*> SignatureSetImporter::getImportDescriptors(const strin
 
       mDatasetNumber = 0;
       ImportDescriptorFilter filter;
-      DOMTreeWalker* pTree = pDoc->createTreeWalker(pDoc->getDocumentElement(), DOMNodeFilter::SHOW_ELEMENT, &filter, false);
+      DOMTreeWalker* pTree = mDoc[filename]->createTreeWalker(mDoc[filename]->getDocumentElement(), DOMNodeFilter::SHOW_ELEMENT, &filter, false);
       std::vector<std::string> dummy;
       descriptors = createImportDescriptors(pTree, dummy);
    }
@@ -191,6 +203,7 @@ bool SignatureSetImporter::execute(PlugInArgList* pInArgList, PlugInArgList* Out
    VERIFY(pDataDescriptor != NULL);
    FileDescriptor* pFileDescriptor = pDataDescriptor->getFileDescriptor();
    VERIFY(pFileDescriptor != NULL);
+   const string& filename = pFileDescriptor->getFilename().getFullPathAndName();
 
    progress.getCurrentStep()->addProperty("signature set", pSignatureSet->getName());
    progress.getCurrentStep()->addProperty("dataset location", pFileDescriptor->getDatasetLocation());
@@ -208,13 +221,15 @@ bool SignatureSetImporter::execute(PlugInArgList* pInArgList, PlugInArgList* Out
          }
       }
       expr += "/signature";
-      DOMXPathResult* pResult = mXml.query(expr, DOMXPathResult::SNAPSHOT_RESULT_TYPE);
+      loadDoc(filename);
+      DOMXPathResult* pResult = mXml[filename]->query(expr, DOMXPathResult::SNAPSHOT_RESULT_TYPE);
       VERIFY(pResult != NULL);
       int nodeTotal = pResult->getSnapshotLength();
       for (int nodeNum = 0; nodeNum < nodeTotal; ++nodeNum)
       {
          if (isAborted())
          {
+            progress.report("Aborted file " + pFileDescriptor->getFilename().getFullPathAndName(), 0, WARNING, true);
             progress.report("User aborted the operation.", 0, ABORT, true);
             return false;
          }
