@@ -33,6 +33,7 @@
 #include "SpectralUtilities.h"
 #include "SpectralVersion.h"
 #include "ThresholdLayer.h"
+#include "UtilityServices.h"
 #include <memory>
 
 REGISTER_PLUGIN_BASIC(RxModule, Rx);
@@ -273,44 +274,7 @@ Rx::Rx()
    setCopyright(SPECTRAL_COPYRIGHT);
    setVersion(SPECTRAL_VERSION_NUMBER);
    setProductionStatus(SPECTRAL_IS_PRODUCTION_RELEASE);
-   addDependencyCopyright("OpenCV",
-"IMPORTANT: READ BEFORE DOWNLOADING, COPYING, INSTALLING OR USING. \n"
-"\n"
-" By downloading, copying, installing or using the software you agree to this license.\n"
-" If you do not agree to this license, do not download, install,\n"
-" copy or use the software.\n"
-"\n"
-"\n"
-"                          License Agreement\n"
-"               For Open Source Computer Vision Library\n"
-"\n"
-"Copyright (C) 2000-2008, Intel Corporation, all rights reserved.\n"
-"Copyright (C) 2008-2010, Willow Garage Inc., all rights reserved.\n"
-"Third party copyrights are property of their respective owners.\n"
-"\n"
-"Redistribution and use in source and binary forms, with or without modification,\n"
-"are permitted provided that the following conditions are met:\n"
-"\n"
-"  * Redistribution's of source code must retain the above copyright notice,\n"
-"    this list of conditions and the following disclaimer.\n"
-"\n"
-"  * Redistribution's in binary form must reproduce the above copyright notice,\n"
-"    this list of conditions and the following disclaimer in the documentation\n"
-"    and/or other materials provided with the distribution.\n"
-"\n"
-"  * The name of the copyright holders may not be used to endorse or promote products\n"
-"    derived from this software without specific prior written permission.\n"
-"\n"
-"This software is provided by the copyright holders and contributors \"as is\" and\n"
-"any express or implied warranties, including, but not limited to, the implied\n"
-"warranties of merchantability and fitness for a particular purpose are disclaimed.\n"
-"In no event shall the Intel Corporation or contributors be liable for any direct,\n"
-"indirect, incidental, special, exemplary, or consequential damages\n"
-"(including, but not limited to, procurement of substitute goods or services;\n"
-"loss of use, data, or profits; or business interruption) however caused\n"
-"and on any theory of liability, whether in contract, strict liability,\n"
-"or tort (including negligence or otherwise) arising in any way out of\n"
-"the use of this software, even if advised of the possibility of such damage.");
+   addDependencyCopyright("OpenCV", Service<UtilityServices>()->getTextFromFile(":/licenses/opencv"));
 }
 
 Rx::~Rx()
