@@ -20,6 +20,7 @@
 class AoiElement;
 class BitMaskIterator;
 class DataRequest;
+class DateTime;
 class Progress;
 class RasterElement;
 class Signature;

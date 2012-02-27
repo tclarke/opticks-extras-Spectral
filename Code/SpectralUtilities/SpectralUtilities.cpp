@@ -13,6 +13,7 @@
 #include "BitMaskIterator.h"
 #include "DataAccessorImpl.h"
 #include "DataRequest.h"
+#include "DateTime.h"
 #include "DataVariant.h"
 #include "MessageLogResource.h"
 #include "ObjectResource.h"
@@ -20,6 +21,7 @@
 #include "RasterDataDescriptor.h"
 #include "RasterElement.h"
 #include "Signature.h"
+#include "SignatureDataDescriptor.h"
 #include "SignatureSet.h"
 #include "SpectralUtilities.h"
 #include "StringUtilities.h"
@@ -251,10 +253,10 @@ Signature* SpectralUtilities::getPixelSignature(RasterElement* pDataset, const O
 
       // Set the units
       const Units* pUnits = pDescriptor->getUnits();
-      if (pUnits != NULL)
-      {
-         pSignature->setUnits("Reflectance", pUnits);
-      }
+      VERIFY(pUnits != NULL);
+      SignatureDataDescriptor* pDesc = dynamic_cast<SignatureDataDescriptor*>(pSignature->getDataDescriptor());
+      VERIFY(pDesc != NULL);
+      pDesc->setUnits("Reflectance", pUnits);
    }
 
    return pSignature;
@@ -379,7 +381,9 @@ bool SpectralUtilities::convertAoiToSignature(AoiElement* pAoi, Signature* pSign
    pSignature->setData("BandNumber", bandNumbers);
    pSignature->setData("Reflectance", reflectances);
    pSignature->setData("Wavelength", wavelengthData);
-   pSignature->setUnits("Reflectance", pDesc->getUnits());
+   SignatureDataDescriptor* pSigDesc = dynamic_cast<SignatureDataDescriptor*>(pSignature->getDataDescriptor());
+   VERIFY(pSigDesc != NULL);
+   pSigDesc->setUnits("Reflectance", pDesc->getUnits());
 
    if (pProgress != NULL)
    {

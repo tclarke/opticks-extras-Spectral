@@ -27,6 +27,7 @@
 #include "SpectralLibraryMatchOptions.h"
 #include "StringUtilities.h"
 #include "StringUtilitiesMacros.h"
+#include "Units.h"
 #include "Wavelengths.h"
 
 #include <algorithm>

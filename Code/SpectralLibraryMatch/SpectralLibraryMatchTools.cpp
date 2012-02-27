@@ -41,6 +41,7 @@
 #include "SpectralVersion.h"
 #include "switchOnEncoding.h"
 #include "ToolBar.h"
+#include "Units.h"
 #include "Wavelengths.h"
 #include "WorkspaceWindow.h"
 #include "XercesIncludes.h"

@@ -8,10 +8,8 @@
  */
 
 #include "AppVerify.h"
-#include "DataDescriptor.h"
 #include "DataVariant.h"
 #include "DynamicObject.h"
-#include "FileDescriptor.h"
 #include "FileResource.h"
 #include "ImportDescriptor.h"
 #include "ObjectResource.h"
@@ -20,9 +18,12 @@
 #include "PlugInRegistration.h"
 #include "ProgressTracker.h"
 #include "Signature.h"
+#include "SignatureDataDescriptor.h"
+#include "SignatureFileDescriptor.h"
 #include "SignatureImporter.h"
 #include "SpectralVersion.h"
 #include "StringUtilities.h"
+#include "Units.h"
 #include "Wavelengths.h"
 
 #include <boost/algorithm/string.hpp>
@@ -75,6 +76,9 @@ vector<ImportDescriptor*> SignatureImporter::getImportDescriptors(const string& 
 
    bool readError = false;
    string line;
+   string unitName("Reflectance");
+   UnitType unitType(REFLECTANCE);
+   double unitScale(1.0);
 
    // parse the metadata
    for (line = pSigFile.readLine(&readError);
@@ -95,13 +99,17 @@ vector<ImportDescriptor*> SignatureImporter::getImportDescriptors(const string& 
          {
             pMetadata->setAttribute(key, StringUtilities::fromXmlString<unsigned long>(value));
          }
+         else if (key == "UnitName")
+         {
+            unitName = value;
+         }
          else if (key == "UnitType")
          {
-            pMetadata->setAttribute(key, StringUtilities::fromXmlString<UnitType>(value));
+            unitType = StringUtilities::fromXmlString<UnitType>(value);
          }
          else if (key == "UnitScale")
          {
-            pMetadata->setAttribute(key, StringUtilities::fromXmlString<float>(value));
+            unitScale = StringUtilities::fromXmlString<double>(value);
          }
          else
          {
@@ -134,12 +142,24 @@ vector<ImportDescriptor*> SignatureImporter::getImportDescriptors(const string& 
 
    ImportDescriptorResource pImportDescriptor(datasetName, "Signature");
    VERIFYRV(pImportDescriptor.get() != NULL, descriptors);
-   DataDescriptor* pDataDescriptor = pImportDescriptor->getDataDescriptor();
+   SignatureDataDescriptor* pDataDescriptor =
+      dynamic_cast<SignatureDataDescriptor*>(pImportDescriptor->getDataDescriptor());
    VERIFYRV(pDataDescriptor != NULL, descriptors);
 
-   FactoryResource<FileDescriptor> pFileDescriptor;
+   FactoryResource<SignatureFileDescriptor> pFileDescriptor;
    VERIFYRV(pFileDescriptor.get() != NULL, descriptors);
    pFileDescriptor->setFilename(filename);
+
+   FactoryResource<Units> pReflectanceUnits;
+   VERIFYRV(pReflectanceUnits.get() != NULL, descriptors);
+   pReflectanceUnits->setUnitName(unitName);
+   pReflectanceUnits->setUnitType(unitType);
+   if (unitScale != 0.0)
+   {
+      pReflectanceUnits->setScaleFromStandard(1.0 / unitScale);
+   }
+   pDataDescriptor->setUnits("Reflectance", pReflectanceUnits.get());
+   pFileDescriptor->setUnits("Reflectance", pReflectanceUnits.get());
 
    pDataDescriptor->setFileDescriptor(pFileDescriptor.get());
    pDataDescriptor->setMetadata(pMetadata.get());
@@ -179,30 +199,12 @@ bool SignatureImporter::execute(PlugInArgList* pInArgList, PlugInArgList* OutArg
    DynamicObject* pMetadata = pSignature->getMetadata();
    VERIFY(pMetadata != NULL);
    string warningMsg;
-   UnitType units(REFLECTANCE);
-   const DataVariant& dvType = pMetadata->getAttribute("UnitType");
-   if (dvType.isValid())
-   {
-      units = dv_cast<UnitType>(dvType);
-   }
-   else
-   {
-      warningMsg = "No metadata defining units in signature file - setting to reflectance";
-   }
-   float unitScale(1.0);
-   const DataVariant& dvScale = pMetadata->getAttribute("UnitScale");
-   if (dvScale.isValid())
-   {
-      unitScale = dv_cast<float>(dvScale);
-   }
-   else
-   {
-      warningMsg += (warningMsg.empty() ? "" : "\n");
-      warningMsg += "No metadata defining scale factor in signature file - setting to 1.0";
-   }
 
    LargeFileResource pSigFile;
    VERIFY(pSigFile.open(pFileDescriptor->getFilename().getFullPathAndName(), O_RDONLY | O_BINARY, S_IREAD));
+
+   const Units* pUnits = pSignature->getUnits("Reflectance");
+   VERIFY(pUnits != NULL);
 
    // Read the signature data
    vector<double> wavelengthData, reflectanceData;
@@ -254,7 +256,8 @@ bool SignatureImporter::execute(PlugInArgList* pInArgList, PlugInArgList* OutArg
             // by a scaling factor. This saves storage space while preserving precision. 10000 is a very common
             // scaling factor and the one we will assume was used. Right now we'll just count the number of large values.
             // If more than half the values are large, we will assume they were scaled and divide all the values by 10000.
-            if (units == REFLECTANCE && unitScale == 1.0 && fabs(reflectance) > 2.0)
+            if (pUnits->getUnitType() == REFLECTANCE && pUnits->getScaleFromStandard() == 1.0
+               && fabs(reflectance) > 2.0)
             {
                ++largeValueCount;
             }
@@ -285,16 +288,6 @@ bool SignatureImporter::execute(PlugInArgList* pInArgList, PlugInArgList* OutArg
          *it *= 0.0001;  // divide by 10000
       }
    }
-   FactoryResource<Units> pReflectanceUnits;
-   VERIFY(pReflectanceUnits.get() != NULL);
-   string unitName = dv_cast<string>(pMetadata->getAttribute("UnitName"), StringUtilities::toDisplayString(units));
-   pReflectanceUnits->setUnitType(units);
-   pReflectanceUnits->setUnitName(unitName);
-   if (unitScale != 0.0)
-   {
-      pReflectanceUnits->setScaleFromStandard(1.0 / unitScale);
-   }
-   pSignature->setUnits("Reflectance", pReflectanceUnits.get());
    pSignature->setData("Wavelength", wavelengthData);
    pSignature->setData("Reflectance", reflectanceData);
    if (warningMsg.empty())

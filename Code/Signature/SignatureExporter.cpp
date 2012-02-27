@@ -10,7 +10,6 @@
 #include "AppVerify.h"
 #include "CommonPlugInArgs.h"
 #include "DynamicObject.h"
-#include "FileDescriptor.h"
 #include "FileResource.h"
 #include "PlugInArgList.h"
 #include "PlugInManagerServices.h"
@@ -18,9 +17,11 @@
 #include "ProgressTracker.h"
 #include "Signature.h"
 #include "SignatureExporter.h"
+#include "SignatureFileDescriptor.h"
 #include "SpectralVersion.h"
 #include "StringUtilities.h"
 #include "TypeConverter.h"
+#include "Units.h"
 
 #include <stdexcept>
 using namespace std;
@@ -116,7 +117,17 @@ bool SignatureExporter::execute(PlugInArgList* pInArgList, PlugInArgList* pOutAr
       VERIFY(pMetadata != NULL);
       writeMetadataEntry(signatureFile, "Version", dv_cast<unsigned int>(pMetadata->getAttribute("Version"), 3));
       writeMetadataEntry(signatureFile, "Name", pSignature->getName());
-      const Units* pReflectanceUnits = pSignature->getUnits("Reflectance");
+      const Units* pReflectanceUnits(NULL);
+      SignatureFileDescriptor* pSigFileDescriptor = dynamic_cast<SignatureFileDescriptor*>(pFileDescriptor);
+      if (pSigFileDescriptor != NULL)
+      {
+         pReflectanceUnits = pSigFileDescriptor->getUnits("Reflectance");
+      }
+      else
+      {
+         pReflectanceUnits = pSignature->getUnits("Reflectance");
+      }
+
       if (pReflectanceUnits != NULL)
       {
          writeMetadataEntry(signatureFile, "UnitName", pReflectanceUnits->getUnitName());

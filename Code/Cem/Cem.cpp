@@ -35,6 +35,7 @@
 #include "Statistics.h"
 #include "StringUtilities.h"
 #include "switchOnEncoding.h"
+#include "Units.h"
 #include "Wavelengths.h"
 
 using namespace std;

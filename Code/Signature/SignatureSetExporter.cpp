@@ -17,6 +17,7 @@
 #include "PlugInManagerServices.h"
 #include "PlugInRegistration.h"
 #include "PlugInResource.h"
+#include "RasterUtilities.h"
 #include "SignatureSet.h"
 #include "SignatureSetExporter.h"
 #include "SpectralVersion.h"
@@ -246,10 +247,10 @@ bool SignatureSetExporter::writeSignatureSet(XMLWriter& xml, SignatureSet* pSign
             FactoryResource<Filename> pSigFilename;
             pSigFilename->setFullPathAndName(pSig->getName());
             pSigFilename->setFullPathAndName(outputDirectory + SLASH + pSigFilename->getTitle() + "." + extension);
-            FactoryResource<FileDescriptor> pSigFile;
-            pSigFile->setFilename(pSigFilename->getFullPathAndName());
+            FileDescriptor* pSigFile = RasterUtilities::generateFileDescriptorForExport(
+               pSig->getDataDescriptor(), pSigFilename->getFullPathAndName());
             signatureExporter->setItem(pSig);
-            signatureExporter->setFileDescriptor(pSigFile.get());
+            signatureExporter->setFileDescriptor(pSigFile);
             if (!signatureExporter->execute())
             {
                mProgress.report("Unable to export signature " + pSig->getName(), 0, ERRORS, true);

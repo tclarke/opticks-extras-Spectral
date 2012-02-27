@@ -32,6 +32,7 @@
 #include "SessionManager.h"
 #include "Slot.h"
 #include "SpectralVersion.h"
+#include "Units.h"
 #include "XercesIncludes.h"
 #include "xmlreader.h"
 #include "xmlwriter.h"

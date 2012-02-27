@@ -9,11 +9,9 @@
 
 #include "AppVerify.h"
 #include "AsterSignatureImporter.h"
-#include "DataDescriptor.h"
 #include "DataVariant.h"
 #include "DesktopServices.h"
 #include "DynamicObject.h"
-#include "FileDescriptor.h"
 #include "ImportDescriptor.h"
 #include "ObjectResource.h"
 #include "PlugInArgList.h"
@@ -22,7 +20,10 @@
 #include "PlugInResource.h"
 #include "ProgressTracker.h"
 #include "Signature.h"
+#include "SignatureDataDescriptor.h"
+#include "SignatureFileDescriptor.h"
 #include "SpectralVersion.h"
+#include "Units.h"
 
 #include <QtCore/QDir>
 #include <QtCore/QFile>
@@ -216,19 +217,36 @@ std::vector<ImportDescriptor*> AsterSignatureImporter::getImportDescriptors(cons
       return descriptors;
    }
 
-   if ((yUnits.indexOf("reflec") == -1) && (yUnits.indexOf("trans") == -1))
+   FactoryResource<Units> pReflectanceUnits;
+   VERIFYRV(pReflectanceUnits.get() != NULL, descriptors);
+   if (yUnits.indexOf("reflec") != -1)
+   {
+      pReflectanceUnits->setUnitType(REFLECTANCE);
+      pReflectanceUnits->setUnitName("Reflectance");
+      pReflectanceUnits->setScaleFromStandard(1.0);
+   }
+   else if (yUnits.indexOf("trans") != -1)
+   {
+      pReflectanceUnits->setUnitType(TRANSMITTANCE);
+      pReflectanceUnits->setUnitName("Transmittance");
+      pReflectanceUnits->setScaleFromStandard(1.0);
+   }
+   else
    {
       return descriptors;
    }
 
    ImportDescriptorResource pImportDescriptor(filename, "Signature");
    VERIFYRV(pImportDescriptor.get() != NULL, descriptors);
-   DataDescriptor* pDataDescriptor = pImportDescriptor->getDataDescriptor();
+   SignatureDataDescriptor* pDataDescriptor =
+      dynamic_cast<SignatureDataDescriptor*>(pImportDescriptor->getDataDescriptor());
    VERIFYRV(pDataDescriptor != NULL, descriptors);
+   pDataDescriptor->setUnits("Reflectance", pReflectanceUnits.get());
 
-   FactoryResource<FileDescriptor> pFileDescriptor;
+   FactoryResource<SignatureFileDescriptor> pFileDescriptor;
    VERIFYRV(pFileDescriptor.get() != NULL, descriptors);
    pFileDescriptor->setFilename(filename);
+   pFileDescriptor->setUnits("Reflectance", pReflectanceUnits.get());
 
    pDataDescriptor->setFileDescriptor(pFileDescriptor.get());
    DynamicObject* pDataMetadata = pDataDescriptor->getMetadata();
@@ -349,23 +367,6 @@ bool AsterSignatureImporter::execute(PlugInArgList* pInArgList, PlugInArgList* O
       progress.report("Error parsing signature data", 0, ERRORS, true);
       return false;
    }
-
-   FactoryResource<Units> pReflectanceUnits;
-   VERIFY(pReflectanceUnits.get() != NULL);
-   std::string yUnits = dv_cast<std::string>(pMetadata->getAttributeByPath("ASTER Signature/Y Units"), "");
-   if (yUnits.find("Reflec") != std::string::npos)
-   {
-      pReflectanceUnits->setUnitType(REFLECTANCE);
-      pReflectanceUnits->setUnitName("Reflectance");
-      pReflectanceUnits->setScaleFromStandard(1.0);
-   }
-   else
-   {
-      pReflectanceUnits->setUnitType(TRANSMITTANCE);
-      pReflectanceUnits->setUnitName("Transmittance");
-      pReflectanceUnits->setScaleFromStandard(1.0);
-   }
-   pSignature->setUnits("Reflectance", pReflectanceUnits.get());
    pSignature->setData("Wavelength", wavelengthData);
    pSignature->setData("Reflectance", yData);
    progress.report("Aster signature loaded", 100, NORMAL);

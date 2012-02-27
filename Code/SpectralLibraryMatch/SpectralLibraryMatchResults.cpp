@@ -24,6 +24,7 @@
 #include "RasterDataDescriptor.h"
 #include "ResultsPage.h"
 #include "Signature.h"
+#include "SignatureDataDescriptor.h"
 #include "SignatureSet.h"
 #include "SpectralContextMenuActions.h"
 #include "SpectralLibraryManager.h"
@@ -638,11 +639,15 @@ void SpectralLibraryMatchResults::createAverageSignature()
    pWavelengths->initializeFromDynamicObject(pMetaData, false);
    const std::vector<double>& centerValues = pWavelengths->getCenterValues();
    pAvgSig->setData("Wavelength", centerValues);
+   SignatureDataDescriptor* pSigDesc = dynamic_cast<SignatureDataDescriptor*>(pAvgSig->getDataDescriptor());
+   VERIFYNRV(pSigDesc != NULL);
    FactoryResource<Units> pUnits;
    const Units* pRasterUnits = pDesc->getUnits();
    pUnits->setUnitName(pRasterUnits->getUnitName());
    pUnits->setUnitType(pRasterUnits->getUnitType());
    pUnits->setScaleFromStandard(1.0);  // the rescaled values are already corrected for the original scaling factor
-   pAvgSig->setUnits("Reflectance", pUnits.get());
+   pUnits->setRangeMin(pRasterUnits->getRangeMin());
+   pUnits->setRangeMax(pRasterUnits->getRangeMax());
+   pSigDesc->setUnits("Reflectance", pUnits.get());
    pAvgSig.release();
 }

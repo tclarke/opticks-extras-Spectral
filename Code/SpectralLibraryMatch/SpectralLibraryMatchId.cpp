@@ -48,6 +48,7 @@
 #include "StringUtilities.h"
 #include "switchOnEncoding.h"
 #include "TypeConverter.h"
+#include "Units.h"
 #include "Wavelengths.h"
 #include "XercesIncludes.h"
 #include "xmlwriter.h"

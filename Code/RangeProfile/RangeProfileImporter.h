@@ -23,6 +23,7 @@ public:
    virtual bool getInputSpecification(PlugInArgList*& pInArgList);
    virtual bool getOutputSpecification(PlugInArgList*& pOutArgList);
    virtual bool execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList);
+   virtual bool validate(const DataDescriptor* pDescriptor, std::string& errorMessage) const;
 };
 
 

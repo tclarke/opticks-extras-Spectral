@@ -10,10 +10,8 @@
 #include "AppConfig.h"
 #include "AppVerify.h"
 #include "Classification.h"
-#include "DataDescriptor.h"
 #include "DesktopServices.h"
 #include "Endian.h"
-#include "FileDescriptor.h"
 #include "ImportDescriptor.h"
 #include "ObjectResource.h"
 #include "PlotObject.h"
@@ -27,8 +25,11 @@
 #include "RangeProfilePlotManager.h"
 #include "RasterUtilities.h"
 #include "Signature.h"
+#include "SignatureDataDescriptor.h"
+#include "SignatureFileDescriptor.h"
 #include "SpectralVersion.h"
 #include "TypeConverter.h"
+#include "Units.h"
 
 #include <QtCore/QFile>
 #include <QtCore/QMap>
@@ -37,6 +38,7 @@
 #include <QtCore/QStringList>
 #include <QtCore/QTextStream>
 
+#include <set>
 REGISTER_PLUGIN_BASIC(SpectralRangeProfile, RangeProfileImporter);
 
 RangeProfileImporter::RangeProfileImporter()
@@ -65,10 +67,14 @@ std::vector<ImportDescriptor*> RangeProfileImporter::getImportDescriptors(const 
    QTextStream instream(&file);
 
    ImportDescriptorResource pImportDesc(filename, TypeConverter::toString<Signature>());
-   DataDescriptor* pDataDesc = pImportDesc->getDataDescriptor();
-   FileDescriptor* pFileDesc = RasterUtilities::generateAndSetFileDescriptor(
-      pDataDesc, filename, std::string(), Endian::getSystemEndian());
+   SignatureDataDescriptor* pDataDesc = dynamic_cast<SignatureDataDescriptor*>(pImportDesc->getDataDescriptor());
+   VERIFYRV(pDataDesc != NULL, descriptors);
+   SignatureFileDescriptor* pFileDesc =
+      dynamic_cast<SignatureFileDescriptor*>(RasterUtilities::generateAndSetFileDescriptor(pDataDesc, filename,
+      std::string(), Endian::getSystemEndian()));
+   VERIFYRV(pFileDesc != NULL, descriptors);
    DynamicObject* pMetadata = pDataDesc->getMetadata();
+   VERIFYRV(pMetadata != NULL, descriptors);
 
    bool ok = true;
    QString line = instream.readLine();
@@ -96,6 +102,30 @@ std::vector<ImportDescriptor*> RangeProfileImporter::getImportDescriptors(const 
    }
    pMetadata->setAttribute("Azimuth", azimuth);
    pMetadata->setAttribute("Elevation", elevation);
+
+   // column names
+   line = instream.readLine();
+   QStringList columnNames = line.split("\t");
+
+   // column units
+   line = instream.readLine();
+   QStringList columnUnits = line.split("\t");
+
+   for (int idx = 0; idx < columnNames.size() && idx < columnUnits.size(); ++idx)
+   {
+      FactoryResource<Units> pUnits;
+      pUnits->setUnitName(columnUnits[idx].toStdString());
+      if (columnUnits[idx] == "m")
+      {
+         pUnits->setUnitType(DISTANCE);
+      }
+      else
+      {
+         pUnits->setUnitType(CUSTOM_UNIT);
+      }
+      pDataDesc->setUnits(columnNames[idx].toStdString(), pUnits.get());
+      pFileDesc->setUnits(columnNames[idx].toStdString(), pUnits.get());
+   }
 
    descriptors.push_back(pImportDesc.release());
 
@@ -153,6 +183,7 @@ bool RangeProfileImporter::execute(PlugInArgList* pInArgList, PlugInArgList* pOu
    line = instream.readLine();         // az/el
 
    progress.report("Importing data", 1, NORMAL);
+
    // column names
    line = instream.readLine();
    QStringList columnNames = line.split("\t");
@@ -193,24 +224,8 @@ bool RangeProfileImporter::execute(PlugInArgList* pInArgList, PlugInArgList* pOu
       lastPos = instream.pos();
    }
 
-   QString dependentName;
    for (int idx = 0; idx < columnNames.size(); ++idx)
    {
-      if (columnUnits.size() > idx)
-      {
-         FactoryResource<Units> pUnits;
-         pUnits->setUnitName(columnUnits[idx].toStdString());
-         if (columnUnits[idx] == "m")
-         {
-            pUnits->setUnitType(DISTANCE);
-            dependentName = columnNames[idx];
-         }
-         else
-         {
-            pUnits->setUnitType(CUSTOM_UNIT);
-         }
-         pSig->setUnits(columnNames[idx].toStdString(), pUnits.release());
-      }
       pSig->setData(columnNames[idx].toStdString(), dataLists[columnNames[idx]]);
    }
 
@@ -234,5 +249,32 @@ bool RangeProfileImporter::execute(PlugInArgList* pInArgList, PlugInArgList* pOu
 
    progress.report("Done importing data", 100, NORMAL);
    progress.upALevel();
+   return true;
+}
+
+bool RangeProfileImporter::validate(const DataDescriptor* pDescriptor, std::string& errorMessage) const
+{
+   if (ImporterShell::validate(pDescriptor, errorMessage) == false)
+   {
+      return false;
+   }
+
+   // check signature data descriptor for the number of Units components - there should be one for each column
+   // of data and there must be at least two for a valid plot.
+   const SignatureDataDescriptor* pDd = dynamic_cast<const SignatureDataDescriptor*>(pDescriptor);
+   if (pDd == NULL)
+   {
+      errorMessage = "Unable to obtain a valid signature data descriptor for the range profile.";
+      return false;
+   }
+
+   std::set<std::string> unitNames = pDd->getUnitNames();
+   if (unitNames.size() < 2)
+   {
+      errorMessage = "Insufficient data in the file to generate a range profile. "
+         "It requires a minimum of two columns of values.";
+      return false;
+   }
+
    return true;
 }

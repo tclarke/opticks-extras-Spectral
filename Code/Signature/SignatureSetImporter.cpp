@@ -14,7 +14,6 @@
 #include "DataDescriptor.h"
 #include "DataVariant.h"
 #include "DynamicObject.h"
-#include "FileDescriptor.h"
 #include "FileResource.h"
 #include "ImportDescriptor.h"
 #include "MessageLogMgr.h"
@@ -24,6 +23,7 @@
 #include "PlugInRegistration.h"
 #include "PlugInResource.h"
 #include "ProgressTracker.h"
+#include "SignatureFileDescriptor.h"
 #include "SignatureSet.h"
 #include "SignatureSetImporter.h"
 #include "SpectralVersion.h"
@@ -164,7 +164,7 @@ vector<ImportDescriptor*> SignatureSetImporter::createImportDescriptors(DOMTreeW
    VERIFYRV(pImportDescriptor.get() != NULL, descriptors);
    DataDescriptor* pDataDescriptor = pImportDescriptor->getDataDescriptor();
    VERIFYRV(pDataDescriptor != NULL, descriptors);
-   FactoryResource<FileDescriptor> pFileDescriptor;
+   FactoryResource<SignatureFileDescriptor> pFileDescriptor;
    VERIFYRV(pFileDescriptor.get() != NULL, descriptors);
    pFileDescriptor->setFilename(mFilename);
    datasetPath.push_back(datasetName);
