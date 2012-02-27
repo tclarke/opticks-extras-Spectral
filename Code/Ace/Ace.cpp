@@ -413,10 +413,9 @@ bool AceAlgorithm::processAll()
       if (bSuccess && pWavelengths->hasCenterValues() &&
          resampledBands.size() != pWavelengths->getCenterValues().size())
       {
-         QString buf = QString("Error AceAlg014: The spectrum only provides spectral coverage for %1 of %2 bands.")
+         QString buf = QString("Warning AceAlg014: The spectrum only provides spectral coverage for %1 of %2 bands.")
             .arg(resampledBands.size()).arg(pWavelengths->getCenterValues().size());
-         progress.report(buf.toStdString(), 0, ERRORS, true);
-         bSuccess = false;
+         progress.report(buf.toStdString(), 0, WARNING, true);
       }
 
       if (bSuccess)
@@ -430,10 +429,18 @@ bool AceAlgorithm::processAll()
          {
             spectrum.at<double>(0, i) = spectrumValues[i] - muMat.at<double>(0, resampledBands[i]);
          }
-         cv::Mat signalCov = covMat * spectrum.t();
+         cv::Mat covMatSubset(resampledBands.size(), resampledBands.size(), CV_64F);
+         for (int i_idx = 0; i_idx < resampledBands.size(); ++i_idx)
+         {
+            for (int j_idx = 0; j_idx < resampledBands.size(); ++j_idx)
+            {
+               covMatSubset.at<double>(i_idx, j_idx) = covMat.at<double>(resampledBands[i_idx], resampledBands[j_idx]);
+            }
+         }
+         cv::Mat signalCov = covMatSubset * spectrum.t();
          cv::Mat signalCovSignal = spectrum * signalCov;
          AceAlgInput aceInput(pElement, pResults.get(), spectrum, &mAbortFlag, iterChecker, resampledBands, 
-            muMat, covMat, signalCov, signalCovSignal);
+            muMat, covMatSubset, signalCov, signalCovSignal);
 
          //Output Structure
          AceAlgOutput aceOutput;
