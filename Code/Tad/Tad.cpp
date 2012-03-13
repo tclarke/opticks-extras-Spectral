@@ -341,13 +341,6 @@ bool Tad::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
                         aoiId.toStdString()))->getDataElement());
    }
 
-   if (sampleSize > pDesc->getRowCount() * pDesc->getColumnCount())
-   {
-      progress.report("Invalid sample size. Cannot select more samples than there are pixels.", 
-         0, ERRORS, true);
-      return false;
-   }
-
    //set up extents
    int selectedPixels = 0;
    ModelResource<RasterElement> pResult(static_cast<RasterElement*>(NULL));
@@ -368,12 +361,19 @@ bool Tad::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
    unsigned int bands = pDesc->getBandCount();
    unsigned int numCols = iter.getNumSelectedColumns();
    unsigned int numRows = iter.getNumSelectedRows();
+   unsigned int pixelCount = iter.getCount();
    unsigned int startCol = iter.getColumnOffset();
    unsigned int startRow = iter.getRowOffset();
    double resultBackgroundFraction = 0.0;
    double threshold = 0.0;
    bool bCancel = false;
-
+   
+   if (sampleSize > pixelCount)
+   {
+      progress.report("Invalid sample size. Cannot select more samples than there are pixels.", 
+         0, ERRORS, true);
+      return false;
+   }
    // Calculate values using Topographical Anomaly Detector
    try
    {
@@ -433,9 +433,17 @@ bool Tad::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
          }
          else
          {
-            progress.report("Calculating distances in sample",
+            //Handle fringe case of max=min to avoid divide by zero
+            if (distances.progressMinimum() == distances.progressMaximum())
+            {
+               progress.report("Calculating distances in sample", 0, NORMAL);
+            }
+            else
+            {
+               progress.report("Calculating distances in sample",
                   (distances.progressValue() - distances.progressMinimum()) * 75 /
-                        (distances.progressMaximum() - distances.progressMinimum()), NORMAL);
+                  (distances.progressMaximum() - distances.progressMinimum()), NORMAL);
+            }
             if (isAborted())
             {
                distances.cancel();
@@ -454,6 +462,11 @@ bool Tad::execute(PlugInArgList *pInArgList, PlugInArgList *pOutArgList)
 
       // save the results from the distances calculation
       pixelDistances = distances.result() ;
+      if (pixelDistances.empty())
+      {
+         progress.report("Could not generate pixel distances. Try larger data set.", 0, ERRORS, true);
+         return false;
+      }
       progress.report("Generating Radius for background",
          75, NORMAL);
 
