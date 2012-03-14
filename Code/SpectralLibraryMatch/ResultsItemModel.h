@@ -18,12 +18,14 @@
 #include <QtCore/QModelIndex>
 #include <QtCore/QVariant>
 
+#include <boost/any.hpp>
 #include <map>
 #include <string>
 
 class Progress;
 class ResultsItem;
 class Signature;
+class Subject;
 
 Q_DECLARE_METATYPE(Signature*)
 
@@ -50,6 +52,8 @@ protected:
    std::string getKeyString(const std::string& sigName, SpectralLibraryMatch::MatchAlgorithm algType);
    int getRow(const ResultsItem* pItem) const;
    ResultsItem* getItem(int row) const;
+
+   void signatureDeleted(Subject& subject, const std::string& signal, const boost::any& value);
 
 private:
    std::map<std::string, ResultsItem*> mItemMap;  // provides fast find of a result item by pixel location and algorithm

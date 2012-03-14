@@ -127,3 +127,20 @@ QString ResultsItem::getSignatureName(unsigned int row) const
 
    return QString();
 };
+
+void ResultsItem::deleteResultsForSignature(Signature* pSignature)
+{
+   if (pSignature == NULL)
+   {
+      return;
+   }
+
+   for (std::vector<std::pair<Signature*, float> >::iterator iter = mResults.begin(); iter != mResults.end(); ++iter)
+   {
+      if (iter->first == pSignature)
+      {
+         mResults.erase(iter);
+         break;
+      }
+   }
+}

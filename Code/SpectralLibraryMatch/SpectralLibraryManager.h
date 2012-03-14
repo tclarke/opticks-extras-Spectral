@@ -11,6 +11,7 @@
 #define SPECTRALLIBRARYMANAGER_H
 
 #include "ExecutableShell.h"
+#include "SubjectAdapter.h"
 
 #include <boost/any.hpp>
 #include <map>
@@ -28,11 +29,16 @@ class Signature;
 class Subject;
 class Wavelengths;
 
-class SpectralLibraryManager : public QObject, public ExecutableShell
+class SpectralLibraryManager : public QObject, public ExecutableShell, public SubjectAdapter
 {
    Q_OBJECT
 
 public:
+   /**
+    * Emitted with boost::any<\link Signature\endlink*> when a signature in the library is deleted from Model.
+    */
+   SIGNAL_METHOD(SpectralLibraryManager, SignatureDeleted)
+
    SpectralLibraryManager();
    ~SpectralLibraryManager();
 
@@ -40,11 +46,11 @@ public:
    virtual bool getOutputSpecification(PlugInArgList*& pArgList);
    virtual bool execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList);
    virtual bool setBatch();
-
+   virtual const std::string& getObjectType() const;
+   virtual bool isKindOf(const std::string& className) const;
    bool isEmpty() const;
    unsigned int size() const;
    bool addSignatures(const std::vector<Signature*>& signatures);
-   bool removeSignatures(const std::vector<Signature*>& signatures);
    void clearLibrary();
    const RasterElement* getResampledLibraryData(const RasterElement* pRaster);
    const std::vector<Signature*>* getResampledLibrarySignatures(const RasterElement* pResampledLib) const;

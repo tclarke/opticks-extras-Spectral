@@ -36,6 +36,7 @@ public:
    QIcon getIcon(unsigned int row) const;
    int rows() const;
    void clear();
+   void deleteResultsForSignature(Signature* pSignature);
 
 private:
    QString mTargetName;

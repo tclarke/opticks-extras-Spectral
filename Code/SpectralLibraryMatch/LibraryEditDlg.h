@@ -12,6 +12,8 @@
 
 #include "SpectralLibraryMatch.h"
 
+#include <boost/any.hpp>
+#include <string>
 #include <vector>
 
 #include <QtCore/QMetaType>
@@ -19,6 +21,7 @@
 
 class QTreeWidget;
 class Signature;
+class Subject;
 
 Q_DECLARE_METATYPE(Signature*)
 
@@ -34,6 +37,7 @@ public:
 
 protected:
    void addSignatures(const std::vector<Signature*>& signatures);
+   void signatureDeleted(Subject& subject, const std::string& signal, const boost::any& value);
 
 protected slots:
    void addSignatures();

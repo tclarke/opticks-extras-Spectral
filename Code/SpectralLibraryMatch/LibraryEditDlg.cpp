@@ -12,6 +12,8 @@
 #include "MessageLog.h"
 #include "Signature.h"
 #include "SignatureSelector.h"
+#include "Slot.h"
+#include "Subject.h"
 
 #include <QtCore/QList>
 #include <QtCore/QListIterator>
@@ -67,7 +69,18 @@ LibraryEditDlg::LibraryEditDlg(const std::vector<Signature*>& signatures, QWidge
 }
 
 LibraryEditDlg::~LibraryEditDlg()
-{}
+{
+   int numSigs = mpTree->topLevelItemCount();
+   for (int index = 0; index < numSigs; ++index)
+   {
+      QVariant variant = mpTree->topLevelItem(index)->data(0, Qt::UserRole);
+      if (variant.isValid())
+      {
+         VERIFYNR(variant.value<Signature*>()->detach(SIGNAL_NAME(Subject, Deleted),
+            Slot(this, &LibraryEditDlg::signatureDeleted)));
+      }
+   }
+}
 
 void LibraryEditDlg::addSignatures(const std::vector<Signature*>& signatures)
 {
@@ -79,6 +92,7 @@ void LibraryEditDlg::addSignatures(const std::vector<Signature*>& signatures)
          QTreeWidgetItem* pItem = new QTreeWidgetItem(mpTree);
          pItem->setText(0, QString::fromStdString((*it)->getName()));
          pItem->setData(0, Qt::UserRole, QVariant::fromValue(*it));
+         VERIFYNR((*it)->attach(SIGNAL_NAME(Subject, Deleted), Slot(this, &LibraryEditDlg::signatureDeleted)));
       }
    }
 }
@@ -99,7 +113,14 @@ void LibraryEditDlg::removeSignatures()
    QListIterator<QTreeWidgetItem*> it(items);
    while (it.hasNext())
    {
-      delete it.next();
+      QTreeWidgetItem* pItem = it.next();
+      QVariant variant = pItem->data(0, Qt::UserRole);
+      if (variant.isValid())
+      {
+         VERIFYNR(variant.value<Signature*>()->detach(SIGNAL_NAME(Subject, Deleted),
+            Slot(this, &LibraryEditDlg::signatureDeleted)));
+      }
+      delete pItem;
    }
 }
 
@@ -117,4 +138,23 @@ std::vector<Signature*> LibraryEditDlg::getSignatures() const
       }
    }
    return signatures;
+}
+
+void LibraryEditDlg::signatureDeleted(Subject& subject, const std::string& signal, const boost::any& value)
+{
+   Signature* pSignature = dynamic_cast<Signature*>(&subject);
+   if (pSignature != NULL && signal == "Subject::Deleted")
+   {
+      VERIFYNR(pSignature->detach(SIGNAL_NAME(Subject, Deleted), Slot(this, &LibraryEditDlg::signatureDeleted)));
+      QList<QTreeWidgetItem*> items =
+         mpTree->findItems(QString::fromStdString(pSignature->getName()), Qt::MatchExactly);
+      if (items.isEmpty() == false)
+      {
+         QListIterator<QTreeWidgetItem*> it(items);
+         while (it.hasNext())
+         {
+            delete it.next();
+         }
+      }
+   }
 }

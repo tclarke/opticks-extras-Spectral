@@ -201,6 +201,7 @@ bool SpectralLibraryManager::addSignatures(const std::vector<Signature*>& signat
    if (needToRebuildLibraries)
    {
       invalidateLibraries();
+      notify(SIGNAL_NAME(Subject, Modified));
    }
 
    if (notAdded.empty() == false)
@@ -219,28 +220,6 @@ bool SpectralLibraryManager::addSignatures(const std::vector<Signature*>& signat
    }
 
    return (numAdded > 0);
-}
-
-bool SpectralLibraryManager::removeSignatures(const std::vector<Signature*>& signatures)
-{
-   bool needToRebuildLibraries(false);
-   for (std::vector<Signature*>::const_iterator it = signatures.begin(); it != signatures.end(); ++it)
-   {
-      std::vector<Signature*>::iterator sit = std::find(mSignatures.begin(), mSignatures.end(), *it);
-      if (sit != mSignatures.end())
-      {
-         (*it)->detach(SIGNAL_NAME(Subject, Deleted), Slot(this, &SpectralLibraryManager::signatureDeleted));
-         mSignatures.erase(sit);
-         needToRebuildLibraries = true;
-      }
-   }
-
-   if (needToRebuildLibraries)
-   {
-      invalidateLibraries();
-   }
-
-   return true;
 }
 
 const RasterElement* SpectralLibraryManager::getResampledLibraryData(const RasterElement* pRaster)
@@ -478,14 +457,23 @@ void SpectralLibraryManager::resampledElementDeleted(Subject& subject, const std
 void SpectralLibraryManager::signatureDeleted(Subject& subject, const std::string& signal, const boost::any& value)
 {
    Signature* pSignature = dynamic_cast<Signature*>(&subject);
-   if (pSignature != NULL)
+   if (pSignature != NULL && signal == "Subject::Deleted")
    {
-      std::vector<Signature*>::iterator it = std::find(mSignatures.begin(), mSignatures.end(), pSignature);
-      if (it != mSignatures.end())
+      bool needToRebuildLibraries(false);
+      std::vector<Signature*>::iterator iter = std::find(mSignatures.begin(), mSignatures.end(), pSignature);
+      if (iter != mSignatures.end())
       {
-         mSignatures.erase(it);
+         (*iter)->detach(SIGNAL_NAME(Subject, Deleted), Slot(this, &SpectralLibraryManager::signatureDeleted));
+         notify(SIGNAL_NAME(SpectralLibraryManager, SignatureDeleted), boost::any(*iter));
+         mSignatures.erase(iter);
+
+         needToRebuildLibraries = true;
       }
-      invalidateLibraries();
+
+      if (needToRebuildLibraries)
+      {
+         invalidateLibraries();
+      }
    }
 }
 
@@ -521,7 +509,9 @@ void SpectralLibraryManager::clearLibrary()
    {
       (*it)->detach(SIGNAL_NAME(Subject, Deleted), Slot(this, &SpectralLibraryManager::signatureDeleted));
    }
+
    mSignatures.clear();
+   notify(SIGNAL_NAME(Subject, Modified));
 }
 
 bool SpectralLibraryManager::editSpectralLibrary()
@@ -703,4 +693,20 @@ const std::vector<Signature*>* SpectralLibraryManager::getResampledLibrarySignat
    }
 
    return NULL;
+}
+
+const std::string& SpectralLibraryManager::getObjectType() const
+{
+   static std::string type("SpectralLibraryManager");
+   return type;
+}
+
+bool SpectralLibraryManager::isKindOf(const std::string& className) const
+{
+   if (className == getObjectType())
+   {
+      return true;
+   }
+
+   return SubjectAdapter::isKindOf(className);
 }

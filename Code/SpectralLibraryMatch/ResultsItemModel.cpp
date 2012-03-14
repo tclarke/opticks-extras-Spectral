@@ -7,10 +7,15 @@
  * http://www.gnu.org/licenses/lgpl.html
  */
 
+#include "PlugIn.h"
+#include "PlugInManagerServices.h"
 #include "Progress.h"
 #include "ResultsItem.h"
 #include "ResultsItemModel.h"
 #include "Signature.h"
+#include "SpectralLibraryManager.h"
+#include "SpectralLibraryMatch.h"
+#include "Subject.h"
 
 #include <QtCore/QtAlgorithms>
 #include <QtCore/QList>
@@ -24,10 +29,33 @@
 
 ResultsItemModel::ResultsItemModel(QObject* pParent) :
    QAbstractItemModel(pParent)
-{}
+{
+   std::vector<PlugIn*> plugIns = Service<PlugInManagerServices>()->getPlugInInstances(
+      SpectralLibraryMatch::getNameLibraryManagerPlugIn());
+   if (plugIns.empty() == false)
+   {
+      SpectralLibraryManager* pLibMgr = dynamic_cast<SpectralLibraryManager*>(plugIns.front());
+      if (pLibMgr != NULL)
+      {
+         VERIFYNR(pLibMgr->attach(SIGNAL_NAME(SpectralLibraryManager, SignatureDeleted),
+            Slot(this, &ResultsItemModel::signatureDeleted)));
+      }
+   }
+}
 
 ResultsItemModel::~ResultsItemModel()
 {
+   std::vector<PlugIn*> plugIns = Service<PlugInManagerServices>()->getPlugInInstances(
+      SpectralLibraryMatch::getNameLibraryManagerPlugIn());
+   if (plugIns.empty() == false)
+   {
+      SpectralLibraryManager* pLibMgr = dynamic_cast<SpectralLibraryManager*>(plugIns.front());
+      if (pLibMgr != NULL)
+      {
+         VERIFYNR(pLibMgr->detach(SIGNAL_NAME(SpectralLibraryManager, SignatureDeleted),
+            Slot(this, &ResultsItemModel::signatureDeleted)));
+      }
+   }
    clear();
 }
 
@@ -294,4 +322,20 @@ const ResultsItem* ResultsItemModel::getResult(const std::string& key) const
    }
 
    return NULL;
+}
+
+void ResultsItemModel::signatureDeleted(Subject& subject, const std::string& signal, const boost::any& value)
+{
+   Signature* pSignature = boost::any_cast<Signature*>(value);
+   if (pSignature == NULL)
+   {
+      return;
+   }
+
+   beginResetModel();
+   for (std::vector<ResultsItem*>::iterator iter = mResults.begin(); iter != mResults.end(); ++iter)
+   {
+      (*iter)->deleteResultsForSignature(pSignature);
+   }
+   endResetModel();
 }
