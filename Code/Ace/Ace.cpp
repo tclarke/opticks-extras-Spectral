@@ -40,6 +40,7 @@
 #include "SpectralVersion.h"
 #include "Statistics.h"
 #include "switchOnEncoding.h"
+#include "Units.h"
 #include "Wavelengths.h"
 
 #include <vector>
@@ -342,32 +343,36 @@ bool AceAlgorithm::processAll()
    success &= covar->getInArgList().setPlugInArgValue("ComputeInverse", &bInverse);
    success &= covar->execute();
    RasterElement* pCov = static_cast<RasterElement*>(
+      Service<ModelServices>()->getElement("Covariance Matrix", TypeConverter::toString<RasterElement>(), pElement));
+   RasterElement* pInvCov = static_cast<RasterElement*>(
       Service<ModelServices>()->getElement("Inverse Covariance Matrix", TypeConverter::toString<RasterElement>(), pElement));
+   RasterElement* pMeans = static_cast<RasterElement*>(
+      Service<ModelServices>()->getElement("Means", TypeConverter::toString<RasterElement>(), pElement));
 
-   success &= pCov != NULL;
+   // with a small means vector (generally hundreds of doubles) there won't be a problem with getRawData()
+   success &= pCov != NULL && pInvCov != NULL && pMeans != NULL && pMeans->getRawData();
    if (!success)
    {
       progress.report("Unable to calculate covariance.", 0, ERRORS, true);
       return false;
    }
 
-   std::vector<double> meansVector = SpectralUtilities::calculateMeans(pElement, iter, progress, &mAbortFlag );
-   if (mAbortFlag)
-   {
-      progress.report(ACEABORT000, 0, ABORT, true);
-      mAbortFlag = false;
-      return false;
-   }
-   if (meansVector.size() != numBands)
+   const RasterDataDescriptor* pMeansDesc = static_cast<const RasterDataDescriptor*>(pMeans->getDataDescriptor());
+   if (pMeansDesc->getRowCount() != 1 || pMeansDesc->getColumnCount() != 1 || pMeansDesc->getBandCount() != numBands)
    {
       progress.report(ACEERR011, 0, ABORT, true);
       mAbortFlag = false;
       return false;
    }
    //store the mean of the dataset we processing
-   cv::Mat muMat = cv::Mat(1, numBands, CV_64F, &meansVector[0]);
-   EncodingType enType = dynamic_cast<RasterDataDescriptor*>(pCov->getDataDescriptor())->getDataType();
-   cv::Mat covMat = cv::Mat(numBands, numBands, CV_64F, pCov->getRawData());  
+   cv::Mat muMat = cv::Mat(1, numBands, CV_64F, pMeans->getRawData());
+   if (static_cast<const RasterDataDescriptor*>(pCov->getDataDescriptor())->getDataType() != FLT8BYTES ||
+       static_cast<const RasterDataDescriptor*>(pInvCov->getDataDescriptor())->getDataType() != FLT8BYTES)
+   {
+      progress.report("Invalid covariance matrix.", 0, ERRORS, true);
+      return false;
+   }
+   cv::Mat invCovMat = cv::Mat(numBands, numBands, CV_64F, pInvCov->getRawData());  
 
    ModelResource<RasterElement> pResults(reinterpret_cast<RasterElement*>(NULL));
 
@@ -424,23 +429,23 @@ bool AceAlgorithm::processAll()
          RasterElement* pResult = NULL;
 
          //subtract the mean from the signature
-         cv::Mat spectrum(1, spectrumValues.size(), CV_64F);
+         cv::Mat spectrum(spectrumValues.size(), 1, CV_64F);
          for (unsigned int i = 0; i < spectrumValues.size(); i++)
          {
-            spectrum.at<double>(0, i) = spectrumValues[i] - muMat.at<double>(0, resampledBands[i]);
+            spectrum.at<double>(i, 0) = spectrumValues[i] - muMat.at<double>(0, resampledBands[i]);
          }
-         cv::Mat covMatSubset(resampledBands.size(), resampledBands.size(), CV_64F);
+         cv::Mat invCovMatSubset(resampledBands.size(), resampledBands.size(), CV_64F);
          for (int i_idx = 0; i_idx < resampledBands.size(); ++i_idx)
          {
             for (int j_idx = 0; j_idx < resampledBands.size(); ++j_idx)
             {
-               covMatSubset.at<double>(i_idx, j_idx) = covMat.at<double>(resampledBands[i_idx], resampledBands[j_idx]);
+               invCovMatSubset.at<double>(i_idx, j_idx) = invCovMat.at<double>(resampledBands[i_idx], resampledBands[j_idx]);
             }
          }
-         cv::Mat signalCov = covMatSubset * spectrum.t();
-         cv::Mat signalCovSignal = spectrum * signalCov;
+         cv::Mat spectrumTerm = spectrum.t() * invCovMatSubset * spectrum;
+         cv::sqrt(spectrumTerm, spectrumTerm);
          AceAlgInput aceInput(pElement, pResults.get(), spectrum, &mAbortFlag, iterChecker, resampledBands, 
-            muMat, covMatSubset, signalCov, signalCovSignal);
+            muMat, invCovMatSubset, spectrumTerm);
 
          //Output Structure
          AceAlgOutput aceOutput;
@@ -848,6 +853,9 @@ void AceThread::ComputeAce(const T* pDummyData)
    int startColumn = columnOffset;
    int stopColumn = (numResultsCols + columnOffset - 1);
 
+   const Units* pUnits = pDescriptor->getUnits();
+   double unitScale = (pUnits == NULL) ? 1.0 : pUnits->getScaleFromStandard();
+
    FactoryResource<DataRequest> pRequest;
    pRequest->setInterleaveFormat(BIP);
    pRequest->setRows(pDescriptor->getActiveRow(startRow), pDescriptor->getActiveRow(stopRow));
@@ -892,26 +900,24 @@ void AceThread::ComputeAce(const T* pDummyData)
             double angle =0.0;
 
             //Calculates Spectral Angle and Magnitude at current location
-            cv::Mat dataSpectrum(1, mInput.mResampledBands.size(), CV_64F);
+            cv::Mat dataSpectrum(mInput.mResampledBands.size(), 1, CV_64F);
             for (unsigned int reAce_index = 0; 
                reAce_index < mInput.mResampledBands.size(); ++reAce_index)
             {
                int resampledBand = mInput.mResampledBands[reAce_index];
-               dataSpectrum.at<double>(reAce_index) = pData[resampledBand] - mInput.mMuMat.at<double>(resampledBand);
+               dataSpectrum.at<double>(reAce_index, 0) = (unitScale * pData[resampledBand]) - mInput.mMuMat.at<double>(resampledBand);
             }
             
-            //ACE description from paper: http://spie.org/x35496.xml?ArticleID=x35496
-            //(Transpose(signature-mean)*InverseCovaraince*(x-mean))^2
-            // /
-            // (Transpose(signature-mean)*InverseCovaraince*(signature-mean)*Transpose(x-mean)*
-            // InverseCovariance*(x-mean)          
-            cv::Mat numerator = dataSpectrum * mInput.mSigCovMat;
-            numerator = numerator.mul(numerator);
-
-            cv::Mat denominator = mInput.mCovMat*dataSpectrum.t();
-            denominator = dataSpectrum * denominator;
-
-            denominator = denominator * mInput.mSigCovSigMat;
+            //Coherent ACE description from paper: doi:10.1117/12.893950
+            //\sigma = covariance matrix of scene (should be minus anomalies)
+            //\mu_b = means of scene (using same subset as \sigma)
+            //S = s - \mu_b
+            //X = x - \mu_b
+            //y = \frac{S^T * \sigma^-1 * X}{\sqrt{S^T * \sigma^-1 * S} * \sqrt{X^T * \sigma^-1 * X}}
+            cv::Mat numerator = dataSpectrum.t() * mInput.mCovMat * mInput.mSpectrum;
+            cv::Mat dataTerm = dataSpectrum.t() * mInput.mCovMat * dataSpectrum;
+            cv::sqrt(dataTerm, dataTerm);
+            cv::Mat denominator = mInput.mSpectrumTerm * dataTerm;
             if (denominator.at<double>(0) - 0.0 > std::numeric_limits<double>::epsilon())
             {
                cv::Mat result = numerator / denominator;

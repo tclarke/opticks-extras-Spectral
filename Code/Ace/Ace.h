@@ -73,8 +73,7 @@ struct AceAlgInput
       const std::vector<int>& resampledBands,
       const cv::Mat& muMat, 
       const cv::Mat& covMat,
-      const cv::Mat& sigCovMat,
-      const cv::Mat& sigCovSigMat) : mpCube(pCube),
+      const cv::Mat& spectrumTerm) : mpCube(pCube),
       mpResultsMatrix(pResultsMatrix),
       mSpectrum(spectrum),
       mpAbortFlag(pAbortFlag),
@@ -82,8 +81,7 @@ struct AceAlgInput
       mResampledBands(resampledBands),
       mMuMat(muMat),
       mCovMat(covMat),
-      mSigCovMat(sigCovMat),
-      mSigCovSigMat(sigCovSigMat)
+      mSpectrumTerm(spectrumTerm)
    {}
 
    virtual ~AceAlgInput()
@@ -97,8 +95,7 @@ struct AceAlgInput
    const std::vector<int>& mResampledBands;
    const cv::Mat& mMuMat;
    const cv::Mat& mCovMat;
-   const cv::Mat& mSigCovMat;
-   const cv::Mat& mSigCovSigMat;};
+   const cv::Mat& mSpectrumTerm;};
 
 class AceThread : public mta::AlgorithmThread
 {
