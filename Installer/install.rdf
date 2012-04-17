@@ -17,5 +17,11 @@
       </rdf:Description>
     </aebl:targetApplication>
     ${target_platforms}
+    <opticks:helpEntry>
+      <rdf:Description>
+        <opticks:name>Spectral Help...</opticks:name>
+        <opticks:url>aeb:///Help/Spectral/Spectral_Help.htm</opticks:url>
+      </rdf:Description>
+    </opticks:helpEntry>
   </rdf:Description>
 </rdf:RDF>

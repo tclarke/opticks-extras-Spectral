@@ -19,14 +19,15 @@ class LibraryBuilder : public ExecutableShell
 {
 public:
    LibraryBuilder();
-   ~LibraryBuilder();
-   SETTING(SpectralLibraryHelp, SpectralContextSensitiveHelp, std::string, "");
+   virtual ~LibraryBuilder();
 
-   bool setBatch();
-   bool getInputSpecification(PlugInArgList*& pArgList);
-   bool getOutputSpecification(PlugInArgList*& pArgList);
-   bool execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList);
-   bool abort();
+   SETTING(SpectralLibraryBuilderHelp, SpectralContextSensitiveHelp, std::string, "");
+
+   virtual bool setBatch();
+   virtual bool getInputSpecification(PlugInArgList*& pArgList);
+   virtual bool getOutputSpecification(PlugInArgList*& pArgList);
+   virtual bool execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList);
+   virtual bool abort();
 
 private:
    SpectralLibraryDlg* mpLibraryDlg;

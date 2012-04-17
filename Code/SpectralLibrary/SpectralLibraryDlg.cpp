@@ -226,7 +226,7 @@ SpectralLibraryDlg::SpectralLibraryDlg(Progress* pProgress, Step* pStep, QWidget
    VERIFYNR(connect(mpAddSigButton, SIGNAL(clicked()), this, SLOT(addSignature())));
    VERIFYNR(connect(mpRemoveSigButton, SIGNAL(clicked()), this, SLOT(removeSignature())));
    VERIFYNR(connect(mpSaveSigButton, SIGNAL(clicked()), this, SLOT(saveSignature())));
-   if (LibraryBuilder::hasSettingSpectralLibraryHelp())
+   if (LibraryBuilder::hasSettingSpectralLibraryBuilderHelp())
    {
       pButtonBox->addButton(QDialogButtonBox::Help);
       VERIFYNR(connect(pButtonBox, SIGNAL(helpRequested()), this, SLOT(help())));
@@ -1079,6 +1079,6 @@ void SpectralLibraryDlg::help()
    Service<DesktopServices> pDesktop;
    Service<ConfigurationSettings> pSettings;
 
-   string helpFile = pSettings->getHome() + LibraryBuilder::getSettingSpectralLibraryHelp();
+   string helpFile = pSettings->getHome() + LibraryBuilder::getSettingSpectralLibraryBuilderHelp();
    pDesktop->displayHelp(helpFile);
 }

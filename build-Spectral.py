@@ -573,7 +573,7 @@ def build_installer(aeb_platforms=[], aeb_output=None,
 
     install_rdf = string.Template(rdf_contents).substitute(manifest)
 
-    out_path = os.path.abspath(join("Installer","Spectral.aeb"))
+    out_path = os.path.abspath(join("Installer", "AebOutput", "Spectral.aeb"))
     if aeb_output is not None:
        out_path = os.path.abspath(aeb_output)
     out_dir = os.path.dirname(out_path)
@@ -596,6 +596,21 @@ def build_installer(aeb_platforms=[], aeb_output=None,
     default_settings_path = os.path.join("Release", "DefaultSettings")
     target_default_settings_path = os.path.join("content", "DefaultSettings")
     copy_file_to_zip(default_settings_path, target_default_settings_path, "41-SpectralOptions.cfg", zfile)
+    copy_file_to_zip(default_settings_path, target_default_settings_path, "70-SpectralContextSensitiveHelp.cfg", zfile)
+
+    #Help/Spectral folder
+    help_output = os.path.os.path.abspath(join("Installer", "AebOutput", "Help"))
+    total_help_output = os.path.join(help_output, "Spectral")
+    if not(os.path.exists(help_output)):
+        help_zip_path = os.path.join("Release", "Help", "SpectralHelp.zip")
+        if verbosity > 1:
+            print "Unpacking Help located at %s "\
+             "to %s..." % (help_zip_path, total_help_output)
+        unzip_file(help_zip_path, total_help_output)
+        if verbosity > 1:
+            print "Done unpacking Help"
+    target_help_path = os.path.join("content", "Help", "Spectral")
+    copy_files_in_dir_to_zip(total_help_output, target_help_path, zfile)
 
     #platform dependent items
     for plat in aeb_platforms:
@@ -680,6 +695,36 @@ def print_env(environ):
     print "Environment is currently set to"
     for key in environ.iterkeys():
         print key, "=", environ[key]
+
+def unzip_file(src_file, dst_dir):
+    """Unzip specified zip file to destination dir.  It will create "
+    directories represented in zip file.
+
+     @param src_file: path of zip file
+     @type src_file: L{str}
+     @param dst_dir: path of destination directory
+     @type dst_dir: L{str}
+
+     The destination directory will be created if necessary.
+
+    """
+    if not(os.path.exists(dst_dir)):
+        os.makedirs(dst_dir)
+    zip_file = zipfile.ZipFile(src_file, "r")
+    for file_info in zip_file.infolist():
+        the_dir, the_file = os.path.split(file_info.filename)
+        if len(the_file) == 0:
+            continue
+        full_dir = os.path.join(dst_dir, the_dir)
+        if not(os.path.exists(full_dir)):
+            os.makedirs(full_dir)
+        file_contents = zip_file.read(file_info.filename)
+        output_file = open(os.path.join(dst_dir, the_dir, the_file), "wb")
+        output_file.write(file_contents)
+        output_file.close()
+        output_file = None
+    zip_file.close()
+    zip_file = None
 
 def copy_files_in_dir(src_dir, dst_dir, suffixes_to_match=[]):
     if not os.path.exists(dst_dir):
