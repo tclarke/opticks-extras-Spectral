@@ -26,6 +26,9 @@
     <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_SpectralSignatureSelector.cpp">
       <Filter>moc</Filter>
     </ClCompile>
+    <ClCompile Include="CommonSignatureMetadataKeys.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CommonPlugInArgs.h">
@@ -35,6 +38,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SpectralUtilities.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CommonSignatureMetadataKeys.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

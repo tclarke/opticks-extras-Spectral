@@ -57,6 +57,7 @@ private:
    CustomColorButton* mpRegionColorButton;
    QCheckBox* mpRescaleOnAdd;
    QCheckBox* mpScaleToFirst;
+   QCheckBox* mpResampleToDataset;
 };
 
 #endif

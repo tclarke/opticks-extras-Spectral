@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
@@ -38,6 +38,15 @@
     <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_ResamplerOptions.cpp">
       <Filter>moc</Filter>
     </ClCompile>
+    <ClCompile Include="ResamplerPlugIn.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ResamplerPlugInDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_ResamplerPlugInDlg.cpp">
+      <Filter>moc</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GaussianResampler.h">
@@ -55,9 +64,15 @@
     <ClInclude Include="SplineInterpolator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ResamplerPlugIn.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="ResamplerOptions.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="ResamplerPlugInDlg.h">
       <Filter>Header Files</Filter>
     </CustomBuild>
   </ItemGroup>

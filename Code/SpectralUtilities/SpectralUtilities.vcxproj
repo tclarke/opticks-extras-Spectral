@@ -147,12 +147,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CommonPlugInArgs.cpp" />
+    <ClCompile Include="CommonSignatureMetadataKeys.cpp" />
     <ClCompile Include="SpectralSignatureSelector.cpp" />
     <ClCompile Include="SpectralUtilities.cpp" />
     <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_SpectralSignatureSelector.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CommonPlugInArgs.h" />
+    <ClInclude Include="CommonSignatureMetadataKeys.h" />
     <ClInclude Include="SpectralContextMenuActions.h" />
     <CustomBuild Include="SpectralSignatureSelector.h">
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing %(Filename).h...</Message>

@@ -71,9 +71,20 @@ PropertiesSignaturePlotObject::PropertiesSignaturePlotObject() :
    pRescaleLayout->addWidget(mpRescaleOnAdd);
    pRescaleLayout->addWidget(mpScaleToFirst);
 
+   // Resample
+   QWidget* pResampleWidget = new QWidget(this);
+   mpResampleToDataset = new QCheckBox("Resample added signatures", pResampleWidget);
+   mpResampleToDataset->setToolTip("Check to enable resampling added signatures to the first signature.");
+   LabeledSection* pResampleSection = new LabeledSection(pResampleWidget, "Resample", this);
+   QVBoxLayout* pResampleLayout = new QVBoxLayout(pResampleWidget);
+   pResampleLayout->setMargin(0);
+   pResampleLayout->setSpacing(5);
+   pResampleLayout->addWidget(mpResampleToDataset);
+
    // Initialization
    addSection(pRegionSection);
    addSection(pRescaleSection);
+   addSection(pResampleSection);
    addStretch(10);
    setSizeHint(325, 125);
 

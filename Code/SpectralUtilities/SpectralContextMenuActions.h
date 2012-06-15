@@ -93,6 +93,11 @@
 #define SPECTRAL_SIGNATUREPLOT_REMOVE_SELECTED_ACTION "SPECTRAL_SIGNATUREPLOT_REMOVE_SELECTED_ACTION"
 
 /**
+ *  Enable/disable resampling added signatures to the first signature in a plot.
+ */
+#define SPECTRAL_SIGNATUREPLOT_RESAMPLE_TO_FIRST_ACTION "SPECTRAL_SIGNATUREPLOT_RESAMPLE_TO_FIRST_ACTION"
+
+/**
  *  Enable/disable auto rescaling when a signature is added to the plot.
  */
 #define SPECTRAL_SIGNATUREPLOT_RESCALE_ON_ADD_ACTION "SPECTRAL_SIGNATUREPLOT_RESCALE_ON_ADD_ACTION"

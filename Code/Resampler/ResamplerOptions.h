@@ -14,6 +14,7 @@
 #include "LabeledSectionGroup.h"
 #include "SpectralVersion.h"
 
+class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
 
@@ -32,6 +33,8 @@ public:
    SETTING(ResamplerMethod, Resampler, std::string, LinearMethod());
    SETTING(DropOutWindow, Resampler, double, 0.05);
    SETTING(FullWidthHalfMax, Resampler, double, 0.01);
+   SETTING(UseFillValue, Resampler, bool,false);
+   SETTING(SignatureFillValue, Resampler, double, -10.0);
 
    void applyChanges();
 
@@ -95,6 +98,8 @@ private:
    QComboBox* mpMethod;
    QDoubleSpinBox* mpDropOutWindow;
    QDoubleSpinBox* mpFullWidthHalfMax;
+   QCheckBox* mpUseFillValue;
+   QDoubleSpinBox* mpFillValue;
 };
 
 #endif

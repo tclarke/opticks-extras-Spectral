@@ -313,6 +313,33 @@ public:
     */
    QColor getSignatureColor(Signature* pSignature) const;
 
+   /**
+    *  Sets the object to resample or not resample added signatures to the first signature in plot.
+    *
+    *  @param   enabled
+    *           Set \c true to enable resampling added signatures.
+    *
+    *  @note    If the object is associated with a dataset and the first signature has the same
+    *           wavelength centers as the dataset, resampled signatures can be displayed in
+    *           the band number plot for the associated dataset. If the plot is empty, the first added
+    *           signatures will be resampled to the associated data set wavelengths. If the object is
+    *           not associated with a data set and the plot is empty, the first added signature will not be resampled.
+    */
+   void setResampleToFirst(bool enabled);
+
+   /**
+    *  Returns whether or not added signatures will be resampled to the first signature in the plot.
+    *
+    *  @return   Returns \c true if added signatures will be resampled to the first signature in the plot.
+    *
+    *  @note    If the object is associated with a dataset and the first signature has the same
+    *           wavelength centers as the dataset, resampled signatures can be displayed in
+    *           the band number plot for the associated dataset. If the plot is empty, the first added
+    *           signatures will be resampled to the associated data set wavelengths. If the object is
+    *           not associated with a data set and the plot is empty, the first added signature will not be resampled.
+    */
+   bool getResampleToFirst() const;
+
    //
    // Plot
    //
@@ -660,10 +687,31 @@ protected:
     *           The subset of points to be scaled.
     *  @param   minValue
     *           The minimum value for all the reflectance values in the signature being scaled.
-    *  @param   range
+    *  @param     range
     *           The range of all the reflectance values in the signature being scaled.
     */
    void scalePoints(std::vector<LocationType>& points, double minValue, double range) const;
+
+   /**
+    *  Resample the signatures to the dataset wavelengths .
+    *
+    *  This method resamples the signatures to the wavelengths of the associated dataset. It does not change the
+    *  signatures if the SignaturePlotObject is not associated with a dataset, e.g., the Custom Plots in
+    *  SignatureWindow.
+    *
+    *  @param   signatures
+    *           The signatures to be resampled or for which to retrieve a previously resampled signature. The input
+    *           signatures will be replaced with their resampled versions if resampling is needed(i.e., the signature's
+    *           wavelengths don't match the associated dataset wavelengths).
+    *           .
+    *  @param   errorMsg
+    *           Returns messages for any errors that occurred while resampling the input signatures.
+    *
+    *  @return  Returns \c true if all signatures were successfully resampled or previously resampled versions
+    *           were retrieved from ModelServices. If the SignaturePlotObject is not associated with a dataset,
+    *           the input signatures will not be replaced. Returns \c false if errors occur during resampling.
+    */
+bool resampleSignatures(std::vector<Signature*>& signatures, std::string& errorMsg);
 
 protected slots:
    /**
@@ -888,6 +936,7 @@ private:
    QAction* mpDeleteAllAction;
    QAction* mpRescaleOnAdd;
    QAction* mpScaleToFirst;
+   QAction* mpResampleToFirst;
 
    // Convenience methods
    void setXAxisTitle();

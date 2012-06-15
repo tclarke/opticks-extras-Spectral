@@ -35,6 +35,7 @@ public:
    SETTING(RescaleOnAdd, SignatureWindow, bool, true);
    SETTING(PinSignaturePlot, SignatureWindow, bool, false);
    SETTING(ScaleToFirstSignature, SignatureWindow, bool, false);
+   SETTING(ResampleSignaturesToDataset, SignatureWindow, bool, false);
 
    void applyChanges();
 
@@ -103,6 +104,7 @@ private:
    QCheckBox* mpRescaleOnAdd;
    QCheckBox* mpScaleToFirst;
    QCheckBox* mpPinSigPlot;
+   QCheckBox* mpResampleToDataset;
 };
 
 #endif

@@ -19,6 +19,7 @@
 #include "AppVerify.h"
 #include "Axis.h"
 #include "Classification.h"
+#include "CommonSignatureMetadataKeys.h"
 #include "ContextMenu.h"
 #include "ContextMenuActions.h"
 #include "Curve.h"
@@ -309,6 +310,15 @@ SignaturePlotObject::SignaturePlotObject(PlotWidget* pPlotWidget, Progress* pPro
    VERIFYNR(connect(mpScaleToFirst, SIGNAL(toggled(bool)), this, SLOT(updatePlotForScaleToFirst(bool))));
    pDesktop->initializeAction(mpScaleToFirst, shortcutContext);
    pWidget->addAction(mpScaleToFirst);
+
+   mpResampleToFirst = new QAction("Resample added signatures", pParent);
+   mpResampleToFirst->setAutoRepeat(false);
+   mpResampleToFirst->setCheckable(true);
+   mpResampleToFirst->setChecked(SignatureWindowOptions::getSettingResampleSignaturesToDataset());
+   mpResampleToFirst->setStatusTip(
+      "Toggles resampling added signatures to the first signature in the plot");
+   pDesktop->initializeAction(mpResampleToFirst, shortcutContext);
+   pWidget->addAction(mpResampleToFirst);
 
    pPlotView->attach(SIGNAL_NAME(Subject, Modified), Slot(this, &SignaturePlotObject::plotModified));
    pWidget->installEventFilter(this);
@@ -638,6 +648,8 @@ void SignaturePlotObject::updateContextMenu(Subject& subject, const string& sign
    pMenu->addActionBefore(mpSignatureUnitsMenu->menuAction(), SPECTRAL_SIGNATUREPLOT_SIG_UNITS_ACTION,
       APP_APPLICATIONWINDOW_EXPORT_ACTION);
    pMenu->addActionAfter(mpWaveUnitsMenu->menuAction(), SPECTRAL_SIGNATUREPLOT_WAVE_UNITS_ACTION,
+      SPECTRAL_SIGNATUREPLOT_SIG_UNITS_ACTION);
+   pMenu->addActionBefore(mpResampleToFirst, SPECTRAL_SIGNATUREPLOT_RESAMPLE_TO_FIRST_ACTION,
       SPECTRAL_SIGNATUREPLOT_SIG_UNITS_ACTION);
 
    QAction* pSeparator2Action = new QAction(pParent);
@@ -1994,14 +2006,21 @@ void SignaturePlotObject::setSignaturePlotValues(CurveCollection* pCollection, S
                   dynamic_cast<const RasterDataDescriptor*>(pElement->getDataDescriptor());
                if (pDescriptor != NULL)
                {
-                  DimensionDescriptor band = pDescriptor->getActiveBand(i);
-                  if (band.isOriginalNumberValid() == true)
+#pragma message(__FILE__ "(" STRING(__LINE__) ") : warning : Need to range check 'i' because " \
+   "RasterDataDescriptor::getActiveBand() will verify if 'i' is out of range. This behavior is not consistent " \
+   "with the other RasterDataDescriptor getter methods which just return an invalid DimensionDescriptor. " \
+   "This check can be removed when OPTICKS-1426 is implemented. (rforehan)")
+                  if (i < pDescriptor->getBandCount())
                   {
-                     unsigned int currentOriginalNumber = band.getOriginalNumber();
-                     if (currentOriginalNumber != ++originalNumber)
+                     DimensionDescriptor band = pDescriptor->getActiveBand(i);
+                     if (band.isOriginalNumberValid() == true)
                      {
-                        bBadBandSection = true;
-                        originalNumber = currentOriginalNumber;
+                        unsigned int currentOriginalNumber = band.getOriginalNumber();
+                        if (currentOriginalNumber != ++originalNumber)
+                        {
+                           bBadBandSection = true;
+                           originalNumber = currentOriginalNumber;
+                        }
                      }
                   }
                }
@@ -2193,7 +2212,17 @@ void SignaturePlotObject::addSignature()
             removeAllSignatures();
          }
 
-         string message = "Adding the signatures to the plot...";
+         string message;
+         if (mpResampleToFirst->isChecked())
+         {
+            message = "Resampling signatures before adding to the plot...";
+            updateProgress(message, 0, NORMAL);
+            if (resampleSignatures(signatures, message) == false)
+            {
+               updateProgress(message, 0, WARNING);
+            }
+         }
+         message = "Adding the signatures to the plot...";
          updateProgress(message, 0, NORMAL);
 
          unsigned int numSigs = signatures.size();
@@ -2741,11 +2770,18 @@ unsigned int SignaturePlotObject::getOriginalBandNumber(unsigned int activeBand)
    const RasterDataDescriptor* pDescriptor = dynamic_cast<const RasterDataDescriptor*>(pElement->getDataDescriptor());
    if (pDescriptor != NULL)
    {
-      DimensionDescriptor bandDim = pDescriptor->getActiveBand(activeBand);
-      if (bandDim.isValid())
+#pragma message(__FILE__ "(" STRING(__LINE__) ") : warning : Need to range check 'activeBand' because " \
+   "RasterDataDescriptor::getActiveBand() will verify if 'activeBand' is out of range. This behavior is not " \
+   "consistent with the other RasterDataDescriptor getter methods which just return an invalid DimensionDescriptor. " \
+   "This check can be removed when OPTICKS-1426 is implemented. (rforehan)")
+      if (activeBand < pDescriptor->getBandCount())
       {
-         unsigned int originalBand = bandDim.getOriginalNumber();
-         return originalBand;
+         DimensionDescriptor bandDim = pDescriptor->getActiveBand(activeBand);
+         if (bandDim.isValid())
+         {
+            unsigned int originalBand = bandDim.getOriginalNumber();
+            return originalBand;
+         }
       }
    }
 
@@ -3170,4 +3206,80 @@ void SignaturePlotObject::scalePoints(std::vector<LocationType>& points, double 
    {
       it->mY = ((it->mY - minValue) / range) * mRange + mMinValue;
    }
+}
+
+bool SignaturePlotObject::resampleSignatures(std::vector<Signature*>& signatures, std::string& errorMsg)
+{
+   errorMsg.clear();
+   if (signatures.empty())
+   {
+      errorMsg = "No signatures to resample.";
+      return false;
+   }
+
+   if ((mpRasterLayer.get() == NULL || mpRasterLayer->getDataElement() == NULL) && mpFirstSignature == NULL)
+   {
+      QWidget* pParent = NULL;
+      if (mpPlotWidget != NULL)
+      {
+         pParent = mpPlotWidget->getWidget();
+      }
+      if (QMessageBox::question(pParent, getPlotName(), "There's no first signature or dataset currently associated with "
+         "this plot.\nDo you want to resample the signatures being added to the wavelengths of the first signature "
+         "being added.\nPress 'No' to add the signatures without any resampling.\n",
+         QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::No)
+      {
+         return true;
+      }
+   }
+
+   // get the wavelengths source
+   DataElement* pElement(NULL);
+   if (mpFirstSignature != NULL)
+   {
+      pElement = mpFirstSignature;
+   }
+   else if (mpRasterLayer.get() != NULL)
+   {
+      pElement = mpRasterLayer->getDataElement();
+   }
+   else  // no first signature or dataset so resample to first added signature
+   {
+      pElement = signatures.front();
+   }
+
+   VERIFY(pElement != NULL);
+
+   // get the spectral resampler plug-in
+   ExecutableResource pResampler("Spectral Resampler");
+   if (pResampler.get() == NULL)
+   {
+      errorMsg = "Unable to access the Spectral Resampler plug-in.";
+      return false;
+   }
+   VERIFY(pResampler->getInArgList().setPlugInArgValue<DataElement>("Data element wavelength source", pElement));
+   VERIFY(pResampler->getInArgList().setPlugInArgValue<std::vector<Signature*> >(
+      "Signatures to resample", &signatures));
+   if (pResampler->execute() == false)
+   {
+      errorMsg = "Errors occurred during resampling.";
+      return false;
+   }
+
+   std::vector<Signature*>* pResampledSignatures =
+      pResampler->getOutArgList().getPlugInArgValue<std::vector<Signature*> >("Resampled signatures");
+   VERIFY(pResampledSignatures != NULL);
+   signatures.swap(*pResampledSignatures);
+   delete pResampledSignatures;
+   return true;
+}
+
+void SignaturePlotObject::setResampleToFirst(bool enabled)
+{
+   mpResampleToFirst->setChecked(enabled);
+}
+
+bool SignaturePlotObject::getResampleToFirst() const
+{
+   return mpResampleToFirst->isChecked();
 }
