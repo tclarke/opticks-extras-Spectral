@@ -48,6 +48,8 @@
 #include <QtGui/QTreeWidget>
 #include <QtGui/QTreeWidgetItem>
 
+#include <limits>
+
 ResamplerPlugInDlg::ResamplerPlugInDlg(QWidget* pParent) :
    QDialog(pParent, Qt::WindowCloseButtonHint),
    mpSignatures(NULL)
