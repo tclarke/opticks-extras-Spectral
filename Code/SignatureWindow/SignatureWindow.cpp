@@ -114,12 +114,6 @@ SignatureWindow::~SignatureWindow()
          // Remove the toolbar button
          pToolBar->removeItem(pAction);
       }
-
-      // Delete the action
-      if (mpDesktop->getMainWidget() != NULL)
-      {
-         delete pAction;
-      }
    }
 
    // Detach from the dock window

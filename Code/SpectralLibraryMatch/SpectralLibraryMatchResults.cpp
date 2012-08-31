@@ -111,7 +111,6 @@ SpectralLibraryMatchResults::~SpectralLibraryMatchResults()
             pMenuBar->removeMenuItem(pAction);
          }
       }
-      delete pAction;
    }
 
    // dockwindow should still exist so detach from it

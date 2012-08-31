@@ -113,7 +113,6 @@ SpectralLibraryManager::~SpectralLibraryManager()
       {
          VERIFYNR(disconnect(mpEditSpectralLibraryAction, SIGNAL(triggered()), this, SLOT(editSpectralLibrary())));
          pToolBar->removeItem(mpEditSpectralLibraryAction);
-         delete mpEditSpectralLibraryAction;
       }
    }
 }

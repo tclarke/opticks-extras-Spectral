@@ -9,6 +9,7 @@
 
 // Keep this include here..it uses an OpenCV macro X.
 // Moving this after Opticks includes will incorrectly use the Xerces X macro.
+#include <cstddef>
 #include <opencv/cv.h>
 #include <memory>
 #include <limits>

@@ -184,20 +184,17 @@ SpectralLibraryMatchTools::~SpectralLibraryMatchTools()
       if (mpPixelMatchAction != NULL)
       {
          pToolBar->removeItem(mpPixelMatchAction);
-         delete mpPixelMatchAction;
       }
 
       if (mpAoiPixelMatchAction != NULL)
       {
          disconnect(mpAoiPixelMatchAction, SIGNAL(activated()), this, SLOT(matchAoiPixels()));
          pToolBar->removeItem(mpAoiPixelMatchAction);
-         delete mpAoiPixelMatchAction;
       }
       if (mpAoiAverageMatchAction != NULL)
       {
          disconnect(mpAoiAverageMatchAction, SIGNAL(activated()), this, SLOT(matchAoiAverageSpectrum()));
          pToolBar->removeItem(mpAoiAverageMatchAction);
-         delete mpAoiAverageMatchAction;
       }
    }
 

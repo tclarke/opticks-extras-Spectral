@@ -276,11 +276,10 @@ void MnfDlg::browse()
    unsigned int ulMaxBands = mpComponentsSpin->maximum();
    if (lnumBands != ulMaxBands)
    {
-      QString message;
-      message.sprintf("File-> %s\ncontains MNF results for %d bands.\nThere are %d bands loaded for this image.",
-         strFilename, lnumBands, ulMaxBands);
-      message = "Error: Mismatch on number of bands!\n" + message;
-      QMessageBox::critical(this, "MNF", message);
+      QMessageBox::critical(this, "MNF", 
+         QString("Error: Mismatch on number of bands!\n" \
+                 "File-> %1\ncontains MNF results for %2 bands.\nThere are %3 bands loaded for this image.")
+            .arg(strFilename).arg(lnumBands).arg(ulMaxBands));
       return;
    }
 
