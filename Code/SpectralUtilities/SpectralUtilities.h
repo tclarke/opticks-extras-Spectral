@@ -164,24 +164,25 @@ namespace SpectralUtilities
 #endif
 
    /**
-    * Calculates the reflectance factor using the following equation:
-    *   earthSunDistance = calculated using SpectralUtilities::determineEarthSunDistance
-    *   solarZenithAngleInDegrees = 90 - solarElevationAngleInDegrees
-    *   reflectance factor =                  (earthSunDistance)^2 * PI
-    *                        -------------------------------------------------------------
-    *                        solarIrradiance * cos(solarZenithAngleInDegrees * PI / 180.0)
+    *  Calculates the reflectance factor using the following equations:
+    *  - earthSunDistance = &lt;calculated using
+    *    SpectralUtilities::determineEarthSunDistance()&gt;
+    *  - solarZenithAngleInDegrees = 90 - \em solarElevationAngleInDegrees
+    *  - reflectance factor = ((earthSunDistance)^2 * PI) /
+    *    (\em solarIrradiance * cos(solarZenithAngleInDegrees * PI / 180.0))
     *
-    * @param solarElevationAngleInDegrees
-    *        The solar elevation angle in degrees, not radians
-    * @param solarIrradiance
-    *        The solar irradiance value, generally in W/m^2*um.  Must be the
-    *        irradiance values for a Earth-Sun distance of 1 Astronomical Unit (AU).
-    * @param date
-    *        The date and time, in order to remove differences in solar illumination
-    *        based upon the distance from the sun.
+    *  @param   solarElevationAngleInDegrees
+    *           The solar elevation angle in degrees, not radians.
+    *  @param   solarIrradiance
+    *           The solar irradiance value, generally in W/m^2*um.  Must be the
+    *           irradiance values for a Earth-Sun distance of 1 Astronomical
+    *           Unit (AU).
+    *  @param   date
+    *           The date and time, in order to remove differences in solar
+    *           illumination based upon the distance from the sun.
     *
-    * @return The reflectance factor.  A value of 1.0 will be returned in the case that
-    *         a divide-by-zero would otherwise occur.
+    *  @return  The reflectance factor.  A value of 1.0 will be returned in the
+    *           case that a divide-by-zero would otherwise occur.
     */
    double determineReflectanceConversionFactor(double solarElevationAngleInDegrees,
       double solarIrradiance, const DateTime& date);
