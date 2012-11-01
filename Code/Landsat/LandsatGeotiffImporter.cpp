@@ -111,7 +111,7 @@ namespace
              name.length() >= 5)
          {
             name = name.mid(0, name.length() - 3) + "MTL.txt";
-            QString newName = fileInfo.path() + QString::fromStdString(SLASH) + name;
+            QString newName = fileInfo.path() + "/" + name;
             if (QFile::exists(newName))
             {
                if (originallyTiff != NULL)
