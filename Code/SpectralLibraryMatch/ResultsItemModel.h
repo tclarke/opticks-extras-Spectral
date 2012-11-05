@@ -58,6 +58,7 @@ protected:
 private:
    std::map<std::string, ResultsItem*> mItemMap;  // provides fast find of a result item by pixel location and algorithm
    std::vector<ResultsItem*> mResults;            // provides fast access to item by row and getting row for an item
+   bool mAddingResults;
 };
 
 #endif

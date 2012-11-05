@@ -28,7 +28,8 @@
 #include <QtGui/QPixmap>
 
 ResultsItemModel::ResultsItemModel(QObject* pParent) :
-   QAbstractItemModel(pParent)
+   QAbstractItemModel(pParent),
+   mAddingResults(false)
 {
    std::vector<PlugIn*> plugIns = Service<PlugInManagerServices>()->getPlugInInstances(
       SpectralLibraryMatch::getNameLibraryManagerPlugIn());
@@ -75,7 +76,6 @@ void ResultsItemModel::addResults(const std::vector<SpectralLibraryMatch::MatchR
    unsigned int resultCount(0);
    unsigned int numResults = theResults.size();
    mResults.reserve(mResults.size() + numResults);
-   beginResetModel();
    for (std::vector<SpectralLibraryMatch::MatchResults>::const_iterator it = theResults.begin();
       it != theResults.end(); ++it)
    {
@@ -85,29 +85,71 @@ void ResultsItemModel::addResults(const std::vector<SpectralLibraryMatch::MatchR
          {
             pProgress->updateProgress("Adding Match Results to Results Window canceled by user", 0, ABORT);
          }
-         endResetModel();
          return;
       }
 
+      // Get the results item if it already exists
       ResultsItem* pItem(NULL);
       bool newItem(false);
       if (findPrevious)
       {
          pItem = findResult(it->mTargetName, it->mAlgorithmUsed);
       }
+
+      // Add the top-level item for the results
       if (pItem == NULL)
       {
-         pItem = new ResultsItem();
-         newItem = true;
-      }
+         int resultsRow = static_cast<int>(mResults.size());
+         beginInsertRows(QModelIndex(), resultsRow, resultsRow);
 
-      pItem->setData(*it, colorMap);
-      if (newItem)
-      {
+         // Set the target name and algorithm name in the item constructor so that they will be available when
+         // the sort model automatically sorts the top-level results items when endInsertRows() is called
+         QString targetName = QString::fromStdString(it->mTargetName);
+         QString algorithmName = QString::fromStdString(
+            StringUtilities::toDisplayString<SpectralLibraryMatch::MatchAlgorithm>(it->mAlgorithmUsed));
+
+         pItem = new ResultsItem(targetName, algorithmName);
+         newItem = true;
          mItemMap[getKeyString(it->mTargetName, it->mAlgorithmUsed)] = pItem;
          mResults.push_back(pItem);
+
+         endInsertRows();
       }
 
+      // Get the index for the top-level results item
+      int resultsRow = getRow(pItem);
+      QModelIndex resultsIndex = index(resultsRow, 0);
+
+      // If the results item already exists, remove any existing signature match rows
+      if (newItem == false)
+      {
+         int signatureRows = pItem->rows();
+         if (signatureRows <= 0)
+         {
+            // Set the number of rows to 1 to account for the row indicating no matches are found
+            signatureRows = 1;
+         }
+
+         beginRemoveRows(resultsIndex, 0, signatureRows - 1);
+         pItem->clear();
+         endRemoveRows();
+      }
+
+      // Add the updated signature match rows
+      int signatureRows = it->mResults.size();
+      if (signatureRows <= 0)
+      {
+         // Set the number of rows to 1 to account for the row indicating no matches are found
+         signatureRows = 1;
+      }
+
+      mAddingResults = true;
+      beginInsertRows(resultsIndex, 0, signatureRows - 1);
+      pItem->setData(*it, colorMap);
+      endInsertRows();
+      mAddingResults = false;
+
+      // Update the progress
       if (pProgress != NULL)
       {
          ++resultCount;
@@ -119,7 +161,6 @@ void ResultsItemModel::addResults(const std::vector<SpectralLibraryMatch::MatchR
    {
       pProgress->updateProgress("Finished adding Match Results to Results Window.", 100, NORMAL);
    }
-   endResetModel();
 }
 
 std::string ResultsItemModel::getKeyString(const std::string& sigName, SpectralLibraryMatch::MatchAlgorithm algType)
@@ -173,7 +214,15 @@ QVariant ResultsItemModel::data(const QModelIndex& index, int role) const
       case Qt::DisplayRole:
          if (index.column() == 0)
          {
-            return QVariant(pItem->getSignatureName(index.row()));
+            QString signatureName = "No matches found";
+
+            Signature* pSignature = pItem->getSignature(index.row());
+            if (pSignature != NULL)
+            {
+               signatureName = QString::fromStdString(pSignature->getDisplayName(true));
+            }
+
+            return QVariant(signatureName);
          }
          else if (index.column() == 1)
          {
@@ -260,7 +309,16 @@ int ResultsItemModel::rowCount(const QModelIndex& parent) const
    if (pItem == NULL)  // top level node
    {
       pItem = getItem(parent.row());
-      return pItem->rows();
+      if (pItem != NULL)
+      {
+         int rows = pItem->rows();
+         if ((rows == 0) && (mAddingResults == false))
+         {
+            return 1;
+         }
+
+         return rows;
+      }
    }
 
    // no grand children
@@ -332,10 +390,28 @@ void ResultsItemModel::signatureDeleted(Subject& subject, const std::string& sig
       return;
    }
 
-   beginResetModel();
    for (std::vector<ResultsItem*>::iterator iter = mResults.begin(); iter != mResults.end(); ++iter)
    {
-      (*iter)->deleteResultsForSignature(pSignature);
+      ResultsItem* pItem = *iter;
+      if (pItem != NULL)
+      {
+         int signatureRow = pItem->getRow(pSignature);
+         if (signatureRow > -1)
+         {
+            // Remove the signature row
+            int resultsRow = getRow(pItem);
+            QModelIndex resultsIndex = index(resultsRow, 0);
+            beginRemoveRows(resultsIndex, signatureRow, signatureRow);
+            pItem->deleteResultsForSignature(pSignature);
+            endRemoveRows();
+
+            // If no signature matches remain, add the row indicating no matches are found
+            if (pItem->rows() == 0)
+            {
+               beginInsertRows(resultsIndex, 0, 0);
+               endInsertRows();
+            }
+         }
+      }
    }
-   endResetModel();
 }

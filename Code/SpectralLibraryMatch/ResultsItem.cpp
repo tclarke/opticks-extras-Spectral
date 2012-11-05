@@ -16,7 +16,9 @@
 #include <QtGui/QPainter>
 #include <QtGui/QPen>
 
-ResultsItem::ResultsItem()
+ResultsItem::ResultsItem(const QString& targetName, const QString& algorithmName) :
+   mTargetName(targetName),
+   mAlgorithmName(algorithmName)
 {}
 
 ResultsItem::~ResultsItem()
@@ -26,9 +28,6 @@ void ResultsItem::setData(const SpectralLibraryMatch::MatchResults& data,
    const std::map<Signature*, ColorType>& colorMap)
 {
    clear();
-   mTargetName = QString::fromStdString(data.mTargetName);
-   mAlgorithmName = QString::fromStdString(
-      StringUtilities::toDisplayString<SpectralLibraryMatch::MatchAlgorithm>(data.mAlgorithmUsed));
 
    for (std::vector<std::pair<Signature*, float> >::const_iterator it = data.mResults.begin();
       it != data.mResults.end(); ++it)
@@ -88,6 +87,27 @@ QIcon ResultsItem::getIcon(unsigned int row) const
    return QIcon();
 }
 
+int ResultsItem::getRow(Signature* pSignature) const
+{
+   if (pSignature == NULL)
+   {
+      return -1;
+   }
+
+   int row = 0;
+   for (std::vector<std::pair<Signature*, float> >::const_iterator iter = mResults.begin();
+      iter != mResults.end();
+      ++iter, ++row)
+   {
+      if (iter->first == pSignature)
+      {
+         return row;
+      }
+   }
+
+   return -1;
+}
+
 void ResultsItem::clear()
 {
    mResults.clear();
@@ -96,12 +116,7 @@ void ResultsItem::clear()
 
 int ResultsItem::rows() const
 {
-   int numRows = static_cast<int>(mResults.size());
-   if (numRows == 0)
-   {
-      numRows = 1;  // no results, but still need to say 1 row so "No Matches found" can be shown for this result
-   }
-   return numRows;
+   return static_cast<int>(mResults.size());
 }
 
 QString ResultsItem::getTargetName() const
@@ -113,20 +128,6 @@ QString ResultsItem::getAlgorithmName() const
 {
    return mAlgorithmName;
 }
-
-QString ResultsItem::getSignatureName(unsigned int row) const
-{
-   if (mResults.empty())
-   {
-      return QString("No Match found");
-   }
-   if (row < mResults.size())
-   {
-      return QString::fromStdString(mResults[row].first->getDisplayName(true));
-   }
-
-   return QString();
-};
 
 void ResultsItem::deleteResultsForSignature(Signature* pSignature)
 {

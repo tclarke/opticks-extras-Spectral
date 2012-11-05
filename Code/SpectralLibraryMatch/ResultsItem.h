@@ -24,16 +24,16 @@ class Signature;
 class ResultsItem
 {
 public:
-   ResultsItem();
+   ResultsItem(const QString& targetName, const QString& algorithmName);
    virtual ~ResultsItem();
 
    void setData(const SpectralLibraryMatch::MatchResults& data, const std::map<Signature*, ColorType>& colorMap);
    QString getTargetName() const;
    QString getAlgorithmName() const;
    Signature* getSignature(unsigned int row) const;
-   QString getSignatureName(unsigned int row) const;
    QString getValueStr(unsigned int row) const;
    QIcon getIcon(unsigned int row) const;
+   int getRow(Signature* pSignature) const;
    int rows() const;
    void clear();
    void deleteResultsForSignature(Signature* pSignature);
