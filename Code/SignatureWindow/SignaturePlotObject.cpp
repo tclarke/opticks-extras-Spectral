@@ -314,7 +314,7 @@ SignaturePlotObject::SignaturePlotObject(PlotWidget* pPlotWidget, Progress* pPro
    mpResampleToFirst = new QAction("Resample added signatures", pParent);
    mpResampleToFirst->setAutoRepeat(false);
    mpResampleToFirst->setCheckable(true);
-   mpResampleToFirst->setChecked(SignatureWindowOptions::getSettingResampleSignaturesToDataset());
+   mpResampleToFirst->setChecked(SignatureWindowOptions::getSettingResampleSignatures());
    mpResampleToFirst->setStatusTip(
       "Toggles resampling added signatures to the first signature in the plot");
    pDesktop->initializeAction(mpResampleToFirst, shortcutContext);
@@ -895,130 +895,276 @@ QString SignaturePlotObject::getPlotName() const
    return strPlotName;
 }
 
-void SignaturePlotObject::insertSignature(Signature* pSignature, ColorType color)
-{
-   if (pSignature == NULL)
-   {
-      return;
-   }
-
-   SignatureSet* pSignatureSet = dynamic_cast<SignatureSet*>(pSignature);
-   if (pSignatureSet != NULL)
-   {
-      const vector<Signature*>& signatures = pSignatureSet->getSignatures();
-      for (vector<Signature*>::size_type i = 0; i < signatures.size(); ++i)
-      {
-         Signature* pCurrentSignature = signatures[i];
-         if (pCurrentSignature != NULL)
-         {
-            insertSignature(pCurrentSignature, color);
-         }
-      }
-
-      return;
-   }
-
-   if (isValidAddition(pSignature))
-   {
-      bool firstAddition = mSignatures.empty();
-      if (firstAddition)  // first signature, so need to set the data units for the plot
-      {
-         // since units were checked in isValidAddition, don't need to check again
-         const Units* pUnits = pSignature->getUnits("Reflectance");
-         VERIFYNRV(pUnits != NULL);
-         mSpectralUnits = pUnits->getUnitName();
-         setYAxisTitle();
-      }
- 
-      VERIFYNRV(mpPlotWidget != NULL);
-      PlotView* pPlotView = mpPlotWidget->getPlot();
-      if (pPlotView != NULL)
-      {
-         CurveCollection* pCollection = static_cast<CurveCollection*>(pPlotView->addObject(CURVE_COLLECTION, true));
-         if (pCollection != NULL)
-         {
-            pSignature->attach(SIGNAL_NAME(Subject, Deleted), Slot(this, &SignaturePlotObject::signatureDeleted));
-            pSignature->attach(SIGNAL_NAME(Subject, Modified), Slot(this, &SignaturePlotObject::signatureModified));
-
-            mSignatures.insert(pSignature, pCollection);
-
-            // Set the signature color
-            if (!color.isValid())
-            {
-               color = ColorType(0, 0, 0);  // default to black
-            }
-            pCollection->setColor(color);
-
-            // Set the object name
-            string signatureName = pSignature->getDisplayName();
-            if (signatureName.empty())
-            {
-               signatureName = pSignature->getName();
-            }
-            pCollection->setObjectName(signatureName);
-
-            // Set the signature values in the plot
-            setSignaturePlotValues(pCollection, pSignature);
-            if (firstAddition)
-            {
-               pPlotView->zoomExtents();
-            }
-         }
-      }
-   }
-}
-
 void SignaturePlotObject::addSignatures(const vector<Signature*>& signatures, ColorType color)
 {
-   if (signatures.empty() == true)
+   vector<Signature*> signaturesToAdd = SpectralUtilities::extractSignatures(signatures);
+   if (signaturesToAdd.empty() == true)
    {
       return;
    }
+
+   // Clear the plot if necessary
+   bool hasExistingSignatures = !(mSignatures.empty());
+   unsigned int numSignaturesAdded = 0;
 
    if (mbClearOnAdd == true)
    {
       removeAllSignatures();
+      hasExistingSignatures = false;
    }
 
-   // determine if this is the first addition of a signature
-   bool firstAdd = mSignatures.empty();
+   // Create a single instance of the resampler plug-in that will be reused to resample signatures individually
+   ExecutableResource pResampler("Spectral Resampler");
 
-   vector<Signature*>::const_iterator iter;
-   size_t numSignatures = signatures.size();
-   size_t count(0);
-   updateProgress("Adding signatures to plot...", 0, NORMAL);
-   for (iter = signatures.begin(); iter != signatures.end(); ++iter)
+   // Add each signature to the plot
+   vector<Signature*>::size_type numSignatures = signaturesToAdd.size();
+   bool reportNormalProgress = (numSignatures > 10);
+
+   for (vector<Signature*>::size_type i = 0; i < numSignatures; ++i)
    {
-      if (mbAbort)
+      // Update progress
+      if (reportNormalProgress == true)
       {
-         updateProgress("Add signatures aborted.", 0, ABORT);
-         mbAbort = false;
-         return;
+         updateProgress("Adding signatures to plot...", i * 100 / numSignatures, NORMAL);
       }
 
-      Signature* pSignature = *iter;
+      Signature* pSignature = signaturesToAdd[i];
       if (pSignature != NULL)
       {
-         insertSignature(pSignature, color);
-      }
-      ++count;
-      updateProgress("Adding signatures to plot...", count * 100 / numSignatures, NORMAL);
-   }
-
-   if (mpPlotWidget != NULL)
-   {
-      PlotView* pPlotView = mpPlotWidget->getPlot();
-      if (pPlotView != NULL)
-      {
-         if (firstAdd || mpRescaleOnAdd->isChecked())
+         // Do not add the signature if it already exists in the plot
+         if (containsSignature(pSignature) == true)
          {
-            pPlotView->zoomExtents();
+            continue;
          }
-         pPlotView->refresh();
+
+         // Check for valid units
+         const Units* pUnits = pSignature->getUnits("Reflectance");
+         if (pUnits != NULL)
+         {
+            // Unit type
+            UnitType unitType = pUnits->getUnitType();
+            if ((unitType.isValid() == false) || (unitType == DISTANCE))
+            {
+               string message = "The " + pSignature->getDisplayName(true) + " signature does not have valid data "
+                  "units and will not be added to the plot.";
+               updateProgress(message, 0, WARNING);
+               reportNormalProgress = true;
+               continue;
+            }
+
+            // Check that the signature has the same units as other signatures in the plot
+            const string& unitName = pUnits->getUnitName();
+            if ((mSignatures.empty() == false) && (mbClearOnAdd == false))
+            {
+               if (unitName != mSpectralUnits)
+               {
+                  const string& signatureName = pSignature->getDisplayName(true);
+
+                  QMessageBox::StandardButton button = QMessageBox::warning(mpPlotWidget->getWidget(), getPlotName(),
+                     "The data units of the " + QString::fromStdString(signatureName) + " signature do not match the "
+                     "current data units of this plot.  The plot will have to be cleared to add this signature.  Do "
+                     "you want to clear the plot and add this signature?", QMessageBox::Yes | QMessageBox::No |
+                     QMessageBox::Cancel);
+                  if (button == QMessageBox::No)
+                  {
+                     string message = "The data units of the " + signatureName + " signature do not match the "
+                        "current data units of the plot, so the signature will not be added to the plot.";
+                     updateProgress(message, 0, WARNING);
+                     reportNormalProgress = true;
+                     continue;
+                  }
+                  else if (button == QMessageBox::Cancel)
+                  {
+                     mbAbort = true;
+                     updateProgress("Add signatures aborted.", 0, ABORT);
+                     break;
+                  }
+
+                  removeAllSignatures();
+                  hasExistingSignatures = false;
+               }
+            }
+         }
+
+         // Check for valid wavelengths if adding to a plot displaying wavelengths
+         bool hasWavelengths = false;
+
+         const DataVariant& wavelengthData = pSignature->getData("Wavelength");
+         if (wavelengthData.isValid() == true)
+         {
+            const vector<double>* pWavelengths = wavelengthData.getPointerToValue<vector<double> >();
+            if ((pWavelengths != NULL) && (pWavelengths->empty() == false))
+            {
+               hasWavelengths = true;
+            }
+         }
+
+         if (mpBandDisplayAction->isEnabled() == false)
+         {
+            if (hasWavelengths == false)
+            {
+               string message = "The " + pSignature->getDisplayName(true) + " signature does not have any wavelength "
+                  "information and will not be added to the plot.";
+               updateProgress(message, 0, WARNING);
+               reportNormalProgress = true;
+               continue;
+            }
+         }
+
+         // Resample the signature to the wavelengths of the first signature or to that of the dataset
+         if ((mpResampleToFirst->isChecked() == true) && ((mSignatures.empty() == false) ||
+            (mpBandDisplayAction->isEnabled() == true)))
+         {
+            // Get the wavelengths source element
+            bool sourceHasWavelengths = false;
+
+            DataElement* pWavelengthElement = NULL;
+            if (mpFirstSignature != NULL)
+            {
+               const DataVariant& sourceWavelengthData = mpFirstSignature->getData("Wavelength");
+               if (sourceWavelengthData.isValid() == true)
+               {
+                  const vector<double>* pWavelengths = sourceWavelengthData.getPointerToValue<vector<double> >();
+                  if ((pWavelengths != NULL) && (pWavelengths->empty() == false))
+                  {
+                     sourceHasWavelengths = true;
+                  }
+               }
+
+               pWavelengthElement = mpFirstSignature;
+            }
+            else if (mpRasterLayer.get() != NULL)
+            {
+               pWavelengthElement = mpRasterLayer->getDataElement();
+               if (pWavelengthElement != NULL)
+               {
+                  FactoryResource<Wavelengths> pWavelengths;
+                  if (pWavelengths->initializeFromDynamicObject(pWavelengthElement->getMetadata(), false) == true)
+                  {
+                     sourceHasWavelengths = !(pWavelengths->isEmpty());
+                  }
+               }
+            }
+
+            VERIFYNRV(pWavelengthElement != NULL);
+
+            // Resample the signature with the resamplers plug-in if either the source element or signature
+            // have valid wavelengths
+            if ((sourceHasWavelengths == true) || (hasWavelengths == true))
+            {
+               if (pResampler.get() == NULL)
+               {
+                  string message = "Unable to access the Spectral Resampler plug-in.  The " +
+                     pSignature->getDisplayName(true) + " signature will not be added to the plot.";
+                  updateProgress(message, 0, WARNING);
+                  reportNormalProgress = true;
+                  continue;
+               }
+
+               VERIFYNRV(pResampler->getInArgList().setPlugInArgValue<DataElement>("Data element wavelength source",
+                  pWavelengthElement));
+               VERIFYNRV(pResampler->getInArgList().setPlugInArgValue<Signature>("Signature to resample", pSignature));
+               if (pResampler->execute() == false)
+               {
+                  string message = "The " + pSignature->getDisplayName(true) + " signature could not be resampled "
+                     "and will not be added to the plot.";
+                  updateProgress(message, 0, WARNING);
+                  reportNormalProgress = true;
+                  continue;
+               }
+
+               std::vector<Signature*>* pResampledSignatures =
+                  pResampler->getOutArgList().getPlugInArgValue<std::vector<Signature*> >("Resampled signatures");
+               VERIFYNRV(pResampledSignatures != NULL);
+
+               if (pResampledSignatures->empty() == true)
+               {
+                  string message = "The " + pSignature->getDisplayName(true) + " signature could not be resampled "
+                     "and will not be added to the plot.";
+                  updateProgress(message, 0, WARNING);
+                  reportNormalProgress = true;
+                  continue;
+               }
+
+               VERIFYNRV(pResampledSignatures->size() == 1);
+
+               pSignature = pResampledSignatures->front();
+               VERIFYNRV(pSignature != NULL);
+
+               delete pResampledSignatures;
+            }
+         }
+
+         // Set the plot data units if necessary
+         if (mSignatures.empty() == true)
+         {
+            pUnits = pSignature->getUnits("Reflectance");
+            if (pUnits != NULL)
+            {
+               mSpectralUnits = pUnits->getUnitName();
+               setYAxisTitle();
+            }
+         }
+
+         // Add the signature plot object
+         PlotView* pPlotView = mpPlotWidget->getPlot();
+         if (pPlotView != NULL)
+         {
+            CurveCollection* pCollection = static_cast<CurveCollection*>(pPlotView->addObject(CURVE_COLLECTION, true));
+            if (pCollection != NULL)
+            {
+               pSignature->attach(SIGNAL_NAME(Subject, Deleted), Slot(this, &SignaturePlotObject::signatureDeleted));
+               pSignature->attach(SIGNAL_NAME(Subject, Modified), Slot(this, &SignaturePlotObject::signatureModified));
+
+               mSignatures.insert(pSignature, pCollection);
+               ++numSignaturesAdded;
+
+               // Set the signature color
+               if (color.isValid() == false)
+               {
+                  color = ColorType(0, 0, 0);  // default to black
+               }
+
+               pCollection->setColor(color);
+
+               // Set the object name
+               string signatureName = pSignature->getDisplayName(true);
+               pCollection->setObjectName(signatureName);
+
+               // Set the signature values in the plot
+               setSignaturePlotValues(pCollection, pSignature);
+            }
+         }
+      }
+
+      // Check for aborting
+      if (mbAbort == true)
+      {
+         updateProgress("Add signatures aborted.", 0, ABORT);
+         break;
       }
    }
 
-   updateProgress("Finished adding signatures to plot", 100, NORMAL);
+   // Zoom to the plot extents if these are the first signatures added to the plot
+   PlotView* pPlotView = mpPlotWidget->getPlot();
+   if ((pPlotView != NULL) && (numSignaturesAdded > 0))
+   {
+      if ((hasExistingSignatures == false) || (mpRescaleOnAdd->isChecked() == true))
+      {
+         pPlotView->zoomExtents();
+      }
+
+      pPlotView->refresh();
+   }
+
+   // Update progress
+   if ((mbAbort == false) && (reportNormalProgress == true))
+   {
+      updateProgress("Finished adding signatures to plot", 100, NORMAL);
+   }
+
+   // Reset the abort flag
+   mbAbort = false;
 }
 
 void SignaturePlotObject::addSignature(Signature* pSignature, ColorType color)
@@ -1028,30 +1174,10 @@ void SignaturePlotObject::addSignature(Signature* pSignature, ColorType color)
       return;
    }
 
-   if (mbClearOnAdd == true)
-   {
-      removeAllSignatures();
-   }
+   vector<Signature*> signatures;
+   signatures.push_back(pSignature);
 
-   // determine if this is the first addition of a signature
-   bool firstAdd = mSignatures.empty();
-
-   // Insert the signature in the plot
-   insertSignature(pSignature, color);
-
-   // Update the plot view
-   if (mpPlotWidget != NULL)
-   {
-      PlotView* pPlotView = mpPlotWidget->getPlot();
-      if (pPlotView != NULL)
-      {
-         if (firstAdd || mpRescaleOnAdd->isChecked())
-         {
-            pPlotView->zoomExtents();
-         }
-         pPlotView->refresh();
-      }
-   }
+   addSignatures(signatures, color);
 }
 
 void SignaturePlotObject::removeSignature(Signature* pSignature, bool bDelete)
@@ -2204,66 +2330,7 @@ void SignaturePlotObject::addSignature()
    if (mpSigSelector->exec() == QDialog::Accepted)
    {
       vector<Signature*> signatures = mpSigSelector->getSignatures();
-      signatures = SpectralUtilities::extractSignatures(signatures);
-      if (signatures.empty() == false)
-      {
-         if (mbClearOnAdd == true)
-         {
-            removeAllSignatures();
-         }
-
-         string message;
-         if (mpResampleToFirst->isChecked())
-         {
-            message = "Resampling signatures before adding to the plot...";
-            updateProgress(message, 0, NORMAL);
-            if (resampleSignatures(signatures, message) == false)
-            {
-               updateProgress(message, 0, WARNING);
-            }
-         }
-         message = "Adding the signatures to the plot...";
-         updateProgress(message, 0, NORMAL);
-
-         unsigned int numSigs = signatures.size();
-         bool firstAdd = mSignatures.empty();
-         vector<Signature*>::size_type i = 0;
-         for (i = 0; i < numSigs; ++i)
-         {
-            if (mbAbort)
-            {
-               message = "Add signatures aborted.";
-               updateProgress(message, 0, ABORT);
-               break;
-            }
-            Signature* pSignature = signatures[i];
-            if (pSignature != NULL)
-            {
-               insertSignature(pSignature);
-            }
-
-            updateProgress(message, i * 100 / numSigs, NORMAL);
-         }
-
-         if (i == numSigs)
-         {
-            message = "Add signatures complete.";
-            updateProgress(message, 100, NORMAL);
-         }
-
-         if (mpPlotWidget != NULL)
-         {
-            PlotView* pPlotView = mpPlotWidget->getPlot();
-            if (pPlotView != NULL)
-            {
-               if (firstAdd || mpRescaleOnAdd->isChecked())
-               {
-                  pPlotView->zoomExtents();
-               }
-               pPlotView->refresh();
-            }
-         }
-      }
+      addSignatures(signatures);
    }
 
    delete mpSigSelector;
@@ -3063,77 +3130,6 @@ bool SignaturePlotObject::getScaleToFirst()const
    return mpScaleToFirst->isChecked();
 }
 
-bool SignaturePlotObject::isValidAddition(Signature* pSignature)
-{
-   if (pSignature == NULL)
-   {
-      return false;
-   }
-
-   VERIFY(mpPlotWidget != NULL);
-   QWidget* pWidget = mpPlotWidget->getWidget();
-
-   // don't add if already in plot
-   if (containsSignature(pSignature))
-   {
-      return false;
-   }
-
-   // check for wavelengths if band display is disabled - plot can only display in wavelengths
-   if (mpBandDisplayAction->isEnabled() == false)
-   {
-      bool warnNoWavelengths(true);
-      const DataVariant& variant = pSignature->getData("Wavelength");
-      if (variant.isValid())
-      {
-         const vector<double>* pSigWavelengths = variant.getPointerToValue<vector<double> >();
-         if (pSigWavelengths != NULL && pSigWavelengths->empty() == false)
-         {
-            warnNoWavelengths = false;
-         }
-      }
-      if (warnNoWavelengths)
-      {
-         QMessageBox::critical(pWidget, getPlotName(), "This signature does not have "
-            "any wavelength information.  It will not be added to the plot.");
-         return false;
-      }
-   }
-
-   // check for valid units
-   const Units* pUnits = pSignature->getUnits("Reflectance");
-   VERIFY(pUnits != NULL);
-   UnitType eUnits = pUnits->getUnitType();
-   if ((eUnits != RADIANCE) && (eUnits != REFLECTANCE) && (eUnits != EMISSIVITY) &&
-      (eUnits != DIGITAL_NO) && (eUnits != CUSTOM_UNIT) && (eUnits != REFLECTANCE_FACTOR) &&
-      (eUnits != TRANSMITTANCE) && (eUnits != ABSORPTANCE) && (eUnits != ABSORBANCE))
-   {
-      QMessageBox::critical(pWidget, getPlotName(), "This signature does not have "
-         "known data units.  It will not be added to the plot.");
-      return false;
-   }
-
-   // check that signature has same units as other signatures in the plot unless plot will be cleared before add
-   const string& unitName = pUnits->getUnitName();
-   if (mSignatures.count() > 0 && mbClearOnAdd == false)
-   {
-      if (unitName != mSpectralUnits)
-      {
-         QMessageBox::StandardButton button = QMessageBox::warning(pWidget, getPlotName(),
-            "The data units of the signature being added do not match the current data units of this plot.  "
-            "The plot will have to be cleared to add this signature.  Do you want to clear the plot and "
-            "add the signature or cancel adding this signature?", QMessageBox::Yes | QMessageBox::Cancel);
-         if (button == QMessageBox::Cancel)
-         {
-            return false;
-         }
-         removeAllSignatures();
-      }
-   }
-
-   return true;
-}
-
 void SignaturePlotObject::updateProgress(const string& msg, int percent, ReportingLevel level)
 {
    if (mpProgress != NULL)
@@ -3206,72 +3202,6 @@ void SignaturePlotObject::scalePoints(std::vector<LocationType>& points, double 
    {
       it->mY = ((it->mY - minValue) / range) * mRange + mMinValue;
    }
-}
-
-bool SignaturePlotObject::resampleSignatures(std::vector<Signature*>& signatures, std::string& errorMsg)
-{
-   errorMsg.clear();
-   if (signatures.empty())
-   {
-      errorMsg = "No signatures to resample.";
-      return false;
-   }
-
-   if ((mpRasterLayer.get() == NULL || mpRasterLayer->getDataElement() == NULL) && mpFirstSignature == NULL)
-   {
-      QWidget* pParent = NULL;
-      if (mpPlotWidget != NULL)
-      {
-         pParent = mpPlotWidget->getWidget();
-      }
-      if (QMessageBox::question(pParent, getPlotName(), "There's no first signature or dataset currently associated with "
-         "this plot.\nDo you want to resample the signatures being added to the wavelengths of the first signature "
-         "being added.\nPress 'No' to add the signatures without any resampling.\n",
-         QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::No)
-      {
-         return true;
-      }
-   }
-
-   // get the wavelengths source
-   DataElement* pElement(NULL);
-   if (mpFirstSignature != NULL)
-   {
-      pElement = mpFirstSignature;
-   }
-   else if (mpRasterLayer.get() != NULL)
-   {
-      pElement = mpRasterLayer->getDataElement();
-   }
-   else  // no first signature or dataset so resample to first added signature
-   {
-      pElement = signatures.front();
-   }
-
-   VERIFY(pElement != NULL);
-
-   // get the spectral resampler plug-in
-   ExecutableResource pResampler("Spectral Resampler");
-   if (pResampler.get() == NULL)
-   {
-      errorMsg = "Unable to access the Spectral Resampler plug-in.";
-      return false;
-   }
-   VERIFY(pResampler->getInArgList().setPlugInArgValue<DataElement>("Data element wavelength source", pElement));
-   VERIFY(pResampler->getInArgList().setPlugInArgValue<std::vector<Signature*> >(
-      "Signatures to resample", &signatures));
-   if (pResampler->execute() == false)
-   {
-      errorMsg = "Errors occurred during resampling.";
-      return false;
-   }
-
-   std::vector<Signature*>* pResampledSignatures =
-      pResampler->getOutArgList().getPlugInArgValue<std::vector<Signature*> >("Resampled signatures");
-   VERIFY(pResampledSignatures != NULL);
-   signatures.swap(*pResampledSignatures);
-   delete pResampledSignatures;
-   return true;
 }
 
 void SignaturePlotObject::setResampleToFirst(bool enabled)

@@ -155,22 +155,6 @@ public:
    void addSignature(Signature* pSignature, ColorType color = ColorType(0, 0, 0));
 
    /**
-    *  Adds a signature to the plot without updating the scales or redrawing.
-    *
-    *  To add a signature, rescale the plot to the new extents, and redraw,
-    *  call addSignature() instead.
-    *
-    *  @warning This method ignores the value returned from isClearOnAdd().
-    *
-    *  @param   pSignature
-    *           The Signature object to add.  This method does nothing if
-    *           \c NULL is passed in.
-    *  @param   color
-    *           The color to use for the signature.
-   */
-   void insertSignature(Signature* pSignature, ColorType color = ColorType(0, 0, 0));
-
-   /**
     *  Adds multiple signatures to the plot.
     *
     *  This method adds each signature to a plot, rescales to the new plot
@@ -649,19 +633,6 @@ protected:
    bool isDatasetSignature(Signature* pSignature) const;
 
    /**
-    *  Perform checks to determine if a signature can be added to the plot.
-    *
-    *  This method checks if the signature is already in the plot, has same data units as other signatures in the plot,
-    *  and if the signature contains wavelength information if band display is disabled for the plot.
-    *
-    *  @param    pSignature
-    *            The signature to check.
-    *
-    *  @return   Returns \c true if the signature can be added to the plot, otherwise returns \c false.
-    */
-   bool isValidAddition(Signature* pSignature);
-
-   /**
     *  Find the minimum value and range for the reflectance values in a signature.
     *
     *  This method finds the minimum value and range for a signature.
@@ -691,27 +662,6 @@ protected:
     *           The range of all the reflectance values in the signature being scaled.
     */
    void scalePoints(std::vector<LocationType>& points, double minValue, double range) const;
-
-   /**
-    *  Resample the signatures to the dataset wavelengths .
-    *
-    *  This method resamples the signatures to the wavelengths of the associated dataset. It does not change the
-    *  signatures if the SignaturePlotObject is not associated with a dataset, e.g., the Custom Plots in
-    *  SignatureWindow.
-    *
-    *  @param   signatures
-    *           The signatures to be resampled or for which to retrieve a previously resampled signature. The input
-    *           signatures will be replaced with their resampled versions if resampling is needed(i.e., the signature's
-    *           wavelengths don't match the associated dataset wavelengths).
-    *           .
-    *  @param   errorMsg
-    *           Returns messages for any errors that occurred while resampling the input signatures.
-    *
-    *  @return  Returns \c true if all signatures were successfully resampled or previously resampled versions
-    *           were retrieved from ModelServices. If the SignaturePlotObject is not associated with a dataset,
-    *           the input signatures will not be replaced. Returns \c false if errors occur during resampling.
-    */
-bool resampleSignatures(std::vector<Signature*>& signatures, std::string& errorMsg);
 
 protected slots:
    /**

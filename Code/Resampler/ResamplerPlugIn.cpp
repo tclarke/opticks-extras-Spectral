@@ -275,6 +275,7 @@ bool ResamplerPlugIn::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgL
       if (needToResample(originalSignatures[index], pWavelengths.get()) == false)
       {
          pResampledSignatures->push_back(originalSignatures[index]);
+         ++numSigsResampled;
          continue;
       }
 
@@ -300,13 +301,12 @@ bool ResamplerPlugIn::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgL
       }
       std::string resampledSigName = originalSignatures[index]->getName() + "_resampled";
       int suffix(2);
-      ModelResource<Signature> pSignature(resampledSigName, originalSignatures[index]->getParent());
+      ModelResource<Signature> pSignature(resampledSigName, NULL);
 
       // probably not needed but just in case resampled name already used
       while (pSignature.get() == NULL)
       {
-         pSignature = ModelResource<Signature>(resampledSigName + StringUtilities::toDisplayString<int>(suffix),
-            originalSignatures[index]->getParent());
+         pSignature = ModelResource<Signature>(resampledSigName + StringUtilities::toDisplayString(suffix), NULL);
          ++suffix;
       }
       if (resampledTo.empty() == false)
@@ -403,7 +403,10 @@ bool ResamplerPlugIn::getWavelengthsFromElement(const DataElement* pElement,
    {
       if (pWavelengths->initializeFromDynamicObject(pElement->getMetadata(), false) == true)
       {
+         if (pWavelengths->isEmpty() == false)
+         {
             return true;
+         }
       }
    }
    else if (pElement->isKindOf(TypeConverter::toString<Signature>()))
@@ -434,7 +437,7 @@ bool ResamplerPlugIn::getWavelengthsFromElement(const DataElement* pElement,
             if (variant.isValid())
             {
                std::vector<double> wavelengths;
-               if (variant.getValue(wavelengths) == true)
+               if ((variant.getValue(wavelengths) == true) && (wavelengths.empty() == false))
                {
                   pWavelengths->setCenterValues(wavelengths, MICRONS);
                   return true;

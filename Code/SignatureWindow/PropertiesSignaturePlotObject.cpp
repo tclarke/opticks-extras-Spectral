@@ -93,8 +93,7 @@ PropertiesSignaturePlotObject::PropertiesSignaturePlotObject() :
 }
 
 PropertiesSignaturePlotObject::~PropertiesSignaturePlotObject()
-{
-}
+{}
 
 bool PropertiesSignaturePlotObject::initialize(SessionItem* pSessionItem)
 {
@@ -131,6 +130,9 @@ bool PropertiesSignaturePlotObject::initialize(SessionItem* pSessionItem)
    mpRescaleOnAdd->setChecked(mpPlot->getRescaleOnAdd());
    mpScaleToFirst->setChecked(mpPlot->getScaleToFirst());
 
+   // Resample
+   mpResampleToDataset->setChecked(mpPlot->getResampleToFirst());
+
    return true;
 }
 
@@ -149,6 +151,9 @@ bool PropertiesSignaturePlotObject::applyChanges()
    // Rescale
    mpPlot->setRescaleOnAdd(mpRescaleOnAdd->isChecked());
    mpPlot->setScaleToFirst(mpScaleToFirst->isChecked());
+
+   // Resample
+   mpPlot->setResampleToFirst(mpResampleToDataset->isChecked());
 
    // Refresh the plot
    PlotWidget* pPlotWidget = mpPlot->getPlotWidget();
