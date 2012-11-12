@@ -16,6 +16,7 @@
 #include <map>
 #include <string>
 
+#include <QtCore/QString>
 #include <QtGui/QDialog>
 
 class AoiElement;
@@ -23,7 +24,6 @@ class QCheckBox;
 class QComboBox;
 class QLineEdit;
 class QDoubleSpinBox;
-class QString;
 
 class LocateDialog : public QDialog
 {
@@ -46,7 +46,7 @@ protected slots:
 private:
    const RasterElement* mpRaster;
    std::map<std::string, float> mLocateThresholds;
-   std::string mLayerNameBase;
+   QString mLayerNameBase;
    QComboBox* mpAlgCombo;
    QDoubleSpinBox* mpThreshold;
    QLineEdit* mpOutputLayerName;

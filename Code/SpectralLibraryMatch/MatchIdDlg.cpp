@@ -24,7 +24,6 @@
 #include "SpectralLibraryMatchOptions.h"
 #include "TypeConverter.h"
 
-#include <QtCore/QString>
 #include <QtCore/QStringList>
 #include <QtGui/QCheckBox>
 #include <QtGui/QComboBox>
@@ -39,14 +38,15 @@
 MatchIdDlg::MatchIdDlg(const RasterElement* pRaster, QWidget* pParent) :
    QDialog(pParent, Qt::WindowCloseButtonHint),
    mpRaster(pRaster),
+   mLayerNameBase("Spectral Library Match Results - "),
    mpAoiCombo(NULL),
    mpMatchEachCheckBox(NULL),
    mpLimitByMaxNum(NULL),
    mpMaxMatchesSpinBox(NULL),
    mpLimitByThreshold(NULL),
-   mpThresholdLimit(NULL),
-   mpEditLayerName(NULL),
-   mpAlgorithmCombo(NULL),
+   mpThreshold(NULL),
+   mpOutputLayerName(NULL),
+   mpAlgCombo(NULL),
    mpSaveSettings(NULL)
 {
    setWindowTitle("Spectral Library Match");
@@ -69,21 +69,21 @@ MatchIdDlg::MatchIdDlg(const RasterElement* pRaster, QWidget* pParent) :
 
    // layer name area
    QLabel* pLayerLabel = new QLabel("Layer name:", this);
-   mpEditLayerName = new QLineEdit("Spectral Library Match results", this);
-   VERIFYNR(connect(mpMatchEachCheckBox, SIGNAL(toggled(bool)), mpEditLayerName, SLOT(setEnabled(bool))));
+   mpOutputLayerName = new QLineEdit(this);
+   VERIFYNR(connect(mpMatchEachCheckBox, SIGNAL(toggled(bool)), mpOutputLayerName, SLOT(setEnabled(bool))));
 
    // algorithm area
    QLabel* pAlgLabel = new QLabel("Match algorithm:", this);
-   mpAlgorithmCombo = new QComboBox(this);
+   mpAlgCombo = new QComboBox(this);
    mpLimitByMaxNum = new QCheckBox("Limit matches to max number:", this);
    mpMaxMatchesSpinBox = new QSpinBox(this);
    mpMaxMatchesSpinBox->setRange(1, 100);
    mpLimitByThreshold = new QCheckBox("Limit to matches below threshold:", this);
-   mpThresholdLimit = new QDoubleSpinBox(this);
-   mpThresholdLimit->setSingleStep(0.1);
-   mpThresholdLimit->setRange(0.0, 90.0);
+   mpThreshold = new QDoubleSpinBox(this);
+   mpThreshold->setSingleStep(0.1);
+   mpThreshold->setRange(0.0, 90.0);
    VERIFYNR(connect(mpLimitByMaxNum, SIGNAL(toggled(bool)), mpMaxMatchesSpinBox, SLOT(setEnabled(bool))));
-   VERIFYNR(connect(mpLimitByThreshold, SIGNAL(toggled(bool)), mpThresholdLimit, SLOT(setEnabled(bool))));
+   VERIFYNR(connect(mpLimitByThreshold, SIGNAL(toggled(bool)), mpThreshold, SLOT(setEnabled(bool))));
 
    // save settings
    mpSaveSettings = new QCheckBox("Save settings", this);
@@ -104,13 +104,13 @@ MatchIdDlg::MatchIdDlg(const RasterElement* pRaster, QWidget* pParent) :
    pGrid->addWidget(mpAoiCombo, 1, 1, 1, 2);
    pGrid->addWidget(mpMatchEachCheckBox, 2, 1, 1, 2);
    pGrid->addWidget(pLayerLabel, 3, 0, Qt::AlignRight);
-   pGrid->addWidget(mpEditLayerName, 3, 1, 1, 2);
+   pGrid->addWidget(mpOutputLayerName, 3, 1, 1, 2);
    pGrid->addWidget(pAlgLabel, 4, 0, Qt::AlignRight);
-   pGrid->addWidget(mpAlgorithmCombo, 4, 1, 1, 2);
+   pGrid->addWidget(mpAlgCombo, 4, 1, 1, 2);
    pGrid->addWidget(mpLimitByMaxNum, 5, 1);
    pGrid->addWidget(mpMaxMatchesSpinBox, 5, 2, Qt::AlignLeft);
    pGrid->addWidget(mpLimitByThreshold, 6, 1);
-   pGrid->addWidget(mpThresholdLimit, 6, 2, Qt::AlignLeft);
+   pGrid->addWidget(mpThreshold, 6, 2, Qt::AlignLeft);
    pGrid->addWidget(mpSaveSettings, 7, 1, Qt::AlignLeft);
    pGrid->addWidget(pLineSeparator, 9, 0, 1, 3);
    pGrid->addWidget(pButtons, 10, 0, 1, 3, Qt::AlignRight);
@@ -167,17 +167,45 @@ MatchIdDlg::MatchIdDlg(const RasterElement* pRaster, QWidget* pParent) :
       }
    }
 
-   // load algorithm combobox and set current index to user option
+   // load algorithm combobox
    std::vector<std::string> algNames =
       StringUtilities::getAllEnumValuesAsDisplayString<SpectralLibraryMatch::MatchAlgorithm>();
    for (std::vector<std::string>::iterator it = algNames.begin(); it!= algNames.end(); ++it)
    {
-      mpAlgorithmCombo->addItem(QString::fromStdString(*it));
+      mpAlgCombo->addItem(QString::fromStdString(*it));
    }
-   std::string strAlg = StringUtilities::toDisplayString<SpectralLibraryMatch::MatchAlgorithm>(
+
+   // set up algorithm threshold map
+   std::vector<std::string> algorithmNames =
+      StringUtilities::getAllEnumValuesAsDisplayString<SpectralLibraryMatch::MatchAlgorithm>();
+   for (std::vector<std::string>::iterator it = algorithmNames.begin();
+      it != algorithmNames.end(); ++it)
+   {
+      float threshold(0.0f);
+      switch (StringUtilities::fromDisplayString<SpectralLibraryMatch::MatchAlgorithm>(*it))
+      {
+      case SpectralLibraryMatch::SLMA_SAM:
+         threshold = SpectralLibraryMatchOptions::getSettingMatchSamThreshold();
+         break;
+
+      case SpectralLibraryMatch::SLMA_WBI:
+         threshold = SpectralLibraryMatchOptions::getSettingMatchWbiThreshold();
+         break;
+
+      default:
+         // nothing to do
+         break;
+      }
+
+      mMatchThresholds.insert(std::pair<std::string, float>(*it, threshold));
+   }
+
+   // set current index to user option
+   SpectralLibraryMatch::MatchAlgorithm matchAlg =
       StringUtilities::fromXmlString<SpectralLibraryMatch::MatchAlgorithm>(
-      SpectralLibraryMatchOptions::getSettingMatchAlgorithm()));
-   mpAlgorithmCombo->setCurrentIndex(mpAlgorithmCombo->findText(QString::fromStdString(strAlg)));
+      SpectralLibraryMatchOptions::getSettingMatchAlgorithm());
+   std::string strAlg = StringUtilities::toDisplayString<SpectralLibraryMatch::MatchAlgorithm>(matchAlg);
+   mpAlgCombo->setCurrentIndex(mpAlgCombo->findText(QString::fromStdString(strAlg)));
    mpMatchEachCheckBox->setChecked(SpectralLibraryMatchOptions::getSettingMatchEachPixel());
 
    // set max matches
@@ -187,8 +215,30 @@ MatchIdDlg::MatchIdDlg(const RasterElement* pRaster, QWidget* pParent) :
 
    // set threshold limit
    mpLimitByThreshold->setChecked(SpectralLibraryMatchOptions::getSettingLimitByThreshold());
-   mpThresholdLimit->setValue(SpectralLibraryMatchOptions::getSettingMatchThreshold());
-   mpThresholdLimit->setEnabled(mpLimitByThreshold->isChecked());
+   mpThreshold->setValue(mMatchThresholds[mpAlgCombo->currentText().toStdString()]);
+   QString layerName = mLayerNameBase;
+   switch (matchAlg)
+   {
+   case SpectralLibraryMatch::SLMA_SAM:
+      layerName += "SAM";
+      break;
+
+   case SpectralLibraryMatch::SLMA_WBI:
+      layerName += "WBI";
+      break;
+
+   default:
+      layerName += "Unknown Algorithm";
+      break;
+   }
+   mpOutputLayerName->setText(layerName);
+   mpThreshold->setEnabled(mpLimitByThreshold->isChecked());
+
+   // connections
+   VERIFYNR(connect(mpAlgCombo, SIGNAL(currentIndexChanged(const QString&)),
+      this, SLOT(algorithmChanged(const QString&))));
+   VERIFYNR(connect(mpThreshold, SIGNAL(valueChanged(double)),
+      this, SLOT(thresholdChanged(double))));
 
    // connect edit lib button to library manager
    std::vector<PlugIn*> plugIns = Service<PlugInManagerServices>()->getPlugInInstances(
@@ -242,17 +292,56 @@ void MatchIdDlg::accept()
    // save to options
    if (mpSaveSettings->isChecked())
    {
-      SpectralLibraryMatchOptions::setSettingMatchAlgorithm(
-         StringUtilities::toXmlString(StringUtilities::fromDisplayString<SpectralLibraryMatch::MatchAlgorithm>(
-         mpAlgorithmCombo->currentText().toStdString())));
+      SpectralLibraryMatch::MatchAlgorithm matchAlg =
+         StringUtilities::fromDisplayString<SpectralLibraryMatch::MatchAlgorithm>(
+         mpAlgCombo->currentText().toStdString());
+      SpectralLibraryMatchOptions::setSettingMatchAlgorithm(StringUtilities::toXmlString(matchAlg));
       SpectralLibraryMatchOptions::setSettingMatchEachPixel(mpMatchEachCheckBox->isChecked());
       SpectralLibraryMatchOptions::setSettingLimitByMaxNum(mpLimitByMaxNum->isChecked());
       SpectralLibraryMatchOptions::setSettingMaxDisplayed(mpMaxMatchesSpinBox->value());
       SpectralLibraryMatchOptions::setSettingLimitByThreshold(mpLimitByThreshold->isChecked());
-      SpectralLibraryMatchOptions::setSettingMatchThreshold(mpThresholdLimit->value());
+      switch (matchAlg)
+      {
+      case SpectralLibraryMatch::SLMA_SAM:
+         SpectralLibraryMatchOptions::setSettingMatchSamThreshold(mpThreshold->value());
+         break;
+
+      case SpectralLibraryMatch::SLMA_WBI:
+         SpectralLibraryMatchOptions::setSettingMatchWbiThreshold(mpThreshold->value());
+         break;
+
+      default:   // nothing to do
+         break;
+      }
    }
 
    QDialog::accept();
+}
+
+void MatchIdDlg::algorithmChanged(const QString& text)
+{
+   mpThreshold->setValue(mMatchThresholds[text.toStdString()]);
+   QString layerName = mLayerNameBase;
+   switch (StringUtilities::fromDisplayString<SpectralLibraryMatch::MatchAlgorithm>(text.toStdString()))
+   {
+   case SpectralLibraryMatch::SLMA_SAM:
+      layerName += "SAM";
+      break;
+
+   case SpectralLibraryMatch::SLMA_WBI:
+      layerName += "WBI";
+      break;
+
+   default:
+      layerName += "Unknown Algorithm";
+      break;
+   }
+   mpOutputLayerName->setText(layerName);
+}
+
+void MatchIdDlg::thresholdChanged(double value)
+{
+   mMatchThresholds[mpAlgCombo->currentText().toStdString()] = value;
 }
 
 AoiElement* MatchIdDlg::getAoi() const
@@ -284,16 +373,16 @@ bool MatchIdDlg::getLimitByThreshold() const
 
 double MatchIdDlg::getThresholdLimit() const
 {
-   return mpThresholdLimit->value();
+   return mpThreshold->value();
 }
 
-std::string MatchIdDlg::getLayerName() const
+std::string MatchIdDlg::getOutputLayerName() const
 {
-   return mpEditLayerName->text().toStdString() + " - " + mpAlgorithmCombo->currentText().toStdString();
+   return mpOutputLayerName->text().toStdString();
 }
 
 SpectralLibraryMatch::MatchAlgorithm MatchIdDlg::getMatchAlgorithm() const
 {
    return StringUtilities::fromDisplayString<SpectralLibraryMatch::MatchAlgorithm>(
-      mpAlgorithmCombo->currentText().toStdString());
+      mpAlgCombo->currentText().toStdString());
 }

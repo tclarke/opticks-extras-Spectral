@@ -12,8 +12,10 @@
 
 #include "SpectralLibraryMatch.h"
 
+#include <map>
 #include <string>
 
+#include <QtCore/QString>
 #include <QtGui/QDialog>
 
 class AoiElement;
@@ -39,19 +41,25 @@ public:
    int getMaxMatches() const;
    bool getLimitByThreshold() const;
    double getThresholdLimit() const;
-   std::string getLayerName() const;
+   std::string getOutputLayerName() const;
    SpectralLibraryMatch::MatchAlgorithm getMatchAlgorithm() const;
+
+protected slots:
+   void algorithmChanged(const QString& algName);
+   void thresholdChanged(double value);
 
 private:
    const RasterElement* mpRaster;
+   std::map<std::string, float> mMatchThresholds;
+   QString mLayerNameBase;
    QComboBox* mpAoiCombo;
    QCheckBox* mpMatchEachCheckBox;
    QCheckBox* mpLimitByMaxNum;
    QSpinBox* mpMaxMatchesSpinBox;
    QCheckBox* mpLimitByThreshold;
-   QDoubleSpinBox* mpThresholdLimit;
-   QLineEdit* mpEditLayerName;
-   QComboBox* mpAlgorithmCombo;
+   QDoubleSpinBox* mpThreshold;
+   QLineEdit* mpOutputLayerName;
+   QComboBox* mpAlgCombo;
    QCheckBox* mpSaveSettings;
 };
 

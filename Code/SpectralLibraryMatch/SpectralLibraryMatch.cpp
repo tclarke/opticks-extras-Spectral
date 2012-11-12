@@ -37,12 +37,14 @@ namespace StringUtilities
 {
    BEGIN_ENUM_MAPPING_ALIAS(SpectralLibraryMatch::MatchAlgorithm, Match_Algorithm)
       ADD_ENUM_MAPPING(SpectralLibraryMatch::SLMA_SAM, "Spectral Angle", "spectral_angle")
+      ADD_ENUM_MAPPING(SpectralLibraryMatch::SLMA_WBI, "Wang-Bovik Index", "wang_bovik_index")
    END_ENUM_MAPPING()
 
    BEGIN_ENUM_MAPPING_ALIAS(SpectralLibraryMatch::LocateAlgorithm, Locate_Algorithm)
       ADD_ENUM_MAPPING(SpectralLibraryMatch::SLLA_SAM, "Spectral Angle", "spectral_angle")
       ADD_ENUM_MAPPING(SpectralLibraryMatch::SLLA_CEM, "Constrained Energy Minimization",
          "constrained_energy_minimization")
+      ADD_ENUM_MAPPING(SpectralLibraryMatch::SLLA_WBI, "Wang-Bovik Index", "wang_bovik_index")
    END_ENUM_MAPPING()
 }
 
@@ -52,8 +54,28 @@ namespace SpectralLibraryMatch
       mLimitByNum(SpectralLibraryMatchOptions::getSettingLimitByMaxNum()),
       mMaxNum(SpectralLibraryMatchOptions::getSettingMaxDisplayed()),
       mLimitByThreshold(SpectralLibraryMatchOptions::getSettingLimitByThreshold()),
-      mThresholdLimit(SpectralLibraryMatchOptions::getSettingMatchThreshold())
-   {}
+      mThresholdType(LOWER)
+   {
+      SpectralLibraryMatch::MatchAlgorithm algorithm =
+         StringUtilities::fromXmlString<SpectralLibraryMatch::MatchAlgorithm>(
+         SpectralLibraryMatchOptions::getSettingMatchAlgorithm());
+      switch (algorithm)
+      {
+      case SpectralLibraryMatch::SLMA_SAM:
+         mThresholdLimit = SpectralLibraryMatchOptions::getSettingMatchSamThreshold();
+         mThresholdType = LOWER;
+         break;
+
+      case SpectralLibraryMatch::SLMA_WBI:
+         mThresholdLimit = SpectralLibraryMatchOptions::getSettingMatchWbiThreshold();
+         mThresholdType = UPPER;
+         break;
+
+      default:
+         mThresholdLimit = 0.0;
+         break;
+      }
+   }
 
    MatchLimits::~MatchLimits()
    {}
@@ -92,6 +114,30 @@ namespace SpectralLibraryMatch
    {
       return mThresholdLimit;
    }
+   PassArea MatchLimits::getThresholdType() const
+   {
+      return mThresholdType;
+   }
+
+   bool MatchLimits::passesThreshold(const double value) const
+   {
+      if (mThresholdType.isValid())
+      {
+         switch (mThresholdType)
+         {
+         case LOWER:
+            return value <= mThresholdLimit;
+
+         case UPPER:
+            return value >= mThresholdLimit;
+
+         default:
+            // only UPPER and LOWER are currently used for match algorithms
+            break;
+         }
+      }
+      return false;
+   }
 
    void MatchLimits::setThresholdLimit(double threshold)
    {
@@ -126,8 +172,43 @@ namespace SpectralLibraryMatch
       return samValue;
    }
 
+   double getWangBovikIndex(const std::vector<double>& targetSig, const std::vector<double>& libSig)
+   {
+      VERIFYRV(targetSig.size() == libSig.size(), -1.0);
+      const double wangBovikConst(4.0);  // from Wang, Bovik, "A Universal Image Quality Index",
+                                         // IEEE Signal Processing Letters, Vol 9, No. 3, March 2002
+      unsigned int numBands = static_cast<unsigned int>(targetSig.size());
+      double targetMean =
+         std::accumulate(targetSig.begin(), targetSig.end(), 0.0) / static_cast<double>(numBands);
+      double libMean =
+         std::accumulate(libSig.begin(), libSig.end(), 0.0) / static_cast<double>(numBands);
+      double targetLibCovar(0.0);
+      double targetVariance(0.0);
+      double libVariance(0.0);
+      for (unsigned int band = 0; band < numBands; ++band)
+      {
+         double normTarget = targetSig[band] - targetMean;
+         double normLib = libSig[band] - libMean;
+         targetLibCovar += normTarget * normLib;
+         targetVariance += normTarget * normTarget;
+         libVariance += normLib * normLib;
+      }
+      targetLibCovar /= static_cast<double>(numBands - 1.0);
+      targetVariance /= static_cast<double>(numBands - 1.0);
+      libVariance /= static_cast<double>(numBands - 1.0);
+      double numerator = wangBovikConst * targetLibCovar * targetMean * libMean;
+      double denominator = (targetMean * targetMean + libMean * libMean) * (targetVariance + libVariance);
+      double wbiValue(-99.0);  // initialize to bad value
+      if (abs(denominator) > std::numeric_limits<double>::epsilon())
+      {
+         wbiValue = numerator / denominator;
+      }
+      return wbiValue;
+   }
+
 #if defined SOLARIS  // declare older non-ttb functions since tbb not supported under Solaris
-   bool computeSpectralAngle(const std::vector<double>& targetValues, const RasterElement* pLib, RasterElement* pResults)
+   bool computeSpectralAngle(const std::vector<double>& targetValues, const RasterElement* pLib,
+      RasterElement* pResults)
    {
       VERIFY(pLib != NULL && targetValues.empty() == false && pResults != NULL);
       const RasterDataDescriptor* pLibDesc = dynamic_cast<const RasterDataDescriptor*>(pLib->getDataDescriptor());
@@ -151,6 +232,39 @@ namespace SpectralLibraryMatch
          double samValue = getSpectralAngle(targetValues, libValues);
          pData = reinterpret_cast<double*>(resultsAcc->getColumn());
          *pData = samValue;
+         libAcc->nextColumn();
+         libAcc->nextRow();
+         resultsAcc->nextColumn();
+         resultsAcc->nextRow();
+      }
+
+      return true;
+   }
+   bool computeWangBovikIndex(const std::vector<double>& targetValues, const RasterElement* pLib,
+      RasterElement* pResults)
+   {
+      VERIFY(pLib != NULL && targetValues.empty() == false && pResults != NULL);
+      const RasterDataDescriptor* pLibDesc = dynamic_cast<const RasterDataDescriptor*>(pLib->getDataDescriptor());
+      const RasterDataDescriptor* pResultsDesc =
+         dynamic_cast<const RasterDataDescriptor*>(pResults->getDataDescriptor());
+      VERIFY(pLibDesc != NULL && pResultsDesc != NULL && pLibDesc->getRowCount() == pResultsDesc->getRowCount());
+      FactoryResource<DataRequest> libRqt;
+      libRqt->setInterleaveFormat(BIP);
+      DataAccessor libAcc = pLib->getDataAccessor(libRqt.release());
+      FactoryResource<DataRequest> resultsRqt;
+      resultsRqt->setWritable(true);
+      DataAccessor resultsAcc = pResults->getDataAccessor(resultsRqt.release());
+      unsigned int numRows = pLibDesc->getRowCount();
+      unsigned int numBands = pLibDesc->getBandCount();
+      std::vector<double> libValues(numBands);
+      double* pData(NULL);
+      for (unsigned int row = 0; row < numRows; ++row)
+      {
+         VERIFY(libAcc.isValid() && resultsAcc.isValid());
+         memcpy(&libValues[0], libAcc->getColumn(), numBands * sizeof(double));
+         double wbiValue = getWangBovikIndex(targetValues, libValues);
+         pData = reinterpret_cast<double*>(resultsAcc->getColumn());
+         *pData = wbiValue;
          libAcc->nextColumn();
          libAcc->nextRow();
          resultsAcc->nextColumn();
@@ -185,6 +299,11 @@ namespace SpectralLibraryMatch
       case SLMA_SAM:
          computeFunc = getSpectralAngle;
          break;
+
+     case SLMA_WBI:
+        computeFunc = getWangBovikIndex;
+        break;
+
       default:
          return;
       }
@@ -242,6 +361,10 @@ namespace SpectralLibraryMatch
       {
       case SLMA_SAM:
          sortOrder = ASO_ASCENDING;
+         break;
+
+      case SLMA_WBI:
+         sortOrder = ASO_DESCENDING;
          break;
 
       default:     // return invalid enum
@@ -336,18 +459,21 @@ namespace SpectralLibraryMatch
    {
       if (limits.getLimitByNum())
       {
-         unsigned int maxToDisplay = std::min(limits.getMaxNum(), static_cast<unsigned int>(theResults.mResults.size()));
+         unsigned int maxToDisplay =
+            std::min(limits.getMaxNum(), static_cast<unsigned int>(theResults.mResults.size()));
          theResults.mResults.erase(theResults.mResults.begin() + maxToDisplay,
             theResults.mResults.end());
       }
       if (limits.getLimitByThreshold())
       {
+         VERIFYNRV_MSG(limits.getThresholdType().isValid(),
+            "Invalid threshold type, results will not be limited by threshold");
          std::vector<std::pair<Signature*, float> >::iterator it = theResults.mResults.begin();
          for (; it != theResults.mResults.end(); ++it)
          {
-            if (it->second > limits.getThresholdLimit())
+            if (limits.passesThreshold(static_cast<double>(it->second)) == false)
             {
-               break;
+               break;  // results are in sorted order so when first value to fail is found, erase rest
             }
          }
          theResults.mResults.erase(it, theResults.mResults.end());
@@ -370,6 +496,8 @@ namespace SpectralLibraryMatch
       case SLMA_SAM:
          computeFunc = computeSpectralAngle;
          break;
+      case SLMA_WBI:
+         computeFunc = computeWangBovikIndex;
       default:
          return false;
       }

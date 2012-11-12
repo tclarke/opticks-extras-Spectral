@@ -37,11 +37,13 @@ public:
    SETTING(LimitByMaxNum, SpectralLibraryMatch, bool, true);
    SETTING(MaxDisplayed, SpectralLibraryMatch, unsigned int, 5);
    SETTING(LimitByThreshold, SpectralLibraryMatch, bool, true);
-   SETTING(MatchThreshold, SpectralLibraryMatch, float, 5.0f);
+   SETTING(MatchSamThreshold, SpectralLibraryMatch, float, 5.0f);
+   SETTING(MatchWbiThreshold, SpectralLibraryMatch, float, 0.5f);
    SETTING(LocateAlgorithm, SpectralLibraryMatch, std::string, 
       StringUtilities::toXmlString<SpectralLibraryMatch::LocateAlgorithm>(SpectralLibraryMatch::SLLA_SAM));
    SETTING(LocateSamThreshold, SpectralLibraryMatch, float, 5.0f);
    SETTING(LocateCemThreshold, SpectralLibraryMatch, float, 0.5f);
+   SETTING(LocateWbiThreshold, SpectralLibraryMatch, float, 0.5f);
    SETTING(DisplayLocateOptions, SpectralLibraryMatch, bool, false);
    SETTING(Autoclear, SpectralLibraryMatch, bool, false);
 
@@ -101,6 +103,8 @@ public:
    }
 
 protected slots:
+   void matchAlgorithmChanged(const QString& text);
+   void matchThresholdChanged(double value);
    void locateAlgorithmChanged(const QString& text);
    void locateThresholdChanged(double value);
 
@@ -115,6 +119,7 @@ private:
    QComboBox* mpLocateAlgCombo;
    QDoubleSpinBox* mpLocateThreshold;
    QCheckBox* mpDisplayLocateOptions;
+   std::map<std::string, float> mMatchThresholds;
    std::map<std::string, float> mLocateThresholds;
 };
 

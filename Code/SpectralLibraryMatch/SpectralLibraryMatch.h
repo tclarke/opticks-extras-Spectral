@@ -13,6 +13,7 @@
 #include "AppConfig.h"
 #include "EnumWrapper.h"
 #include "StringUtilities.h"
+#include "TypesFile.h"
 
 // The Intel Threading Building Blocks Library (tbb) is not supported on the Solaris Sparc platform
 #ifndef SOLARIS
@@ -30,14 +31,16 @@ namespace SpectralLibraryMatch
 {
    enum MatchAlgorithmEnum
    {
-      SLMA_SAM
+      SLMA_SAM,
+      SLMA_WBI
    };
    typedef EnumWrapper<MatchAlgorithmEnum> MatchAlgorithm;
 
    enum LocateAlgorithmEnum
    {
       SLLA_SAM,
-      SLLA_CEM
+      SLLA_CEM,
+      SLLA_WBI
    };
    typedef EnumWrapper<LocateAlgorithmEnum> LocateAlgorithm;
 
@@ -89,12 +92,15 @@ namespace SpectralLibraryMatch
       void setLimitByThreshold(bool limit);
       double getThresholdLimit() const;
       void setThresholdLimit(double threshold);
+      PassArea getThresholdType() const;
+      bool passesThreshold(const double value) const;
 
    private:
       bool mLimitByNum;
       unsigned int mMaxNum;
       bool mLimitByThreshold;
       double mThresholdLimit;
+      PassArea mThresholdType;
    };
 
 #ifndef SOLARIS

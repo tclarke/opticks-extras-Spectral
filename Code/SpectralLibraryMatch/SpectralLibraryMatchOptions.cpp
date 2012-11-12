@@ -98,14 +98,43 @@ SpectralLibraryMatchOptions::SpectralLibraryMatchOptions()
    }
 
    // connections
+   VERIFYNR(connect(mpMatchAlgCombo, SIGNAL(currentIndexChanged(const QString&)),
+      this, SLOT(matchAlgorithmChanged(const QString&))));
    VERIFYNR(connect(mpLocateAlgCombo, SIGNAL(currentIndexChanged(const QString&)),
       this, SLOT(locateAlgorithmChanged(const QString&))));
    VERIFYNR(connect(mpLimitByMaxNum, SIGNAL(toggled(bool)),
       mpMaxDisplayed, SLOT(setEnabled(bool))));
    VERIFYNR(connect(mpLimitByThreshold, SIGNAL(toggled(bool)),
       mpMatchThreshold, SLOT(setEnabled(bool))));
+   VERIFYNR(connect(mpMatchThreshold, SIGNAL(valueChanged(double)),
+      this, SLOT(matchThresholdChanged(double))));
    VERIFYNR(connect(mpLocateThreshold, SIGNAL(valueChanged(double)),
       this, SLOT(locateThresholdChanged(double))));
+
+   // set up match algorithm threshold map
+   std::vector<std::string> matchAlgorithmNames =
+      StringUtilities::getAllEnumValuesAsDisplayString<SpectralLibraryMatch::MatchAlgorithm>();
+   for (std::vector<std::string>::iterator it = matchAlgorithmNames.begin();
+      it != matchAlgorithmNames.end(); ++it)
+   {
+      float threshold(0.0f);
+      switch (StringUtilities::fromDisplayString<SpectralLibraryMatch::MatchAlgorithm>(*it))
+      {
+      case SpectralLibraryMatch::SLMA_SAM:
+         threshold = SpectralLibraryMatchOptions::getSettingMatchSamThreshold();
+         break;
+
+      case SpectralLibraryMatch::SLMA_WBI:
+         threshold = SpectralLibraryMatchOptions::getSettingMatchWbiThreshold();
+         break;
+
+      default:
+         threshold = 0.0f;
+         break;
+      }
+
+      mMatchThresholds.insert(std::pair<std::string, float>(*it, threshold));
+   }
 
    // set up locate algorithm threshold map
    std::vector<std::string> locateAlgorithmNames =
@@ -122,6 +151,10 @@ SpectralLibraryMatchOptions::SpectralLibraryMatchOptions()
 
       case SpectralLibraryMatch::SLLA_SAM:
          threshold = SpectralLibraryMatchOptions::getSettingLocateSamThreshold();
+         break;
+
+      case SpectralLibraryMatch::SLLA_WBI:
+         threshold = SpectralLibraryMatchOptions::getSettingLocateWbiThreshold();
          break;
 
       default:
@@ -145,7 +178,20 @@ SpectralLibraryMatchOptions::SpectralLibraryMatchOptions()
    mpMaxDisplayed->setEnabled(limit);
    limit = SpectralLibraryMatchOptions::getSettingLimitByThreshold();
    mpLimitByThreshold->setChecked(limit);
-   mpMatchThreshold->setValue(SpectralLibraryMatchOptions::getSettingMatchThreshold());
+   switch (matType)
+   {
+   case SpectralLibraryMatch::SLMA_SAM:
+      mpMatchThreshold->setValue(SpectralLibraryMatchOptions::getSettingMatchSamThreshold());
+      break;
+
+   case SpectralLibraryMatch::SLMA_WBI:
+      mpMatchThreshold->setValue(SpectralLibraryMatchOptions::getSettingMatchWbiThreshold());
+      break;
+
+   default:
+      mpMatchThreshold->setValue(0.0);
+      break;
+   }
    mpMatchThreshold->setEnabled(limit);
    bool autoClear = SpectralLibraryMatchOptions::getSettingAutoclear();
    mpAutoclear->setChecked(autoClear);
@@ -167,11 +213,23 @@ void SpectralLibraryMatchOptions::applyChanges()
    SpectralLibraryMatchOptions::setSettingLimitByMaxNum(mpLimitByMaxNum->isChecked());
    SpectralLibraryMatchOptions::setSettingMaxDisplayed(mpMaxDisplayed->value());
    SpectralLibraryMatchOptions::setSettingLimitByThreshold(mpLimitByThreshold->isChecked());
-   SpectralLibraryMatchOptions::setSettingMatchThreshold(mpMatchThreshold->value());
    SpectralLibraryMatchOptions::setSettingAutoclear(mpAutoclear->isChecked());
    SpectralLibraryMatch::MatchAlgorithm matType =
       StringUtilities::fromDisplayString<SpectralLibraryMatch::MatchAlgorithm>(
       mpMatchAlgCombo->currentText().toStdString());
+   switch (matType)
+   {
+   case SpectralLibraryMatch::SLMA_SAM:
+      SpectralLibraryMatchOptions::setSettingMatchSamThreshold(mpMatchThreshold->value());
+      break;
+
+   case SpectralLibraryMatch::SLMA_WBI:
+      SpectralLibraryMatchOptions::setSettingMatchWbiThreshold(mpMatchThreshold->value());
+      break;
+
+   default:  // don't change
+      break;
+   }
    SpectralLibraryMatchOptions::setSettingMatchAlgorithm(
       StringUtilities::toXmlString<SpectralLibraryMatch::MatchAlgorithm>(matType));
    SpectralLibraryMatch::LocateAlgorithm locType =
@@ -193,12 +251,26 @@ void SpectralLibraryMatchOptions::applyChanges()
          SpectralLibraryMatchOptions::setSettingLocateSamThreshold(threshold);
          break;
 
+      case SpectralLibraryMatch::SLLA_WBI:
+         SpectralLibraryMatchOptions::setSettingLocateWbiThreshold(threshold);
+         break;
+
       default:
          // no setting for any other value
          break;
       }
    }
    SpectralLibraryMatchOptions::setSettingDisplayLocateOptions(mpDisplayLocateOptions->isChecked());
+}
+
+void SpectralLibraryMatchOptions::matchAlgorithmChanged(const QString& text)
+{
+   mpMatchThreshold->setValue(mMatchThresholds[text.toStdString()]);
+}
+
+void SpectralLibraryMatchOptions::matchThresholdChanged(double value)
+{
+   mMatchThresholds[mpMatchAlgCombo->currentText().toStdString()] = value;
 }
 
 void SpectralLibraryMatchOptions::locateAlgorithmChanged(const QString& text)

@@ -495,12 +495,12 @@ void SpectralLibraryMatchResults::locateSignaturesInScene()
    }
 
    // get default algorithm
-   SpectralLibraryMatch::LocateAlgorithm locAlg = StringUtilities::fromXmlString<SpectralLibraryMatch::LocateAlgorithm>(
-      SpectralLibraryMatchOptions::getSettingLocateAlgorithm());
+   SpectralLibraryMatch::LocateAlgorithm locateAlg = StringUtilities::fromXmlString<
+      SpectralLibraryMatch::LocateAlgorithm>(SpectralLibraryMatchOptions::getSettingLocateAlgorithm());
 
    // get default threshold
    double threshold(0.0); 
-   switch (locAlg)
+   switch (locateAlg)
    {
    case SpectralLibraryMatch::SLLA_CEM:
       threshold = SpectralLibraryMatchOptions::getSettingLocateCemThreshold();
@@ -508,6 +508,10 @@ void SpectralLibraryMatchResults::locateSignaturesInScene()
 
    case SpectralLibraryMatch::SLLA_SAM:
       threshold = SpectralLibraryMatchOptions::getSettingLocateSamThreshold();
+      break;
+
+   case SpectralLibraryMatch::SLLA_WBI:
+      threshold = SpectralLibraryMatchOptions::getSettingLocateWbiThreshold();
       break;
 
    default:
@@ -523,14 +527,14 @@ void SpectralLibraryMatchResults::locateSignaturesInScene()
       {
          return;
       }
-      locAlg = dlg.getLocateAlgorithm();
+      locateAlg = dlg.getLocateAlgorithm();
       threshold = dlg.getThreshold();
       layerName = dlg.getOutputLayerName();
       pAoi = dlg.getAoi(); 
    }
 
    std::string plugInName;
-   switch (locAlg)
+   switch (locateAlg)
    {
    case SpectralLibraryMatch::SLLA_CEM:
       plugInName = "CEM";
@@ -540,12 +544,34 @@ void SpectralLibraryMatchResults::locateSignaturesInScene()
       plugInName = "SAM";
       break;
 
+   case SpectralLibraryMatch::SLLA_WBI:
+      plugInName = "Wang-Bovik Index";
+      break;
+
    default:
       VERIFYNRV_MSG(false, "Unknown value for Spectral Library Match locate algorithm");
    }
+
    if (layerName.empty())
    {
-      layerName = "Spectral Library Match Locate Results - " + plugInName;
+      layerName = "Spectral Library Match Locate Results - ";
+      switch (locateAlg)
+      {
+      case SpectralLibraryMatch::SLLA_CEM:
+         layerName += "CEM";
+         break;
+
+      case SpectralLibraryMatch::SLLA_SAM:
+         layerName += "SAM";
+         break;
+
+      case SpectralLibraryMatch::SLLA_WBI:
+         layerName += "WBI";
+         break;
+
+      default:
+         VERIFYNRV_MSG(false, "Unknown value for Spectral Library Match locate algorithm");
+      }
    }
 
    ExecutableResource pLocate(plugInName);

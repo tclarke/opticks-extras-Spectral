@@ -19,7 +19,6 @@
 #include "TypeConverter.h"
 #include "Window.h"
 
-#include <QtCore/QString>
 #include <QtCore/QStringList>
 #include <QtGui/QCheckBox>
 #include <QtGui/QComboBox>
@@ -109,6 +108,10 @@ LocateDialog::LocateDialog(const RasterElement* pRaster, QWidget* pParent) :
          threshold = SpectralLibraryMatchOptions::getSettingLocateSamThreshold();
          break;
 
+      case SpectralLibraryMatch::SLLA_WBI:
+         threshold = SpectralLibraryMatchOptions::getSettingLocateWbiThreshold();
+         break;
+
       default:
          threshold = 0.0f;
          break;
@@ -172,7 +175,6 @@ LocateDialog::LocateDialog(const RasterElement* pRaster, QWidget* pParent) :
       mpUseAoi->setEnabled(false);
    }
 
-
    // Initialize From Settings
    SpectralLibraryMatch::LocateAlgorithm locType =
       StringUtilities::fromXmlString<SpectralLibraryMatch::LocateAlgorithm>(
@@ -180,7 +182,7 @@ LocateDialog::LocateDialog(const RasterElement* pRaster, QWidget* pParent) :
    mpAlgCombo->setCurrentIndex(mpAlgCombo->findText(QString::fromStdString(
       StringUtilities::toDisplayString<SpectralLibraryMatch::LocateAlgorithm>(locType))));
    mpThreshold->setValue(mLocateThresholds[mpAlgCombo->currentText().toStdString()]);
-   std::string layerName = mLayerNameBase;
+   QString layerName = mLayerNameBase;
    switch (locType)
    {
    case SpectralLibraryMatch::SLLA_CEM:
@@ -191,11 +193,15 @@ LocateDialog::LocateDialog(const RasterElement* pRaster, QWidget* pParent) :
       layerName += "SAM";
       break;
 
+   case SpectralLibraryMatch::SLLA_WBI:
+      layerName += "WBI";
+      break;
+
    default:
       layerName += "Unknown Algorithm";
       break;
    }
-   mpOutputLayerName->setText(QString::fromStdString(layerName));
+   mpOutputLayerName->setText(layerName);
 
    // connections
    VERIFYNR(connect(pButtons, SIGNAL(accepted()), this, SLOT(accept())));
@@ -214,29 +220,27 @@ void LocateDialog::accept()
 {
    if (mpSaveSettings->isChecked())
    {
-      SpectralLibraryMatch::LocateAlgorithm locType =
+      SpectralLibraryMatch::LocateAlgorithm locateAlg =
          StringUtilities::fromDisplayString<SpectralLibraryMatch::LocateAlgorithm>(
          mpAlgCombo->currentText().toStdString());
       SpectralLibraryMatchOptions::setSettingLocateAlgorithm(
-         StringUtilities::toXmlString<SpectralLibraryMatch::LocateAlgorithm>(locType));
-      for (std::map<std::string, float>::iterator it = mLocateThresholds.begin();
-         it != mLocateThresholds.end(); ++it)
+         StringUtilities::toXmlString<SpectralLibraryMatch::LocateAlgorithm>(locateAlg));
+      switch (locateAlg)
       {
-         float threshold = it->second;
-         switch (StringUtilities::fromDisplayString<SpectralLibraryMatch::LocateAlgorithm>(it->first))
-         {
-         case SpectralLibraryMatch::SLLA_CEM:
-            SpectralLibraryMatchOptions::setSettingLocateCemThreshold(threshold);
-            break;
+      case SpectralLibraryMatch::SLLA_CEM:
+         SpectralLibraryMatchOptions::setSettingLocateCemThreshold(mpThreshold->value());
+         break;
 
-         case SpectralLibraryMatch::SLLA_SAM:
-            SpectralLibraryMatchOptions::setSettingLocateSamThreshold(threshold);
-            break;
+      case SpectralLibraryMatch::SLLA_SAM:
+         SpectralLibraryMatchOptions::setSettingLocateSamThreshold(mpThreshold->value());
+         break;
 
-         default:
-            // no setting for any other value
-            break;
-         }
+      case SpectralLibraryMatch::SLLA_WBI:
+         SpectralLibraryMatchOptions::setSettingLocateWbiThreshold(mpThreshold->value());
+         break;
+
+      default:   // nothing to do
+         break;
       }
    }
 
@@ -246,7 +250,7 @@ void LocateDialog::accept()
 void LocateDialog::algorithmChanged(const QString& text)
 {
    mpThreshold->setValue(mLocateThresholds[text.toStdString()]);
-   std::string layerName = mLayerNameBase;
+   QString layerName = mLayerNameBase;
    switch (StringUtilities::fromDisplayString<SpectralLibraryMatch::LocateAlgorithm>(text.toStdString()))
    {
    case SpectralLibraryMatch::SLLA_CEM:
@@ -257,11 +261,15 @@ void LocateDialog::algorithmChanged(const QString& text)
       layerName += "SAM";
       break;
 
+   case SpectralLibraryMatch::SLLA_WBI:
+      layerName += "WBI";
+      break;
+
    default:
       layerName += "Unknown Algorithm";
       break;
    }
-   mpOutputLayerName->setText(QString::fromStdString(layerName));
+   mpOutputLayerName->setText(layerName);
 }
 
 void LocateDialog::thresholdChanged(double value)

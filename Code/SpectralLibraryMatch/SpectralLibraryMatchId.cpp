@@ -225,7 +225,7 @@ bool SpectralLibraryMatchId::execute(PlugInArgList* pInArgList, PlugInArgList* p
       limits.setMaxNum(dlg.getMaxMatches());
       limits.setLimitByThreshold(dlg.getLimitByThreshold());
       limits.setThresholdLimit(dlg.getThresholdLimit());
-      resultsLayerName = dlg.getLayerName();
+      resultsLayerName = dlg.getOutputLayerName();
       matchEachPixel = dlg.getMatchEachPixel();
    }
    else
@@ -256,7 +256,20 @@ bool SpectralLibraryMatchId::execute(PlugInArgList* pInArgList, PlugInArgList* p
       bool limitByNum(SpectralLibraryMatchOptions::getSettingLimitByMaxNum());
       unsigned int maxMatches(SpectralLibraryMatchOptions::getSettingMaxDisplayed());
       bool limitByThreshold(SpectralLibraryMatchOptions::getSettingLimitByThreshold());
-      double threshold(SpectralLibraryMatchOptions::getSettingMatchThreshold());
+      double threshold(0.0);
+      switch (theResults.mAlgorithmUsed)
+      {
+      case SpectralLibraryMatch::SLMA_SAM:
+         threshold = SpectralLibraryMatchOptions::getSettingMatchSamThreshold();
+         break;
+
+      case SpectralLibraryMatch::SLMA_WBI:
+         threshold = SpectralLibraryMatchOptions::getSettingMatchWbiThreshold();
+         break;
+
+      default:   // leave default value
+         break;
+      }
       VERIFY(pInArgList->getPlugInArgValue("Limit max number of matches", limitByNum));
       VERIFY(pInArgList->getPlugInArgValue("Max number of matches", maxMatches));
       VERIFY(pInArgList->getPlugInArgValue("Limit matches by threshold", limitByThreshold));
