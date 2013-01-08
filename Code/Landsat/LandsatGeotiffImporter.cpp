@@ -62,7 +62,9 @@ LandsatGeotiffImporter::LandsatGeotiffImporter()
 LandsatGeotiffImporter::~LandsatGeotiffImporter()
 {}
 
-bool LandsatGeotiffImporter::validate(const DataDescriptor* pDescriptor, std::string& errorMessage) const
+bool LandsatGeotiffImporter::validate(const DataDescriptor* pDescriptor,
+                                      const std::vector<const DataDescriptor*>& importedDescriptors,
+                                      std::string& errorMessage) const
 {
    errorMessage = "";
    if (!mErrors.empty())
@@ -74,7 +76,7 @@ bool LandsatGeotiffImporter::validate(const DataDescriptor* pDescriptor, std::st
       return false;
    }
    std::string baseErrorMessage;
-   bool bValidate = RasterElementImporterShell::validate(pDescriptor, baseErrorMessage);
+   bool bValidate = RasterElementImporterShell::validate(pDescriptor, importedDescriptors, baseErrorMessage);
    if (!mWarnings.empty())
    {
       if (!baseErrorMessage.empty())

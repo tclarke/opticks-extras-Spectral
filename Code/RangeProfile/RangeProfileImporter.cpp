@@ -252,9 +252,11 @@ bool RangeProfileImporter::execute(PlugInArgList* pInArgList, PlugInArgList* pOu
    return true;
 }
 
-bool RangeProfileImporter::validate(const DataDescriptor* pDescriptor, std::string& errorMessage) const
+bool RangeProfileImporter::validate(const DataDescriptor* pDescriptor,
+                                    const std::vector<const DataDescriptor*>& importedDescriptors,
+                                    std::string& errorMessage) const
 {
-   if (ImporterShell::validate(pDescriptor, errorMessage) == false)
+   if (ImporterShell::validate(pDescriptor, importedDescriptors, errorMessage) == false)
    {
       return false;
    }

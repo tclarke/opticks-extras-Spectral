@@ -24,13 +24,15 @@ class LandsatGeotiffImporter : public RasterElementImporterShell
 {
 public:
    LandsatGeotiffImporter();
-   ~LandsatGeotiffImporter();
+   virtual ~LandsatGeotiffImporter();
 
-   bool validate(const DataDescriptor* pDescriptor, std::string& errorMessage) const;
+   bool validate(const DataDescriptor* pDescriptor, const std::vector<const DataDescriptor*>& importedDescriptors,
+      std::string& errorMessage) const;
    unsigned char getFileAffinity(const std::string& filename);
    std::vector<ImportDescriptor*> getImportDescriptors(const std::string& filename);
    bool createRasterPager(RasterElement* pRaster) const;
    int getValidationTest(const DataDescriptor* pDescriptor) const;
+
 private:
    std::vector<ImportDescriptor*> createImportDescriptors(const std::string& filename,
       const DynamicObject* pMetadata,

@@ -53,7 +53,9 @@ DgImporter::DgImporter()
 DgImporter::~DgImporter()
 {}
 
-bool DgImporter::validate(const DataDescriptor* pDescriptor, std::string& errorMessage) const
+bool DgImporter::validate(const DataDescriptor* pDescriptor,
+                          const std::vector<const DataDescriptor*>& importedDescriptors,
+                          std::string& errorMessage) const
 {
    errorMessage = "";
    if (!mErrors.empty())
@@ -65,7 +67,7 @@ bool DgImporter::validate(const DataDescriptor* pDescriptor, std::string& errorM
       return false;
    }
    std::string baseErrorMessage;
-   bool bValidate = RasterElementImporterShell::validate(pDescriptor, baseErrorMessage);
+   bool bValidate = RasterElementImporterShell::validate(pDescriptor, importedDescriptors, baseErrorMessage);
    if (!mWarnings.empty())
    {
       if (!baseErrorMessage.empty())
